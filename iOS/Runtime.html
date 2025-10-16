@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Runtime 完整知识体系</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-title {
+            background: #21252b;
+            color: #61afef;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin: -20px -20px 15px -20px;
+            font-size: 0.9em;
+        }
+
+        .demo-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .demo-box h5 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .demo-result {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .diagram {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+            font-family: monospace;
+            line-height: 2;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .keyword {
+            color: #c678dd;
+            font-weight: bold;
+        }
+
+        .string {
+            color: #98c379;
+        }
+
+        .comment {
+            color: #5c6370;
+            font-style: italic;
+        }
+
+        .function {
+            color: #61afef;
+        }
+
+        footer {
+            background: #282c34;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+        }
+
+        .interactive-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+
+        .interactive-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+
+            main {
+                padding: 20px;
+            }
+
+            nav ul {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 iOS Runtime 完整知识体系</h1>
+            <p>从概念到原理，从实现到应用，全面掌握 Objective-C 和 Swift 的 Runtime 机制</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#concept">📚 概念</a></li>
+                <li><a href="#principle">⚙️ 原理</a></li>
+                <li><a href="#implementation">💻 实现</a></li>
+                <li><a href="#application">🎯 应用</a></li>
+                <li><a href="#swift">🦅 Swift</a></li>
+                <li><a href="#summary">📝 总结</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- 第一部分：概念 -->
+            <section id="concept">
+                <h2>📚 一、概念：什么是 Runtime？</h2>
+
+                <h3>1.1 定义</h3>
+                <p>Runtime（运行时）是 iOS/macOS 系统的底层 C/C++ 库（开源地址：<a href="https://opensource.apple.com/source/objc4/" target="_blank">objc4</a>），负责程序运行时的动态行为。</p>
+
+                <h3>1.2 核心特性</h3>
+                <ul>
+                    <li><strong>对于 Objective-C</strong>：它是「动态语言」的核心——类的创建、方法调用、消息传递都不是编译时固定的，而是运行时由 Runtime 决定的</li>
+                    <li><strong>对于 Swift</strong>：虽然 Swift 更强调静态类型安全，但仍依赖 Runtime 实现部分动态特性（如 <code>@objc</code> 修饰的方法、反射等）</li>
+                </ul>
+
+                <h3>1.3 为什么需要 Runtime？</h3>
+                <div class="info-box">
+                    <ul>
+                        <li><strong>动态性</strong>：运行时决定调用哪个方法，而非编译时</li>
+                        <li><strong>灵活性</strong>：可以在运行时动态添加、替换、交换方法</li>
+                        <li><strong>扩展性</strong>：可以为已有类添加属性和方法，无需修改源码</li>
+                        <li><strong>调试能力</strong>：可以在运行时检查对象类型、方法列表等信息</li>
+                    </ul>
+                </div>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Runtime 的动态性</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>// 编译时不知道具体调用哪个方法
+NSString *methodName = @"uppercaseString";
+SEL selector = NSSelectorFromString(methodName);
+
+NSString *str = @"hello";
+if ([str respondsToSelector:selector]) {
+    NSString *result = [str performSelector:selector];
+    NSLog(@"结果: %@", result);  // 输出: HELLO
+}</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+结果: HELLO
+
+💡 这段代码展示了 Runtime 的动态性：方法名是一个字符串变量，在运行时才转换为 SEL 并调用。</div>
+                </div>
+            </section>
+
+            <!-- 第二部分：原理 -->
+            <section id="principle">
+                <h2>⚙️ 二、原理：Runtime 底层机制</h2>
+
+                <h3>2.1 核心数据结构</h3>
+
+                <h4>2.1.1 对象结构（objc_object）</h4>
+                <div class="code-block">
+                    <div class="code-title">C</div>
+                    <pre><code>struct objc_object {
+    Class isa;  // 指向类对象的指针（现在使用 isa_t 联合体优化）
+};</code></pre>
+                </div>
+
+                <div class="info-box">
+                    <strong>isa 指针的作用：</strong>
+                    <ul>
+                        <li>实例对象的 <code>isa</code> 指向类对象（Class）</li>
+                        <li>类对象的 <code>isa</code> 指向元类对象（Meta-Class）</li>
+                        <li>元类对象的 <code>isa</code> 指向根元类（Root Meta-Class）</li>
+                    </ul>
+                </div>
+
+                <h4>2.1.2 类结构（objc_class）</h4>
+                <div class="code-block">
+                    <div class="code-title">C</div>
+                    <pre><code>struct objc_class : objc_object {
+    Class superclass;           // 父类指针
+    cache_t cache;             // 方法缓存（提高性能）
+    class_data_bits_t bits;    // 类的详细信息
+};
+
+struct class_ro_t {
+    const char * name;         // 类名
+    method_list_t * baseMethodList;  // 方法列表
+    protocol_list_t * baseProtocols; // 协议列表
+    const ivar_list_t * ivars;       // 成员变量列表
+    property_list_t *baseProperties; // 属性列表
+};</code></pre>
+                </div>
+
+                <h4>2.1.3 isa 和 superclass 指向关系</h4>
+                <div class="diagram">
+                    <pre>Instance (实例对象)
+  isa ──> Class (类对象)
+            isa ──> Meta-Class (元类)
+                      isa ──> Root Meta-Class
+                                isa ──> Root Meta-Class (指向自己)
+  
+Class
+  superclass ──> Superclass ──> ... ──> NSObject ──> nil
+  
+Meta-Class
+  superclass ──> Super Meta-Class ──> ... ──> Root Meta-Class
+                                                superclass ──> NSObject (类对象)</pre>
+                </div>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：探索 isa 指针</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>#import &lt;objc/runtime.h&gt;
+
+@interface Person : NSObject
+@end
+
+@implementation Person
+@end
+
+// 测试代码
+Person *person = [[Person alloc] init];
+
+// 获取实例对象的类
+Class personClass = object_getClass(person);
+NSLog(@"实例对象的类: %@", personClass);  // Person
+
+// 获取类对象的元类
+Class personMetaClass = object_getClass(personClass);
+NSLog(@"类对象的元类: %@", personMetaClass);  // Person (元类)
+
+// 判断是否是元类
+BOOL isMeta = class_isMetaClass(personMetaClass);
+NSLog(@"是否是元类: %d", isMeta);  // 1 (YES)</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+实例对象的类: Person
+类对象的元类: Person
+是否是元类: 1
+
+💡 这段代码展示了如何通过 Runtime API 探索 isa 指针链。</div>
+                </div>
+
+                <h3>2.2 消息传递机制（objc_msgSend）</h3>
+
+                <h4>2.2.1 消息发送流程</h4>
+                <p>当执行 <code>[receiver message]</code> 时，编译器会转换为：</p>
+                <div class="code-block">
+                    <div class="code-title">C</div>
+                    <pre><code>objc_msgSend(receiver, @selector(message))</code></pre>
+                </div>
+
+                <div class="highlight-box">
+                    <strong>消息发送步骤：</strong>
+                    <ol>
+                        <li><strong>快速查找</strong>：通过对象的 <code>isa</code> 指针找到类对象，在缓存（cache）中查找方法</li>
+                        <li><strong>慢速查找</strong>：如果缓存未命中，在类的方法列表（method_list）中查找</li>
+                        <li><strong>父类查找</strong>：如果当前类没有找到，沿着 <code>superclass</code> 链向上查找</li>
+                        <li><strong>动态解析</strong>：如果仍未找到，进入动态方法解析阶段</li>
+                        <li><strong>消息转发</strong>：如果动态解析也失败，进入消息转发流程</li>
+                        <li><strong>报错崩溃</strong>：如果消息转发也失败，抛出 <code>unrecognized selector</code> 异常</li>
+                    </ol>
+                </div>
+
+                <h3>2.3 消息转发机制</h3>
+
+                <div class="diagram">
+                    <pre>[obj message]
+    ↓
+objc_msgSend
+    ↓
+缓存查找 → 方法列表查找 → 父类查找
+    ↓ (未找到)
++ resolveInstanceMethod: (动态方法解析)
+    ↓ (返回 NO)
+- forwardingTargetForSelector: (快速转发)
+    ↓ (返回 nil)
+- methodSignatureForSelector: (获取方法签名)
+    ↓
+- forwardInvocation: (完整转发)
+    ↓ (未处理)
+doesNotRecognizeSelector: (抛出异常)</pre>
+                </div>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：消息转发的三次机会</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C - 动态方法解析</div>
+                        <pre><code>@interface DynamicClass : NSObject
+- (void)testMethod;  // 声明但不实现
+@end
+
+@implementation DynamicClass
+
+void dynamicMethodIMP(id self, SEL _cmd) {
+    NSLog(@"✅ 动态添加的方法被调用了！");
+}
+
++ (BOOL)resolveInstanceMethod:(SEL)sel {
+    if (sel == @selector(testMethod)) {
+        // 动态添加方法实现
+        class_addMethod([self class], sel, 
+                       (IMP)dynamicMethodIMP, 
+                       "v@:");
+        return YES;
+    }
+    return [super resolveInstanceMethod:sel];
+}
+
+@end
+
+// 测试代码
+DynamicClass *obj = [[DynamicClass alloc] init];
+[obj testMethod];  // 虽然没有实现，但通过动态解析成功调用</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+✅ 动态添加的方法被调用了！
+
+💡 这是消息转发的第一次机会：动态方法解析</div>
+                </div>
+            </section>
+
+            <!-- 第三部分：实现 -->
+            <section id="implementation">
+                <h2>💻 三、实现：Runtime 核心 API</h2>
+
+                <h3>3.1 获取类信息</h3>
+                <div class="demo-box">
+                    <h5>💡 实例演示：获取类的所有属性和方法</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>#import &lt;objc/runtime.h&gt;
+
+@interface Student : NSObject
+@property (nonatomic, copy) NSString *name;
+@property (nonatomic, assign) NSInteger age;
+- (void)study;
+@end
+
+@implementation Student
+- (void)study {
+    NSLog(@"%@ 正在学习", self.name);
+}
+@end
+
+// 获取所有属性
+- (void)printAllProperties {
+    unsigned int propertyCount;
+    objc_property_t *properties = class_copyPropertyList([Student class], &propertyCount);
+    
+    NSLog(@"===== %u 个属性 =====", propertyCount);
+    for (unsigned int i = 0; i < propertyCount; i++) {
+        objc_property_t property = properties[i];
+        NSLog(@"属性: %s", property_getName(property));
+    }
+    
+    free(properties);
+}
+
+// 获取所有方法
+- (void)printAllMethods {
+    unsigned int methodCount;
+    Method *methods = class_copyMethodList([Student class], &methodCount);
+    
+    NSLog(@"===== %u 个方法 =====", methodCount);
+    for (unsigned int i = 0; i < methodCount; i++) {
+        Method method = methods[i];
+        NSLog(@"方法: %@", NSStringFromSelector(method_getName(method)));
+    }
+    
+    free(methods);
+}</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+===== 2 个属性 =====
+属性: name
+属性: age
+===== 5 个方法 =====
+方法: name
+方法: setName:
+方法: age
+方法: setAge:
+方法: study</div>
+                </div>
+
+                <h3>3.2 Method Swizzling（方法交换）</h3>
+
+                <div class="warning-box">
+                    <strong>⚠️ 核心问题：为什么调用 [self swizzled_viewWillAppear:animated] 不会死循环？</strong>
+                </div>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Method Swizzling 原理</h5>
+                    
+                    <div class="info-box">
+                        <strong>交换前：</strong>
+                        <pre>viewWillAppear:          → 原始实现 A
+swizzled_viewWillAppear: → 自定义实现 B</pre>
+                        
+                        <strong>交换后：</strong>
+                        <pre>viewWillAppear:          → 自定义实现 B
+swizzled_viewWillAppear: → 原始实现 A</pre>
+                        
+                        <strong>执行流程：</strong>
+                        <ol>
+                            <li>系统调用 <code>viewWillAppear:</code> → 实际执行自定义实现 B</li>
+                            <li>在 B 中调用 <code>swizzled_viewWillAppear:</code> → 实际执行原始实现 A</li>
+                            <li>不会递归，因为方法实现已经互换</li>
+                        </ol>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>@implementation UIViewController (Tracking)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class class = [self class];
+        
+        SEL originalSelector = @selector(viewWillAppear:);
+        SEL swizzledSelector = @selector(swizzled_viewWillAppear:);
+        
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        
+        // 先尝试添加原方法，如果已存在则添加失败
+        BOOL didAddMethod = class_addMethod(class,
+                                           originalSelector,
+                                           method_getImplementation(swizzledMethod),
+                                           method_getTypeEncoding(swizzledMethod));
+        
+        if (didAddMethod) {
+            class_replaceMethod(class,
+                              swizzledSelector,
+                              method_getImplementation(originalMethod),
+                              method_getTypeEncoding(originalMethod));
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod);
+        }
+    });
+}
+
+- (void)swizzled_viewWillAppear:(BOOL)animated {
+    // 执行自定义逻辑
+    NSLog(@"📊 页面将要出现: %@", NSStringFromClass([self class]));
+    
+    // 调用原方法（因为方法已交换，这里实际调用的是原始的 viewWillAppear:）
+    [self swizzled_viewWillAppear:animated];
+}
+
+@end</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+📊 页面将要出现: MyViewController
+（然后正常执行原始的 viewWillAppear: 逻辑）
+
+💡 这个例子展示了如何使用 Method Swizzling 实现全局页面统计，不会死循环的原因是方法实现已经互换。</div>
+                </div>
+
+                <h3>3.3 关联对象（Associated Objects）</h3>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：为分类添加"属性"</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>#import &lt;objc/runtime.h&gt;
+
+@interface UIView (CustomTag)
+@property (nonatomic, strong) NSString *customTag;
+@end
+
+@implementation UIView (CustomTag)
+
+static const void *kCustomTagKey = &kCustomTagKey;
+
+- (void)setCustomTag:(NSString *)customTag {
+    objc_setAssociatedObject(self, 
+                            kCustomTagKey, 
+                            customTag, 
+                            OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (NSString *)customTag {
+    return objc_getAssociatedObject(self, kCustomTagKey);
+}
+
+@end
+
+// 测试代码
+UIView *view = [[UIView alloc] init];
+view.customTag = @"我的自定义标签";
+NSLog(@"标签: %@", view.customTag);  // 输出: 我的自定义标签</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+标签: 我的自定义标签
+
+💡 通过关联对象，我们成功为 UIView 的分类添加了一个"属性"！</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>关联策略</th>
+                            <th>对应属性修饰符</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>OBJC_ASSOCIATION_ASSIGN</td>
+                            <td>assign</td>
+                            <td>不推荐用于对象</td>
+                        </tr>
+                        <tr>
+                            <td>OBJC_ASSOCIATION_RETAIN_NONATOMIC</td>
+                            <td>strong, nonatomic</td>
+                            <td>最常用</td>
+                        </tr>
+                        <tr>
+                            <td>OBJC_ASSOCIATION_COPY_NONATOMIC</td>
+                            <td>copy, nonatomic</td>
+                            <td>用于 NSString 等</td>
+                        </tr>
+                        <tr>
+                            <td>OBJC_ASSOCIATION_RETAIN</td>
+                            <td>strong, atomic</td>
+                            <td>线程安全</td>
+                        </tr>
+                        <tr>
+                            <td>OBJC_ASSOCIATION_COPY</td>
+                            <td>copy, atomic</td>
+                            <td>线程安全</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 第四部分：应用 -->
+            <section id="application">
+                <h2>🎯 四、应用：Runtime 实战场景</h2>
+
+                <h3>4.1 字典转模型（JSON 解析）</h3>
+                <div class="demo-box">
+                    <h5>💡 实例演示：自动字典转模型</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>@implementation NSObject (Model)
+
++ (instancetype)modelWithDictionary:(NSDictionary *)dict {
+    id obj = [[self alloc] init];
+    
+    unsigned int propertyCount;
+    objc_property_t *properties = class_copyPropertyList([self class], &propertyCount);
+    
+    for (unsigned int i = 0; i < propertyCount; i++) {
+        objc_property_t property = properties[i];
+        NSString *propertyName = @(property_getName(property));
+        
+        id value = dict[propertyName];
+        if (value) {
+            [obj setValue:value forKey:propertyName];
+        }
+    }
+    
+    free(properties);
+    return obj;
+}
+
+@end
+
+// 使用示例
+@interface User : NSObject
+@property (nonatomic, copy) NSString *name;
+@property (nonatomic, assign) NSInteger age;
+@property (nonatomic, copy) NSString *email;
+@end
+
+@implementation User
+@end
+
+// 测试代码
+NSDictionary *dict = @{
+    @"name": @"张三",
+    @"age": @25,
+    @"email": @"zhangsan@example.com"
+};
+
+User *user = [User modelWithDictionary:dict];
+NSLog(@"姓名: %@, 年龄: %ld, 邮箱: %@", 
+      user.name, (long)user.age, user.email);</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+姓名: 张三, 年龄: 25, 邮箱: zhangsan@example.com
+
+💡 通过 Runtime 遍历属性列表，实现了自动化的字典转模型！</div>
+                </div>
+
+                <h3>4.2 防止按钮重复点击</h3>
+                <div class="demo-box">
+                    <h5>💡 实例演示：按钮防抖功能</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>@implementation UIControl (PreventRepeatedClick)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class class = [self class];
+        
+        SEL originalSelector = @selector(sendAction:to:forEvent:);
+        SEL swizzledSelector = @selector(swizzled_sendAction:to:forEvent:);
+        
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    });
+}
+
+static const void *kAcceptEventIntervalKey = &kAcceptEventIntervalKey;
+
+- (NSTimeInterval)acceptEventInterval {
+    return [objc_getAssociatedObject(self, kAcceptEventIntervalKey) doubleValue];
+}
+
+- (void)setAcceptEventInterval:(NSTimeInterval)acceptEventInterval {
+    objc_setAssociatedObject(self, kAcceptEventIntervalKey, 
+                            @(acceptEventInterval), 
+                            OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (void)swizzled_sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event {
+    if (self.acceptEventInterval > 0) {
+        static const void *kLastClickTimeKey = &kLastClickTimeKey;
+        NSNumber *lastTime = objc_getAssociatedObject(self, kLastClickTimeKey);
+        NSTimeInterval currentTime = [[NSDate date] timeIntervalSince1970];
+        
+        if (lastTime && currentTime - [lastTime doubleValue] < self.acceptEventInterval) {
+            NSLog(@"⏱️ 点击过快，已忽略");
+            return;  // 忽略重复点击
+        }
+        
+        objc_setAssociatedObject(self, kLastClickTimeKey, 
+                                @(currentTime), 
+                                OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    
+    [self swizzled_sendAction:action to:target forEvent:event];
+}
+
+@end
+
+// 使用示例
+UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+button.acceptEventInterval = 1.0;  // 1秒内只能点击一次
+[button addTarget:self action:@selector(buttonClicked) forControlEvents:UIControlEventTouchUpInside];</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+第1次点击：正常执行
+0.5秒后点击：⏱️ 点击过快，已忽略
+1.2秒后点击：正常执行
+
+💡 通过 Method Swizzling + 关联对象，实现了全局的按钮防抖功能！</div>
+                </div>
+
+                <h3>4.3 全局页面统计</h3>
+                <div class="demo-box">
+                    <h5>💡 实例演示：自动埋点统计</h5>
+                    <div class="code-block">
+                        <div class="code-title">Objective-C</div>
+                        <pre><code>@implementation UIViewController (Tracking)
+
++ (void)load {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        Class class = [self class];
+        
+        SEL originalSelector = @selector(viewDidAppear:);
+        SEL swizzledSelector = @selector(swizzled_viewDidAppear:);
+        
+        Method originalMethod = class_getInstanceMethod(class, originalSelector);
+        Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
+        
+        method_exchangeImplementations(originalMethod, swizzledMethod);
+    });
+}
+
+- (void)swizzled_viewDidAppear:(BOOL)animated {
+    [self swizzled_viewDidAppear:animated];
+    
+    // 统计页面访问
+    NSString *className = NSStringFromClass([self class]);
+    
+    // 过滤系统类
+    if (![className hasPrefix:@"UI"]) {
+        NSLog(@"📊 页面统计: %@", className);
+        
+        // 这里可以上报到数据分析平台
+        // [Analytics trackPageView:className];
+    }
+}
+
+@end</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+📊 页面统计: HomeViewController
+📊 页面统计: ProfileViewController
+📊 页面统计: SettingsViewController
+
+💡 无需在每个页面手动添加埋点代码，自动统计所有页面访问！</div>
+                </div>
+            </section>
+
+            <!-- 第五部分：Swift -->
+            <section id="swift">
+                <h2>🦅 五、Swift 中的 Runtime</h2>
+
+                <h3>5.1 Swift 与 Objective-C Runtime 的关系</h3>
+                
+                <div class="info-box">
+                    <strong>Swift 使用 Runtime 的场景：</strong>
+                    <ul>
+                        <li><code>@objc</code> 修饰的类、方法、属性</li>
+                        <li>继承自 NSObject 的类</li>
+                        <li>KVO、KVC</li>
+                        <li>动态方法调用（<code>perform(_:with:)</code>）</li>
+                        <li>Selector</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <strong>Swift 不使用 Runtime 的场景：</strong>
+                    <ul>
+                        <li>纯 Swift 类（不继承 NSObject）</li>
+                        <li>值类型（struct、enum）</li>
+                        <li>泛型</li>
+                        <li>命名空间</li>
+                    </ul>
+                </div>
+
+                <h3>5.2 Swift 中使用 Runtime API</h3>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Swift 获取类信息</h5>
+                    <div class="code-block">
+                        <div class="code-title">Swift</div>
+                        <pre><code>import ObjectiveC
+
+class Person: NSObject {
+    @objc var name: String = ""
+    @objc var age: Int = 0
+}
+
+let person = Person()
+person.name = "李四"
+person.age = 30
+
+// 获取类名
+let className = NSStringFromClass(type(of: person))
+print("类名: \(className)")
+
+// 获取所有属性
+var propertyCount: UInt32 = 0
+let properties = class_copyPropertyList(Person.self, &propertyCount)
+
+print("===== \(propertyCount) 个属性 =====")
+for i in 0..<Int(propertyCount) {
+    if let property = properties?[i] {
+        let propertyName = String(cString: property_getName(property))
+        print("属性: \(propertyName)")
+    }
+}
+
+free(properties)</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+类名: MyApp.Person
+===== 2 个属性 =====
+属性: name
+属性: age
+
+💡 注意：必须使用 @objc 修饰才能被 Runtime 访问！</div>
+                </div>
+
+                <h3>5.3 Swift 的反射（Mirror）</h3>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Mirror 反射纯 Swift 类型</h5>
+                    <div class="code-block">
+                        <div class="code-title">Swift</div>
+                        <pre><code>// 纯 Swift 结构体
+struct Person {
+    var name: String
+    var age: Int
+    var email: String
+}
+
+let person = Person(name: "王五", age: 35, email: "wangwu@example.com")
+
+// 使用 Mirror 反射
+let mirror = Mirror(reflecting: person)
+
+print("类型: \(mirror.subjectType)")
+
+for case let (label?, value) in mirror.children {
+    print("\(label): \(value)")
+}</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+类型: Person
+name: 王五
+age: 35
+email: wangwu@example.com
+
+💡 Mirror 可以反射纯 Swift 类型，包括 struct 和 enum！</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>Mirror（Swift）</th>
+                            <th>Runtime（ObjC）</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>支持类型</td>
+                            <td>所有 Swift 类型</td>
+                            <td>NSObject 子类</td>
+                        </tr>
+                        <tr>
+                            <td>性能</td>
+                            <td>较慢</td>
+                            <td>较快</td>
+                        </tr>
+                        <tr>
+                            <td>功能</td>
+                            <td>只读反射</td>
+                            <td>可读可写，可动态修改</td>
+                        </tr>
+                        <tr>
+                            <td>动态性</td>
+                            <td>有限</td>
+                            <td>强大</td>
+                        </tr>
+                        <tr>
+                            <td>使用场景</td>
+                            <td>调试、序列化</td>
+                            <td>热修复、AOP、动态特性</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>5.4 Swift 中的 Method Swizzling</h3>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Swift Method Swizzling</h5>
+                    <div class="code-block">
+                        <div class="code-title">Swift</div>
+                        <pre><code>import UIKit
+
+extension UIViewController {
+    @objc func swizzled_viewWillAppear(_ animated: Bool) {
+        // 调用原方法
+        self.swizzled_viewWillAppear(animated)
+        
+        // 自定义逻辑
+        print("🦅 Swift页面将要出现: \(type(of: self))")
+    }
+    
+    static func swizzleViewWillAppear() {
+        guard let originalMethod = class_getInstanceMethod(
+                UIViewController.self, 
+                #selector(viewWillAppear(_:))),
+              let swizzledMethod = class_getInstanceMethod(
+                UIViewController.self, 
+                #selector(swizzled_viewWillAppear(_:))) else {
+            return
+        }
+        
+        method_exchangeImplementations(originalMethod, swizzledMethod)
+    }
+}
+
+// 在 AppDelegate 中调用
+UIViewController.swizzleViewWillAppear()</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+🦅 Swift页面将要出现: MyViewController
+🦅 Swift页面将要出现: DetailViewController
+
+💡 Swift 中也可以使用 Method Swizzling，但方法必须用 @objc 修饰！</div>
+                </div>
+
+                <h3>5.5 Swift 中的关联对象</h3>
+
+                <div class="demo-box">
+                    <h5>💡 实例演示：Swift 关联对象</h5>
+                    <div class="code-block">
+                        <div class="code-title">Swift</div>
+                        <pre><code>import ObjectiveC
+
+extension UIView {
+    private static var customTagKey: UInt8 = 0
+    
+    var customTag: String? {
+        get {
+            return objc_getAssociatedObject(self, &UIView.customTagKey) as? String
+        }
+        set {
+            objc_setAssociatedObject(
+                self, 
+                &UIView.customTagKey, 
+                newValue, 
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        }
+    }
+}
+
+// 使用示例
+let view = UIView()
+view.customTag = "Swift自定义标签"
+print("标签: \(view.customTag ?? "")")  // 输出: Swift自定义标签</code></pre>
+                    </div>
+                    <div class="demo-result">✅ 运行结果：
+标签: Swift自定义标签
+
+💡 在 Swift 中，关联对象的用法与 ObjC 基本相同！</div>
+                </div>
+            </section>
+
+            <!-- 第六部分：总结 -->
+            <section id="summary">
+                <h2>📝 六、总结</h2>
+
+                <h3>Runtime 核心要点</h3>
+
+                <div class="highlight-box">
+                    <h4>1. 概念层面</h4>
+                    <ul>
+                        <li>Runtime 是 ObjC 动态语言的核心机制</li>
+                        <li>负责运行时的类型检查、方法调用、消息转发</li>
+                        <li>Swift 部分依赖 Runtime（@objc 修饰）</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>2. 原理层面</h4>
+                    <ul>
+                        <li>核心数据结构：objc_object、objc_class、Meta-Class</li>
+                        <li>消息传递：objc_msgSend → 缓存查找 → 方法列表查找 → 父类查找</li>
+                        <li>消息转发：动态方法解析 → 快速转发 → 完整转发</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>3. 实现层面</h4>
+                    <ul>
+                        <li>类操作：获取类信息、动态创建类</li>
+                        <li>方法操作：获取方法、动态添加方法、Method Swizzling</li>
+                        <li>属性操作：获取属性、修改私有属性</li>
+                        <li>关联对象：为分类添加"属性"</li>
+                        <li>反射：字符串与类/方法互转</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>4. 应用层面</h4>
+                    <ul>
+                        <li>字典转模型（JSON 解析）</li>
+                        <li>防止按钮重复点击</li>
+                        <li>全局页面统计</li>
+                        <li>AOP（面向切面编程）</li>
+                        <li>崩溃防护</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box">
+                    <h4>5. Swift 特殊性</h4>
+                    <ul>
+                        <li>需要 @objc 修饰才能使用 Runtime</li>
+                        <li>值类型不支持 Runtime</li>
+                        <li>Swift 有自己的反射机制 Mirror</li>
+                        <li>KVO 需要 @objc dynamic 修饰</li>
+                    </ul>
+                </div>
+
+                <h3>注意事项</h3>
+
+                <div class="warning-box">
+                    <h4>⚠️ Method Swizzling 风险</h4>
+                    <ul>
+                        <li>可能与系统或第三方库冲突</li>
+                        <li>影响性能（增加调用链）</li>
+                        <li>难以调试</li>
+                        <li><strong>建议</strong>：在 +load 方法中使用 dispatch_once</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <h4>⚠️ 关联对象注意</h4>
+                    <ul>
+                        <li>会增加内存开销</li>
+                        <li>需要注意内存管理策略</li>
+                        <li>dealloc 时会自动释放</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <h4>⚠️ 性能考虑</h4>
+                    <ul>
+                        <li>Runtime 方法比直接调用慢</li>
+                        <li>缓存机制能大幅优化性能</li>
+                        <li>不要在热点路径中频繁使用 Runtime API</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 40px; text-align: center; padding: 30px;">
+                    <h3 style="color: #667eea; margin-bottom: 20px;">🎉 恭喜你完成 Runtime 知识体系学习！</h3>
+                    <p style="font-size: 1.2em;">现在你已经掌握了从概念到实战的完整 Runtime 技能</p>
+                    <p style="margin-top: 15px; color: #666;">继续探索，持续精进！💪</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>📚 iOS Runtime 完整知识体系 | 从概念到实战</p>
+            <p style="margin-top: 10px; opacity: 0.8;">© 2024 - 基于 Runtime.md 生成</p>
+        </footer>
+    </div>
+
+    <script>
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 代码高亮
+        document.querySelectorAll('.code-block code').forEach(block => {
+            // 简单的语法高亮
+            let html = block.innerHTML;
+            
+            // 关键字
+            html = html.replace(/\b(void|id|SEL|Class|BOOL|NSString|NSInteger|return|if|for|static|const|struct|typedef|import)\b/g, 
+                '<span class="keyword">$1</span>');
+            
+            // 字符串
+            html = html.replace(/@"([^"]*)"/g, '@<span class="string">"$1"</span>');
+            
+            // 注释
+            html = html.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>');
+            
+            // 函数名
+            html = html.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, 
+                '<span class="function">$1</span>(');
+            
+            block.innerHTML = html;
+        });
+
+        // 添加交互效果
+        console.log('%c🚀 iOS Runtime 知识体系 ', 'background: #667eea; color: white; font-size: 20px; padding: 10px;');
+        console.log('%c欢迎学习 Runtime！', 'color: #667eea; font-size: 16px;');
+    </script>
+</body>
+</html>
