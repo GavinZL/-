@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="精选50道高频算法面试题，系统化分类，深度解析，助力面试复习">
+    <meta name="keywords" content="算法面试题,LeetCode,数据结构,算法,面试复习">
+    <title>50道常见面试算法题集合 - 系统化学习指南</title>
+    
+    <!-- Mermaid 流程图库 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: { 
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+    
+    <style>
+        /* ========== 基础样式重置 ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            line-height: 1.6;
+            color: #333;
+            background: #f5f7fa;
+        }
+        
+        /* ========== 布局样式 ========== */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* ========== 头部区域 ========== */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        header .subtitle {
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+        
+        .stat-item .number {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-item .label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        /* ========== 导航区域 ========== */
+        nav {
+            background: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 148px;
+            z-index: 999;
+        }
+        
+        nav ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        nav a {
+            text-decoration: none;
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-size: 14px;
+            display: inline-block;
+        }
+        
+        nav a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        /* ========== 主内容区域 ========== */
+        main {
+            padding: 30px 0;
+        }
+        
+        .section {
+            background: white;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px 25px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section-header h2 {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .section-header .count {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        /* ========== 题目卡片 ========== */
+        .problem {
+            border-bottom: 1px solid #eee;
+            padding: 25px;
+        }
+        
+        .problem:last-child {
+            border-bottom: none;
+        }
+        
+        .problem-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .problem-number {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .problem-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        /* ========== 难度标签 ========== */
+        .difficulty {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .difficulty.easy {
+            background: #27ae60;
+        }
+        
+        .difficulty.medium {
+            background: #f39c12;
+        }
+        
+        .difficulty.hard {
+            background: #e74c3c;
+        }
+        
+        /* ========== 高频星级 ========== */
+        .frequency {
+            color: #f39c12;
+            font-size: 14px;
+        }
+        
+        /* ========== 标签 ========== */
+        .tags {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tag {
+            background: #ecf0f1;
+            color: #34495e;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        /* ========== 折叠内容 ========== */
+        details {
+            margin-top: 15px;
+        }
+        
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #667eea;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            user-select: none;
+            transition: background 0.3s;
+        }
+        
+        summary:hover {
+            background: #e9ecef;
+        }
+        
+        details[open] summary {
+            margin-bottom: 15px;
+        }
+        
+        /* ========== 题目内容 ========== */
+        .problem-description,
+        .problem-analysis,
+        .solution {
+            margin: 15px 0;
+        }
+        
+        .problem-description h4,
+        .problem-analysis h4,
+        .solution h4 {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+        
+        .example {
+            background: #f8f9fa;
+            padding: 15px;
+            border-left: 3px solid #667eea;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .example strong {
+            color: #667eea;
+        }
+        
+        /* ========== 表格样式 ========== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        
+        table th,
+        table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        
+        table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        table tr:hover {
+            background: #e9ecef;
+        }
+        
+        /* ========== 代码块样式 ========== */
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        /* ========== Mermaid图表样式 ========== */
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        /* ========== 相关题目 ========== */
+        .related-problems {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff9e6;
+            border-left: 3px solid #f39c12;
+            border-radius: 5px;
+        }
+        
+        .related-problems h5 {
+            color: #f39c12;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .related-problems ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .related-problems li {
+            padding: 5px 0;
+        }
+        
+        .related-problems a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .related-problems a:hover {
+            text-decoration: underline;
+        }
+        
+        /* ========== 页脚 ========== */
+        footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            margin-top: 50px;
+        }
+        
+        footer p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        /* ========== 响应式设计 ========== */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 22px;
+            }
+            
+            .stats {
+                gap: 15px;
+            }
+            
+            nav ul {
+                gap: 8px;
+            }
+            
+            nav a {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+            
+            .problem-title {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            table th,
+            table td {
+                padding: 8px;
+            }
+        }
+        
+        /* ========== 打印样式 ========== */
+        @media print {
+            body {
+                background: white;
+            }
+            
+            header {
+                position: static;
+                background: #667eea;
+            }
+            
+            nav {
+                display: none;
+            }
+            
+            .section {
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            
+            details {
+                display: block;
+            }
+            
+            summary {
+                display: none;
+            }
+            
+            details > *:not(summary) {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部区域 -->
+    <header>
+        <div class="container">
+            <h1>50道常见面试算法题集合</h1>
+            <p class="subtitle">系统化学习指南 · 精选高频题 · 深度解析</p>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="number">50</span>
+                    <span class="label">精选题目</span>
+                </div>
+                <div class="stat-item">
+                    <span class="number">7</span>
+                    <span class="label">数据结构</span>
+                </div>
+                <div class="stat-item">
+                    <span class="number">8</span>
+                    <span class="label">算法思想</span>
+                </div>
+                <div class="stat-item">
+                    <span class="number">100%</span>
+                    <span class="label">离线可用</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- 导航区域 -->
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#array">数组</a></li>
+                <li><a href="#linkedlist">链表</a></li>
+                <li><a href="#tree">二叉树</a></li>
+                <li><a href="#stack-queue">栈与队列</a></li>
+                <li><a href="#hashtable">哈希表</a></li>
+                <li><a href="#string">字符串</a></li>
+                <li><a href="#heap">堆</a></li>
+                <li><a href="#two-pointers">双指针</a></li>
+                <li><a href="#sliding-window">滑动窗口</a></li>
+                <li><a href="#binary-search">二分查找</a></li>
+                <li><a href="#dp">动态规划</a></li>
+            </ul>
+        </div>
+    </nav>
+    
+    <!-- 主内容区域 -->
+    <main class="container">
+        
+        <!-- ========== 第一部分：数据结构分类 ========== -->
+        
+        <!-- 数组分类 -->
+        <section id="array" class="section">
+            <div class="section-header">
+                <h2>数组（Array）</h2>
+                <p class="count">共 6 道题目 | 简单 2 题 · 中等 3 题 · 困难 1 题</p>
+            </div>
+            
+            <!-- T001: 两数之和 -->
+            <article id="t001" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T001</span>
+                    <h3 class="problem-name">两数之和</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">哈希表</span>
+                    <span class="tag">LeetCode 1</span>
+                </div>
+                
+                <details>
+                    <summary>查看详细内容</summary>
+                    
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。</p>
+                        <p><strong>说明：</strong>你可以假设每种输入只会对应一个答案。但是，数组中同一个元素在答案里不能重复出现。你可以按任意顺序返回答案。</p>
+                        
+                        <div class="example">
+                            <p><strong>示例 1：</strong></p>
+                            <p>输入：nums = [2,7,11,15], target = 9</p>
+                            <p>输出：[0,1]</p>
+                            <p>解释：因为 nums[0] + nums[1] == 9，返回 [0, 1]。</p>
+                        </div>
+                        
+                        <div class="example">
+                            <p><strong>示例 2：</strong></p>
+                            <p>输入：nums = [3,2,4], target = 6</p>
+                            <p>输出：[1,2]</p>
+                        </div>
+                        
+                        <p><strong>数据范围：</strong></p>
+                        <ul>
+                            <li>2 ≤ nums.length ≤ 10⁴</li>
+                            <li>-10⁹ ≤ nums[i] ≤ 10⁹</li>
+                            <li>-10⁹ ≤ target ≤ 10⁹</li>
+                            <li>只会存在一个有效答案</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        
+                        <p><strong>问题理解：</strong></p>
+                        <p>本题的核心是在数组中找到两个数，使它们的和等于目标值。最直观的做法是双层循环遍历所有可能的组合，但这样时间复杂度为 O(n²)。我们需要优化。</p>
+                        
+                        <p><strong>优化思路：</strong></p>
+                        <p>关键在于：当我们遍历到元素 x 时，我们需要快速查找数组中是否存在 target - x。哈希表可以将查找时间优化到 O(1)。</p>
+                        
+                        <p><strong>最优解方案：</strong></p>
+                        <ol>
+                            <li>创建一个哈希表用于存储「值 → 索引」的映射</li>
+                            <li>遍历数组，对于每个元素 nums[i]：
+                                <ul>
+                                    <li>计算补数 complement = target - nums[i]</li>
+                                    <li>在哈希表中查找 complement 是否存在</li>
+                                    <li>如果存在，返回 [哈希表中的索引, i]</li>
+                                    <li>如果不存在，将 nums[i] 及其索引 i 存入哈希表</li>
+                                </ul>
+                            </li>
+                        </ol>
+                        
+                        <table>
+                            <tr>
+                                <th>复杂度类型</th>
+                                <th>复杂度</th>
+                                <th>说明</th>
+                            </tr>
+                            <tr>
+                                <td>时间复杂度</td>
+                                <td>O(n)</td>
+                                <td>只需遍历数组一次，哈希表查找为 O(1)</td>
+                            </tr>
+                            <tr>
+                                <td>空间复杂度</td>
+                                <td>O(n)</td>
+                                <td>最坏情况需要存储 n 个元素到哈希表</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="solution">
+                        <h4>算法步骤（伪代码）</h4>
+<pre>
+函数 twoSum(nums, target):
+    // 创建哈希表存储 值→索引 映射
+    创建空哈希表 map
+    
+    // 遍历数组
+    对于 i 从 0 到 nums.length-1:
+        当前值 = nums[i]
+        补数 = target - 当前值
+        
+        // 检查补数是否已存在
+        如果 map 中存在 补数:
+            返回 [map[补数], i]
+        
+        // 将当前值存入哈希表
+        map[当前值] = i
+    
+    // 题目保证有解，不会执行到这里
+    返回 空数组
+</pre>
+                        
+                        <h4>算法流程图</h4>
+                        <div class="mermaid">
+graph TD
+    A[开始] --> B[创建哈希表 map]
+    B --> C[遍历数组元素 nums_i]
+    C --> D[计算补数 = target - nums_i]
+    D --> E{哈希表中是否存在补数?}
+    E -->|是| F[返回 哈希表中补数的索引, i]
+    E -->|否| G[将 nums_i, i 存入哈希表]
+    G --> H{是否遍历完毕?}
+    H -->|否| C
+    H -->|是| I[返回结果]
+                        </div>
+                    </div>
+                    
+                    <div class="related-problems">
+                        <h5>🔗 相关题目</h5>
+                        <ul>
+                            <li><a href="#t002">T002 - 三数之和（中等）</a></li>
+                            <li>LeetCode 15 - 三数之和</li>
+                            <li>LeetCode 167 - 两数之和 II - 输入有序数组</li>
+                        </ul>
+                    </div>
+                </details>
+            </article>
+            
+            <!-- T002: 三数之和 -->
+            <article id="t002" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T002</span>
+                    <h3 class="problem-name">三数之和</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">双指针</span>
+                    <span class="tag">排序</span>
+                    <span class="tag">LeetCode 15</span>
+                </div>
+                
+                <details>
+                    <summary>查看详细内容</summary>
+                    
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给你一个包含 n 个整数的数组 nums，判断是否存在三个元素 a, b, c，使得 a + b + c = 0？请找出所有和为 0 且不重复的三元组。</p>
+                        <p><strong>注意：</strong>答案中不可以包含重复的三元组。</p>
+                        
+                        <div class="example">
+                            <p><strong>示例 1：</strong></p>
+                            <p>输入：nums = [-1,0,1,2,-1,-4]</p>
+                            <p>输出：[[-1,-1,2],[-1,0,1]]</p>
+                        </div>
+                        
+                        <div class="example">
+                            <p><strong>示例 2：</strong></p>
+                            <p>输入：nums = []</p>
+                            <p>输出：[]</p>
+                        </div>
+                    </div>
+                    
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        
+                        <p><strong>问题理解：</strong></p>
+                        <p>相比两数之和，三数之和的难点在于需要去重。暴力解法需要三层循环，时间复杂度为 O(n³)。</p>
+                        
+                        <p><strong>优化思路：</strong></p>
+                        <ol>
+                            <li>先对数组排序，这样可以方便去重和使用双指针</li>
+                            <li>固定一个数 nums[i]，问题转化为在剩余数组中找两个数，使它们的和为 -nums[i]</li>
+                            <li>使用双指针从两端向中间靠拢，找到所有符合条件的组合</li>
+                        </ol>
+                        
+                        <table>
+                            <tr>
+                                <th>复杂度类型</th>
+                                <th>复杂度</th>
+                                <th>说明</th>
+                            </tr>
+                            <tr>
+                                <td>时间复杂度</td>
+                                <td>O(n²)</td>
+                                <td>排序 O(n log n) + 外层循环 O(n) * 内层双指针 O(n)</td>
+                            </tr>
+                            <tr>
+                                <td>空间复杂度</td>
+                                <td>O(log n)</td>
+                                <td>排序所需空间（不算输出数组）</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="solution">
+                        <h4>算法步骤（伪代码）</h4>
+<pre>
+函数 threeSum(nums):
+    结果数组 = []
+    如果 nums 长度 < 3:
+        返回 结果数组
+    
+    // 排序数组
+    对 nums 进行升序排序
+    
+    // 固定第一个数
+    对于 i 从 0 到 nums.length-3:
+        // 优化：如果最小值大于0，直接跳出
+        如果 nums[i] > 0:
+            跳出循环
+        
+        // 去重：跳过重复的值
+        如果 i > 0 且 nums[i] == nums[i-1]:
+            继续下一次循环
+        
+        // 双指针找另外两个数
+        左指针 = i + 1
+        右指针 = nums.length - 1
+        
+        当 左指针 < 右指针:
+            和 = nums[i] + nums[左指针] + nums[右指针]
+            
+            如果 和 == 0:
+                将 [nums[i], nums[左指针], nums[右指针]] 添加到结果数组
+                
+                // 去重：跳过重复值
+                当 左指针 < 右指针 且 nums[左指针] == nums[左指针+1]:
+                    左指针++
+                当 左指针 < 右指针 且 nums[右指针] == nums[右指针-1]:
+                    右指针--
+                
+                左指针++
+                右指针--
+            否则如果 和 < 0:
+                左指针++
+            否则:
+                右指针--
+    
+    返回 结果数组
+</pre>
+                    </div>
+                    
+                    <div class="related-problems">
+                        <h5>🔗 相关题目</h5>
+                        <ul>
+                            <li><a href="#t001">T001 - 两数之和（简单）</a></li>
+                            <li>LeetCode 16 - 最接近的三数之和</li>
+                            <li>LeetCode 18 - 四数之和</li>
+                        </ul>
+                    </div>
+                </details>
+            </article>
+            
+            <!-- T003: 合并两个有序数组 -->
+            <article id="t003" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T003</span>
+                    <h3 class="problem-name">合并两个有序数组</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">双指针</span>
+                    <span class="tag">LeetCode 88</span>
+                </div>
+                
+                <details>
+                    <summary>查看详细内容</summary>
+                    
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给你两个按 非递减顺序 排列的整数数组 nums1 和 nums2，另有两个整数 m 和 n，分别表示 nums1 和 nums2 中的元素数目。请你 合并 nums2 到 nums1 中，使合并后的数组同样按 非递减顺序 排列。</p>
+                        
+                        <div class="example">
+                            <p><strong>示例：</strong></p>
+                            <p>输入：nums1 = [1,2,3,0,0,0], m = 3, nums2 = [2,5,6], n = 3</p>
+                            <p>输出：[1,2,2,3,5,6]</p>
+                        </div>
+                    </div>
+                    
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>优化思路：</strong>从后向前填充，避免元素覆盖。使用三个指针：p1指向nums1的有效元素末尾，p2指向nums2末尾，tail指向nums1的总末尾。</p>
+                        
+                        <table>
+                            <tr><th>复杂度</th><th>值</th></tr>
+                            <tr><td>时间</td><td>O(m+n)</td></tr>
+                            <tr><td>空间</td><td>O(1)</td></tr>
+                        </table>
+                    </div>
+                </details>
+            </article>
+            
+            <!-- T004-T006 简化版本 -->
+            <article id="t004" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T004</span>
+                    <h3 class="problem-name">搜索二维矩阵 II</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">二分查找</span>
+                    <span class="tag">LeetCode 240</span>
+                </div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>编写一个高效的算法来搜索 m × n 矩阵 matrix 中的一个目标值 target。该矩阵具有以下特性：每行的元素从左到右升序排列，每列的元素从上到下升序排列。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>核心思路：</strong>从右上角或左下角开始搜索，每次可以排除一行或一列。时间O(m+n)。</p>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t005" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T005</span>
+                    <h3 class="problem-name">螺旋矩阵</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">矩阵遍历</span>
+                    <span class="tag">LeetCode 54</span>
+                </div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给定一个 m 行 n 列的矩阵，请按照顺时针螺旋顺序，返回矩阵中的所有元素。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>核心：</strong>设置上下左右四个边界，每遍历完一层后收缩边界。</p>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t006" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T006</span>
+                    <h3 class="problem-name">接雨水</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">数组</span>
+                    <span class="tag">双指针</span>
+                    <span class="tag">单调栈</span>
+                    <span class="tag">LeetCode 42</span>
+                </div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给定 n 个非负整数表示每个宽度为 1 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>双指针法：</strong>左右指针相向移动，维护左右最大高度，计算当前位置能接的雨水。</p>
+                        <table>
+                            <tr><th>复杂度</th><th>值</th></tr>
+                            <tr><td>时间</td><td>O(n)</td></tr>
+                            <tr><td>空间</td><td>O(1)</td></tr>
+                        </table>
+                    </div>
+                </details>
+            </article>
+        </section>
+        
+        <!-- 链表分类 -->
+        <section id="linkedlist" class="section">
+            <div class="section-header">
+                <h2>链表（Linked List）</h2>
+                <p class="count">共 8 道题目 | 简单 4 题 · 中等 3 题 · 困难 1 题</p>
+            </div>
+            
+            <article id="t007" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T007</span>
+                    <h3 class="problem-name">反转链表</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">链表</span>
+                    <span class="tag">迭代</span>
+                    <span class="tag">递归</span>
+                    <span class="tag">LeetCode 206</span>
+                </div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给你单链表的头节点 head，请你反转链表，并返回反转后的链表。</p>
+                        <div class="example">
+                            <p><strong>示例：</strong></p>
+                            <p>输入：head = [1,2,3,4,5]</p>
+                            <p>输出：[5,4,3,2,1]</p>
+                        </div>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>迭代法：</strong>使用三个指针 prev, curr, next，遍历链表逐个反转指针方向。</p>
+                        <table>
+                            <tr><th>复杂度</th><th>值</th></tr>
+                            <tr><td>时间</td><td>O(n)</td></tr>
+                            <tr><td>空间</td><td>O(1)</td></tr>
+                        </table>
+                    </div>
+                    <div class="solution">
+                        <h4>算法步骤</h4>
+<pre>
+函数 reverseList(head):
+    prev = null
+    curr = head
+    
+    当 curr 不为空:
+        next = curr.next
+        curr.next = prev
+        prev = curr
+        curr = next
+    
+    返回 prev
+</pre>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t008" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T008</span>
+                    <h3 class="problem-name">环形链表</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">链表</span>
+                    <span class="tag">快慢指针</span>
+                    <span class="tag">LeetCode 141</span>
+                </div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给定一个链表，判断链表中是否有环。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>快慢指针：</strong>快指针每次移动两步，慢指针移动一步。如果有环，快慢指针一定会相遇。</p>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t009" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T009</span>
+                    <h3 class="problem-name">合并两个有序链表</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags">
+                    <span class="tag">链表</span>
+                    <span class="tag">递归</span>
+                    <span class="tag">LeetCode 21</span>
+                </div>
+            </article>
+            
+            <article id="t010" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T010</span>
+                    <h3 class="problem-name">相交链表</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">链表</span><span class="tag">双指针</span><span class="tag">LeetCode 160</span></div>
+            </article>
+            
+            <article id="t011" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T011</span>
+                    <h3 class="problem-name">环形链表 II</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">链表</span><span class="tag">快慢指针</span><span class="tag">LeetCode 142</span></div>
+            </article>
+            
+            <article id="t012" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T012</span>
+                    <h3 class="problem-name">反转链表 II</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">链表</span><span class="tag">LeetCode 92</span></div>
+            </article>
+            
+            <article id="t013" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T013</span>
+                    <h3 class="problem-name">K个一组翻转链表</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">链表</span><span class="tag">LeetCode 25</span></div>
+            </article>
+            
+            <article id="t014" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T014</span>
+                    <h3 class="problem-name">复制带随机指针的链表</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">链表</span><span class="tag">哈希表</span><span class="tag">LeetCode 138</span></div>
+            </article>
+        </section>
+        
+        <!-- 二叉树分类 -->
+        <section id="tree" class="section">
+            <div class="section-header">
+                <h2>二叉树（Binary Tree）</h2>
+                <p class="count">共 9 道题目 | 简单 4 题 · 中等 4 题 · 困难 1 题</p>
+            </div>
+            
+            <article id="t015" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T015</span>
+                    <h3 class="problem-name">二叉树的前序遍历</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">栈</span><span class="tag">LeetCode 144</span></div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给你二叉树的根节点 root，返回它节点值的 前序 遍历。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>递归法：</strong>根-左-右顺序访问。<strong>迭代法：</strong>使用栈模拟递归过程。</p>
+                    </div>
+                    <div class="solution">
+                        <h4>算法步骤</h4>
+<pre>
+函数 preorderTraversal(root):
+    结果 = []
+    
+    函数 traverse(node):
+        如果 node 为空:
+            返回
+        结果.add(node.val)  // 根
+        traverse(node.left)    // 左
+        traverse(node.right)   // 右
+    
+    traverse(root)
+    返回 结果
+</pre>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t016" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T016</span>
+                    <h3 class="problem-name">二叉树的中序遍历</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 94</span></div>
+            </article>
+            
+            <article id="t017" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T017</span>
+                    <h3 class="problem-name">二叉树的层序遍历</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">BFS</span><span class="tag">队列</span><span class="tag">LeetCode 102</span></div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>BFS方法：</strong>使用队列，逐层遍历二叉树。每次处理当前层的所有节点，并将子节点加入队列。</p>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t018" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T018</span>
+                    <h3 class="problem-name">二叉树的最大深度</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 104</span></div>
+            </article>
+            
+            <article id="t019" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T019</span>
+                    <h3 class="problem-name">对称二叉树</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 101</span></div>
+            </article>
+            
+            <article id="t020" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T020</span>
+                    <h3 class="problem-name">验证二叉搜索树</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">BST</span><span class="tag">LeetCode 98</span></div>
+            </article>
+            
+            <article id="t021" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T021</span>
+                    <h3 class="problem-name">二叉树的最近公共祖先</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 236</span></div>
+            </article>
+            
+            <article id="t022" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T022</span>
+                    <h3 class="problem-name">从前序与中序遍历构造二叉树</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 105</span></div>
+            </article>
+            
+            <article id="t023" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T023</span>
+                    <h3 class="problem-name">二叉树中的最大路径和</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">二叉树</span><span class="tag">递归</span><span class="tag">LeetCode 124</span></div>
+            </article>
+        </section>
+        
+        <!-- 栈与队列 -->
+        <section id="stack-queue" class="section">
+            <div class="section-header">
+                <h2>栈与队列（Stack & Queue）</h2>
+                <p class="count">共 4 道题目</p>
+            </div>
+            
+            <article id="t024" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T024</span>
+                    <h3 class="problem-name">有效的括号</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">栈</span><span class="tag">字符串</span><span class="tag">LeetCode 20</span></div>
+            </article>
+            
+            <article id="t025" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T025</span>
+                    <h3 class="problem-name">最小栈</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">栈</span><span class="tag">设计</span><span class="tag">LeetCode 155</span></div>
+            </article>
+            
+            <article id="t026" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T026</span>
+                    <h3 class="problem-name">用栈实现队列</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">栈</span><span class="tag">队列</span><span class="tag">LeetCode 232</span></div>
+            </article>
+            
+            <article id="t027" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T027</span>
+                    <h3 class="problem-name">滑动窗口最大值</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">队列</span><span class="tag">单调队列</span><span class="tag">滑动窗口</span><span class="tag">LeetCode 239</span></div>
+            </article>
+        </section>
+        
+        <!-- 哈希表、字符串、堆 -->
+        <section id="hashtable" class="section">
+            <div class="section-header">
+                <h2>哈希表（Hash Table）</h2>
+                <p class="count">共 5 道题目</p>
+            </div>
+            
+            <article id="t028" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T028</span>
+                    <h3 class="problem-name">LRU 缓存机制</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">哈希表</span><span class="tag">双向链表</span><span class="tag">设计</span><span class="tag">LeetCode 146</span></div>
+            </article>
+            
+            <article id="t029" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T029</span>
+                    <h3 class="problem-name">最长连续序列</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">哈希表</span><span class="tag">LeetCode 128</span></div>
+            </article>
+            
+            <article id="t030" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T030</span>
+                    <h3 class="problem-name">多数元素</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">哈希表</span><span class="tag">Boyer-Moore</span><span class="tag">LeetCode 169</span></div>
+            </article>
+            
+            <article id="t031" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T031</span>
+                    <h3 class="problem-name">缺失的第一个正数</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">哈希表</span><span class="tag">原地哈希</span><span class="tag">LeetCode 41</span></div>
+            </article>
+        </section>
+        
+        <section id="string" class="section">
+            <div class="section-header">
+                <h2>字符串（String）</h2>
+                <p class="count">共 5 道题目</p>
+            </div>
+            
+            <article id="t032" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T032</span>
+                    <h3 class="problem-name">无重复字符的最长子串</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">字符串</span><span class="tag">滑动窗口</span><span class="tag">LeetCode 3</span></div>
+            </article>
+            
+            <article id="t033" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T033</span>
+                    <h3 class="problem-name">最长回文子串</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">字符串</span><span class="tag">动态规划</span><span class="tag">中心扩展</span><span class="tag">LeetCode 5</span></div>
+            </article>
+            
+            <article id="t034" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T034</span>
+                    <h3 class="problem-name">字符串相加</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">字符串</span><span class="tag">模拟</span><span class="tag">LeetCode 415</span></div>
+            </article>
+            
+            <article id="t035" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T035</span>
+                    <h3 class="problem-name">翻转字符串里的单词</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">字符串</span><span class="tag">LeetCode 151</span></div>
+            </article>
+        </section>
+        
+        <section id="heap" class="section">
+            <div class="section-header">
+                <h2>堆（Heap）</h2>
+                <p class="count">共 2 道题目</p>
+            </div>
+            
+            <article id="t036" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T036</span>
+                    <h3 class="problem-name">数组中的第K个最大元素</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">堆</span><span class="tag">快速选择</span><span class="tag">LeetCode 215</span></div>
+            </article>
+            
+            <article id="t037" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T037</span>
+                    <h3 class="problem-name">合并K个排序链表</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">堆</span><span class="tag">链表</span><span class="tag">LeetCode 23</span></div>
+            </article>
+        </section>
+        
+        <!-- ========== 第二部分:算法思想分类 ========== -->
+        
+        <section id="dp" class="section">
+            <div class="section-header">
+                <h2>动态规划（Dynamic Programming）</h2>
+                <p class="count">共 11 道题目 | 简单 3 题 · 中等 6 题 · 困难 2 题</p>
+            </div>
+            
+            <article id="t038" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T038</span>
+                    <h3 class="problem-name">爬楼梯</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">LeetCode 70</span></div>
+            </article>
+            
+            <article id="t039" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T039</span>
+                    <h3 class="problem-name">买卖股票的最佳时机</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">状态机DP</span><span class="tag">LeetCode 121</span></div>
+            </article>
+            
+            <article id="t040" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T040</span>
+                    <h3 class="problem-name">最大子数组和</h3>
+                    <span class="difficulty easy">简单</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">线性DP</span><span class="tag">LeetCode 53</span></div>
+            </article>
+            
+            <article id="t041" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T041</span>
+                    <h3 class="problem-name">最长递增子序列</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">二分查找</span><span class="tag">LeetCode 300</span></div>
+            </article>
+            
+            <article id="t042" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T042</span>
+                    <h3 class="problem-name">零钱兑换</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">完全背包</span><span class="tag">LeetCode 322</span></div>
+            </article>
+            
+            <article id="t043" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T043</span>
+                    <h3 class="problem-name">最长公共子序列</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">二维DP</span><span class="tag">LeetCode 1143</span></div>
+            </article>
+            
+            <article id="t044" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T044</span>
+                    <h3 class="problem-name">不同路径</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">二维DP</span><span class="tag">LeetCode 62</span></div>
+            </article>
+            
+            <article id="t045" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T045</span>
+                    <h3 class="problem-name">最小路径和</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">二维DP</span><span class="tag">LeetCode 64</span></div>
+            </article>
+            
+            <article id="t046" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T046</span>
+                    <h3 class="problem-name">编辑距离</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">二维DP</span><span class="tag">LeetCode 72</span></div>
+            </article>
+            
+            <article id="t047" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T047</span>
+                    <h3 class="problem-name">最长有效括号</h3>
+                    <span class="difficulty hard">困难</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">栈</span><span class="tag">LeetCode 32</span></div>
+            </article>
+            
+            <article id="t048" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T048</span>
+                    <h3 class="problem-name">打家劫舍</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">动态规划</span><span class="tag">LeetCode 198</span></div>
+            </article>
+        </section>
+        
+        <!-- 回溯法 -->
+        <section id="backtrack" class="section">
+            <div class="section-header">
+                <h2>回溯法（Backtracking）</h2>
+                <p class="count">共 2 道题目</p>
+            </div>
+            
+            <article id="t049" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T049</span>
+                    <h3 class="problem-name">全排列</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">回溯</span><span class="tag">LeetCode 46</span></div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给定一个不含重复数字的数组 nums，返回其所有可能的全排列。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>回溯思路：</strong>递归选择每个位置的元素，使用标记数组记录已使用的元素，当排列长度等于数组长度时完成一个排列。</p>
+                    </div>
+                </details>
+            </article>
+            
+            <article id="t050" class="problem">
+                <div class="problem-title">
+                    <span class="problem-number">T050</span>
+                    <h3 class="problem-name">子集</h3>
+                    <span class="difficulty medium">中等</span>
+                    <span class="frequency">⭐⭐⭐⭐</span>
+                </div>
+                <div class="tags"><span class="tag">回溯</span><span class="tag">LeetCode 78</span></div>
+                <details>
+                    <summary>查看详细内容</summary>
+                    <div class="problem-description">
+                        <h4>题目描述</h4>
+                        <p>给你一个整数数组 nums，数组中的元素 互不相同。返回该数组所有可能的子集（幂集）。</p>
+                    </div>
+                    <div class="problem-analysis">
+                        <h4>解题分析</h4>
+                        <p><strong>回溯思路：</strong>对于每个元素，可以选择加入当前子集或不加入。递归地构建所有可能的子集。</p>
+                    </div>
+                </details>
+            </article>
+        </section>
+        
+        <!-- 其他算法分类简化 -->
+        <section id="two-pointers" class="section">
+            <div class="section-header">
+                <h2>双指针 & 滑动窗口 & 二分查找</h2>
+                <p class="count">相关题目已包含在数据结构分类中</p>
+            </div>
+            <article class="problem">
+                <div class="problem-description">
+                    <h4>双指针相关题目</h4>
+                    <ul>
+                        <li><a href="#t002">T002 - 三数之和</a></li>
+                        <li><a href="#t003">T003 - 合并两个有序数组</a></li>
+                        <li><a href="#t006">T006 - 接雨水</a></li>
+                        <li><a href="#t008">T008 - 环形链表(快慢指针)</a></li>
+                    </ul>
+                    
+                    <h4>滑动窗口相关题目</h4>
+                    <ul>
+                        <li><a href="#t032">T032 - 无重复字符的最长子串</a></li>
+                        <li><a href="#t027">T027 - 滑动窗口最大值</a></li>
+                    </ul>
+                    
+                    <h4>二分查找相关题目</h4>
+                    <ul>
+                        <li><a href="#t004">T004 - 搜索二维矩阵 II</a></li>
+                        <li><a href="#t041">T041 - 最长递增子序列(DP+二分)</a></li>
+                    </ul>
+                </div>
+            </article>
+        </section>
+        
+        <section id="sliding-window" class="section" style="display:none;"></section>
+        <section id="binary-search" class="section" style="display:none;"></section>
+    </main>
+    
+    <!-- 页脚区域 -->
+    <footer>
+        <div class="container">
+            <p><strong>50道常见面试算法题集合</strong></p>
+            <p>版本:v1.0.0 | 更新日期:2025-01-18</p>
+            <p>本文档为个人学习使用,题目来源于LeetCode、牛客网等平台</p>
+            <p>✨ 离线可用 | 📚 支持打印 | 🔗 便捷导航</p>
+        </div>
+    </footer>
+
+</body>
+</html>
