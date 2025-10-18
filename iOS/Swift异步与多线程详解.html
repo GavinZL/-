@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swift异步与多线程详解 - async/await · Actor · Sendable · Task</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "PingFang SC", sans-serif; line-height: 1.8; color: #1e293b; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 80px 60px; text-align: center; }
+        header h1 { font-size: 3.5em; margin-bottom: 20px; font-weight: 700; }
+        nav { background: #1e293b; position: sticky; top: 0; z-index: 1000; }
+        nav ul { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; }
+        nav a { display: block; color: white; padding: 20px 30px; text-decoration: none; transition: all 0.3s; }
+        nav a:hover { background: #3b82f6; }
+        main { padding: 60px; }
+        section { margin-bottom: 80px; }
+        h2 { color: #3b82f6; font-size: 2.8em; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 4px solid #3b82f6; }
+        h3 { color: #8b5cf6; font-size: 2.2em; margin: 40px 0 20px; }
+        h4 { font-size: 1.8em; margin: 30px 0 15px; }
+        .code-block { background: #282c34; color: #abb2bf; padding: 25px; border-radius: 12px; margin: 25px 0; overflow-x: auto; }
+        .code-title { background: #21252b; color: #61afef; padding: 10px 20px; border-radius: 8px; margin: -25px -25px 20px; }
+        .info-box, .warning-box, .success-box { padding: 25px; margin: 25px 0; border-radius: 12px; border-left: 5px solid; }
+        .info-box { background: #dbeafe; border-left-color: #3b82f6; }
+        .warning-box { background: #fef3c7; border-left-color: #f59e0b; }
+        .success-box { background: #d1fae5; border-left-color: #10b981; }
+        table { width: 100%; border-collapse: collapse; margin: 25px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #3b82f6; color: white; }
+        tr:nth-child(even) { background: #f1f5f9; }
+        .diagram { background: white; border: 3px solid #e2e8f0; padding: 30px; margin: 25px 0; border-radius: 12px; font-family: monospace; }
+        footer { background: #1e293b; color: white; text-align: center; padding: 40px; }
+        pre { font-family: 'SF Mono', monospace; line-height: 1.6; }
+        .keyword { color: #c678dd; font-weight: 600; }
+        .type { color: #e5c07b; }
+        .function { color: #61afef; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .number { color: #d19a66; }
+        ul, ol { margin: 20px 0 20px 30px; }
+        li { margin: 10px 0; }
+        .tree { margin: 20px 0; }
+        .tree ul { list-style: none; padding-left: 30px; }
+        .tree li { margin: 8px 0; position: relative; padding-left: 20px; }
+        .tree li:before { content: "├─"; position: absolute; left: 0; color: #3b82f6; font-weight: bold; }
+        .tree li:last-child:before { content: "└─"; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Swift异步与多线程详解</h1>
+            <p>async/await · Actor · Sendable · Task · 从原理到实践 · Swift 5.5+</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#concept">概念背景</a></li>
+                <li><a href="#async-await">async/await</a></li>
+                <li><a href="#actor">Actor模型</a></li>
+                <li><a href="#sendable">Sendable</a></li>
+                <li><a href="#task">Task并发</a></li>
+                <li><a href="#application">应用场景</a></li>
+                <li><a href="#advanced">高级技巧</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <section id="concept">
+                <h2>📚 一、概念与背景</h2>
+                
+                <h3>1.1 异步编程的演进</h3>
+                <p>Swift的异步编程经历了从传统多线程到现代结构化并发的演进。Swift 5.5之前，开发者依赖GCD、Operation Queue等机制，存在回调地狱、数据竞争等问题。Swift 5.5引入async/await、Actor等特性，从语言层面提供更安全的并发编程模型。</p>
+                
+                <div class="tree">
+                    <ul>
+                        <li><strong>Swift并发编程历史</strong>
+                            <ul>
+                                <li>传统时代（Swift 5.5之前）
+                                    <ul>
+                                        <li>GCD（Grand Central Dispatch）</li>
+                                        <li>Operation & OperationQueue</li>
+                                        <li>Thread & NSLock</li>
+                                        <li>闭包回调（Callback Hell）</li>
+                                    </ul>
+                                </li>
+                                <li>现代并发时代（Swift 5.5+）
+                                    <ul>
+                                        <li>async/await - 异步函数</li>
+                                        <li>Actor - 数据隔离</li>
+                                        <li>Task - 结构化并发</li>
+                                        <li>Sendable - 跨并发域安全</li>
+                                        <li>AsyncSequence - 异步序列</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                
+                <h3>1.2 结构化并发（Structured Concurrency）</h3>
+                <p>结构化并发将并发任务组织成树形结构，确保父任务在所有子任务完成前不会结束，避免任务泄漏。</p>
+                
+                <div class="success-box">
+                    <strong>结构化并发核心原则：</strong><br>
+                    <strong>1. 任务层次结构</strong>：子任务继承父任务的优先级和取消状态<br>
+                    <strong>2. 自动取消传播</strong>：父任务取消时，所有子任务被取消<br>
+                    <strong>3. 错误处理</strong>：子任务错误向上传播到父任务<br>
+                    <strong>4. 生命周期管理</strong>：父任务等待所有子任务完成
+                </div>
+                
+                <h3>1.3 数据竞争（Data Race）</h3>
+                <p>数据竞争指多个线程同时访问同一内存位置，且至少有一个是写操作，没有适当的同步机制。Swift的Actor模型通过编译期检查和运行时隔离，从根本上消除数据竞争。</p>
+            </section>
+
+            <section id="async-await">
+                <h2>⚡ 二、async/await机制</h2>
+                
+                <h3>2.1 基本概念</h3>
+                <p><code>async</code>关键字声明异步函数，<code>await</code>调用异步函数并等待结果。异步函数可以在不阻塞当前线程的情况下暂停执行，让出CPU给其他任务。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - 基础异步函数</div>
+                    <pre><span class="comment">// 定义异步函数</span>
+<span class="keyword">func</span> <span class="function">fetchUserData</span>(<span class="keyword">id</span>: <span class="type">Int</span>) <span class="keyword">async</span> <span class="keyword">throws</span> -> <span class="type">User</span> {
+    <span class="keyword">let</span> url = <span class="type">URL</span>(string: <span class="string">"https://api.example.com/users/\(id)"</span>)!
+    <span class="keyword">let</span> (data, _) = <span class="keyword">try</span> <span class="keyword">await</span> <span class="type">URLSession</span>.shared.<span class="function">data</span>(from: url)
+    <span class="keyword">return</span> <span class="keyword">try</span> <span class="type">JSONDecoder</span>().<span class="function">decode</span>(<span class="type">User</span>.<span class="keyword">self</span>, from: data)
+}
+
+<span class="comment">// 调用异步函数</span>
+<span class="keyword">Task</span> {
+    <span class="keyword">do</span> {
+        <span class="keyword">let</span> user = <span class="keyword">try</span> <span class="keyword">await</span> <span class="function">fetchUserData</span>(id: <span class="number">123</span>)
+        <span class="function">print</span>(<span class="string">"User: \(user.name)"</span>)
+    } <span class="keyword">catch</span> {
+        <span class="function">print</span>(<span class="string">"Error: \(error)"</span>)
+    }
+}</pre>
+                </div>
+                
+                <h3>2.2 底层实现原理</h3>
+                <p>Swift的async/await基于<strong>协程（Coroutine）</strong>实现。编译器将异步函数转换为状态机，每个<code>await</code>点都是潜在的暂停点。</p>
+                
+                <div class="info-box">
+                    <strong>编译器转换过程：</strong><br>
+                    1. <strong>状态机生成</strong>：将异步函数拆分为多个片段，每个await之间是一个状态<br>
+                    2. <strong>Continuation创建</strong>：在暂停点创建Continuation对象，保存执行上下文<br>
+                    3. <strong>任务调度</strong>：将Continuation提交到全局协作线程池<br>
+                    4. <strong>恢复执行</strong>：异步操作完成后，通过Continuation恢复执行
+                </div>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - 编译器状态机转换（伪代码）</div>
+                    <pre><span class="comment">// 原始异步函数</span>
+<span class="keyword">func</span> <span class="function">processData</span>() <span class="keyword">async</span> -> <span class="type">String</span> {
+    <span class="keyword">let</span> step1 = <span class="keyword">await</span> <span class="function">fetchStep1</span>()  <span class="comment">// 暂停点1</span>
+    <span class="keyword">let</span> step2 = <span class="keyword">await</span> <span class="function">fetchStep2</span>(step1)  <span class="comment">// 暂停点2</span>
+    <span class="keyword">return</span> <span class="function">combine</span>(step1, step2)
+}
+
+<span class="comment">// 编译器生成的状态机</span>
+<span class="keyword">enum</span> <span class="type">ProcessDataState</span> {
+    <span class="keyword">case</span> initial
+    <span class="keyword">case</span> afterStep1(<span class="type">String</span>)
+    <span class="keyword">case</span> afterStep2(<span class="type">String</span>, <span class="type">String</span>)
+}</pre>
+                </div>
+                
+                <h3>2.3 async/await vs 传统回调</h3>
+                <table>
+                    <tr><th>特性</th><th>async/await</th><th>传统回调</th></tr>
+                    <tr><td>代码可读性</td><td>线性、顺序执行风格</td><td>嵌套回调、难以阅读</td></tr>
+                    <tr><td>错误处理</td><td>使用try/catch统一处理</td><td>每个回调单独处理</td></tr>
+                    <tr><td>取消机制</td><td>内置取消传播</td><td>需手动实现</td></tr>
+                    <tr><td>线程安全</td><td>编译器检查</td><td>运行时问题</td></tr>
+                    <tr><td>性能开销</td><td>低（协作式调度）</td><td>高（线程切换）</td></tr>
+                </table>
+            </section>
+
+            <section id="actor">
+                <h2>🛡️ 三、Actor模型</h2>
+                
+                <h3>3.1 Actor基础</h3>
+                <p>Actor是Swift 5.5引入的新引用类型，用于保护共享可变状态。Actor确保同一时间只有一个任务可以访问其可变状态，从编译器层面消除数据竞争。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - Actor vs 传统Class</div>
+                    <pre><span class="comment">// ❌ 传统类存在数据竞争风险</span>
+<span class="keyword">class</span> <span class="type">Counter</span> {
+    <span class="keyword">var</span> value: <span class="type">Int</span> = <span class="number">0</span>
+    
+    <span class="keyword">func</span> <span class="function">increment</span>() {
+        value += <span class="number">1</span>  <span class="comment">// ⚠️ 多线程访问不安全</span>
+    }
+}
+
+<span class="comment">// ✅ Actor确保线程安全</span>
+<span class="keyword">actor</span> <span class="type">SafeCounter</span> {
+    <span class="keyword">var</span> value: <span class="type">Int</span> = <span class="number">0</span>
+    
+    <span class="keyword">func</span> <span class="function">increment</span>() {
+        value += <span class="number">1</span>  <span class="comment">// ✅ Actor隔离，线程安全</span>
+    }
+    
+    <span class="keyword">func</span> <span class="function">getValue</span>() -> <span class="type">Int</span> {
+        <span class="keyword">return</span> value
+    }
+}
+
+<span class="comment">// 使用Actor</span>
+<span class="keyword">let</span> counter = <span class="type">SafeCounter</span>()
+<span class="keyword">await</span> counter.<span class="function">increment</span>()  <span class="comment">// 必须使用await</span>
+<span class="keyword">let</span> value = <span class="keyword">await</span> counter.<span class="function">getValue</span>()</pre>
+                </div>
+                
+                <h3>3.2 Actor隔离（Actor Isolation）</h3>
+                <p>Actor的属性和方法默认是隔离的，只能在Actor内部同步访问，外部必须通过<code>await</code>异步访问。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - Actor隔离规则</div>
+                    <pre><span class="keyword">actor</span> <span class="type">DataManager</span> {
+    <span class="keyword">private</span> <span class="keyword">var</span> cache: [<span class="type">String</span>: <span class="type">Data</span>] = [:]
+    <span class="keyword">let</span> baseURL: <span class="type">URL</span>  <span class="comment">// immutable属性可直接访问</span>
+    
+    <span class="keyword">init</span>(baseURL: <span class="type">URL</span>) {
+        <span class="keyword">self</span>.baseURL = baseURL
+    }
+    
+    <span class="comment">// 隔离方法 - 需要await访问</span>
+    <span class="keyword">func</span> <span class="function">getData</span>(key: <span class="type">String</span>) -> <span class="type">Data</span>? {
+        <span class="keyword">return</span> cache[key]
+    }
+    
+    <span class="comment">// 非隔离方法 - 可同步访问</span>
+    <span class="keyword">nonisolated</span> <span class="keyword">func</span> <span class="function">buildURL</span>(path: <span class="type">String</span>) -> <span class="type">URL</span> {
+        <span class="keyword">return</span> baseURL.<span class="function">appendingPathComponent</span>(path)
+    }
+}</pre>
+                </div>
+                
+                <h3>3.3 MainActor</h3>
+                <p><code>MainActor</code>是全局唯一的Actor，运行在主线程上。所有UI更新必须在MainActor上执行。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - MainActor三种使用方式</div>
+                    <pre><span class="comment">// 方式1: 标记整个类</span>
+<span class="keyword">@MainActor</span>
+<span class="keyword">class</span> <span class="type">ViewModel</span>: <span class="type">ObservableObject</span> {
+    <span class="keyword">@Published</span> <span class="keyword">var</span> users: [<span class="type">User</span>] = []
+    
+    <span class="keyword">func</span> <span class="function">loadUsers</span>() <span class="keyword">async</span> {
+        <span class="keyword">let</span> fetchedUsers = <span class="keyword">await</span> <span class="function">fetchUsersFromAPI</span>()
+        users = fetchedUsers  <span class="comment">// 自动在主线程执行</span>
+    }
+}
+
+<span class="comment">// 方式2: 标记特定方法</span>
+<span class="keyword">@MainActor</span>
+<span class="keyword">func</span> <span class="function">updateUI</span>(data: [<span class="type">String</span>]) {
+    <span class="comment">// 保证在主线程执行</span>
+}
+
+<span class="comment">// 方式3: 运行时切换</span>
+<span class="keyword">await</span> <span class="type">MainActor</span>.<span class="function">run</span> {
+    <span class="function">updateUILabel</span>(data)
+}</pre>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ MainActor注意事项：</strong><br>
+                    • 避免在MainActor上执行耗时操作，会阻塞UI<br>
+                    • UIKit/AppKit的所有UI组件隐式运行在MainActor上<br>
+                    • @MainActor具有传染性，调用链中的函数也需要是@MainActor
+                </div>
+            </section>
+
+            <section id="sendable">
+                <h2>🔒 四、Sendable协议</h2>
+                
+                <h3>4.1 Sendable概念</h3>
+                <p><code>Sendable</code>协议标记了可以安全地在并发域之间传递的类型。编译器检查Sendable类型，确保不会引发数据竞争。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - Sendable类型示例</div>
+                    <pre><span class="comment">// ✅ 值类型默认是Sendable</span>
+<span class="keyword">struct</span> <span class="type">User</span>: <span class="type">Sendable</span> {
+    <span class="keyword">let</span> id: <span class="type">Int</span>
+    <span class="keyword">let</span> name: <span class="type">String</span>
+}
+
+<span class="comment">// ✅ Actor自动是Sendable</span>
+<span class="keyword">actor</span> <span class="type">DataStore</span> {
+    <span class="keyword">var</span> data: [<span class="type">String</span>: <span class="type">Any</span>] = [:]
+}
+
+<span class="comment">// ✅ final类 + 所有属性都是let + Sendable类型</span>
+<span class="keyword">final</span> <span class="keyword">class</span> <span class="type">Configuration</span>: <span class="type">Sendable</span> {
+    <span class="keyword">let</span> apiKey: <span class="type">String</span>
+    <span class="keyword">let</span> timeout: <span class="type">TimeInterval</span>
+    
+    <span class="keyword">init</span>(apiKey: <span class="type">String</span>, timeout: <span class="type">TimeInterval</span>) {
+        <span class="keyword">self</span>.apiKey = apiKey
+        <span class="keyword">self</span>.timeout = timeout
+    }
+}</pre>
+                </div>
+                
+                <h3>4.2 Sendable类型规则</h3>
+                <table>
+                    <tr><th>类型分类</th><th>条件</th><th>示例</th></tr>
+                    <tr><td>自动Sendable</td><td>值类型，所有成员Sendable</td><td>struct、enum、Int、String</td></tr>
+                    <tr><td>Actor</td><td>所有Actor</td><td>actor DataManager</td></tr>
+                    <tr><td>final类</td><td>所有属性都是let + Sendable</td><td>final class Config</td></tr>
+                    <tr><td>@Sendable闭包</td><td>不捕获可变状态</td><td>@Sendable () -> Void</td></tr>
+                    <tr><td>不能Sendable</td><td>包含可变状态的非final类</td><td>class ViewModel</td></tr>
+                </table>
+                
+                <h3>4.3 @unchecked Sendable</h3>
+                <p>对于内部已实现线程安全但无法通过编译器检查的类型，可使用<code>@unchecked Sendable</code>。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - 使用锁实现线程安全</div>
+                    <pre><span class="keyword">final</span> <span class="keyword">class</span> <span class="type">ThreadSafeCounter</span>: <span class="keyword">@unchecked</span> <span class="type">Sendable</span> {
+    <span class="keyword">private</span> <span class="keyword">var</span> _value: <span class="type">Int</span> = <span class="number">0</span>
+    <span class="keyword">private</span> <span class="keyword">let</span> lock = <span class="type">NSLock</span>()
+    
+    <span class="keyword">var</span> value: <span class="type">Int</span> {
+        lock.<span class="function">lock</span>()
+        <span class="keyword">defer</span> { lock.<span class="function">unlock</span>() }
+        <span class="keyword">return</span> _value
+    }
+    
+    <span class="keyword">func</span> <span class="function">increment</span>() {
+        lock.<span class="function">lock</span>()
+        <span class="keyword">defer</span> { lock.<span class="function">unlock</span>() }
+        _value += <span class="number">1</span>
+    }
+}</pre>
+                </div>
+                
+                <div class="warning-box">
+                    <strong>⚠️ 使用@unchecked Sendable的风险：</strong><br>
+                    • 绕过了编译器的安全检查，需要手动保证线程安全<br>
+                    • 如果实现有误，会导致运行时数据竞争<br>
+                    • 应该优先使用Actor而非@unchecked Sendable
+                </div>
+            </section>
+
+            <section id="task">
+                <h2>⚙️ 五、Task与结构化并发</h2>
+                
+                <h3>5.1 Task基础</h3>
+                <p>Task是Swift并发的基本执行单元，代表一个异步工作。Task可以创建子任务，形成任务树。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - Task基本操作</div>
+                    <pre><span class="comment">// 创建Task</span>
+<span class="keyword">let</span> task = <span class="type">Task</span> {
+    <span class="keyword">let</span> result = <span class="keyword">await</span> <span class="function">someAsyncOperation</span>()
+    <span class="keyword">return</span> result
+}
+
+<span class="comment">// 等待Task完成</span>
+<span class="keyword">let</span> result = <span class="keyword">await</span> task.value
+
+<span class="comment">// 取消Task</span>
+task.<span class="function">cancel</span>()
+
+<span class="comment">// 检查取消状态</span>
+<span class="keyword">if</span> <span class="type">Task</span>.isCancelled {
+    <span class="function">print</span>(<span class="string">"Task cancelled"</span>)
+    <span class="keyword">return</span>
+}</pre>
+                </div>
+                
+                <h3>5.2 Task优先级</h3>
+                <table>
+                    <tr><th>优先级</th><th>QoS等价</th><th>使用场景</th></tr>
+                    <tr><td>high</td><td>userInitiated</td><td>用户主动发起的操作</td></tr>
+                    <tr><td>default</td><td>default</td><td>一般的异步操作</td></tr>
+                    <tr><td>low</td><td>utility</td><td>不紧急的操作</td></tr>
+                    <tr><td>utility</td><td>utility</td><td>长时间运行的计算</td></tr>
+                    <tr><td>background</td><td>background</td><td>后台数据同步</td></tr>
+                </table>
+                
+                <h3>5.3 TaskGroup - 并行任务组</h3>
+                <div class="code-block">
+                    <div class="code-title">Swift - 并行下载多个图片</div>
+                    <pre><span class="keyword">func</span> <span class="function">downloadImages</span>(urls: [<span class="type">URL</span>]) <span class="keyword">async</span> -> [<span class="type">UIImage</span>] {
+    <span class="keyword">await</span> <span class="function">withTaskGroup</span>(of: <span class="type">UIImage</span>?.<span class="keyword">self</span>) { group <span class="keyword">in</span>
+        <span class="keyword">for</span> url <span class="keyword">in</span> urls {
+            group.<span class="function">addTask</span> {
+                <span class="keyword">try</span>? <span class="keyword">await</span> <span class="function">downloadImage</span>(from: url)
+            }
+        }
+        
+        <span class="keyword">var</span> images: [<span class="type">UIImage</span>] = []
+        <span class="keyword">for</span> <span class="keyword">await</span> image <span class="keyword">in</span> group {
+            <span class="keyword">if</span> <span class="keyword">let</span> image = image {
+                images.<span class="function">append</span>(image)
+            }
+        }
+        <span class="keyword">return</span> images
+    }
+}</pre>
+                </div>
+                
+                <h3>5.4 async let - 并发绑定</h3>
+                <div class="code-block">
+                    <div class="code-title">Swift - async let并发执行</div>
+                    <pre><span class="comment">// ❌ 顺序执行（慢）- 总共3秒</span>
+<span class="keyword">func</span> <span class="function">loadDataSequential</span>() <span class="keyword">async</span> <span class="keyword">throws</span> -> (<span class="type">User</span>, [<span class="type">Post</span>], [<span class="type">Comment</span>]) {
+    <span class="keyword">let</span> user = <span class="keyword">try</span> <span class="keyword">await</span> <span class="function">fetchUser</span>()
+    <span class="keyword">let</span> posts = <span class="keyword">try</span> <span class="keyword">await</span> <span class="function">fetchPosts</span>()
+    <span class="keyword">let</span> comments = <span class="keyword">try</span> <span class="keyword">await</span> <span class="function">fetchComments</span>()
+    <span class="keyword">return</span> (user, posts, comments)
+}
+
+<span class="comment">// ✅ 并发执行（快）- 约1秒</span>
+<span class="keyword">func</span> <span class="function">loadDataConcurrent</span>() <span class="keyword">async</span> <span class="keyword">throws</span> -> (<span class="type">User</span>, [<span class="type">Post</span>], [<span class="type">Comment</span>]) {
+    <span class="keyword">async</span> <span class="keyword">let</span> user = <span class="function">fetchUser</span>()
+    <span class="keyword">async</span> <span class="keyword">let</span> posts = <span class="function">fetchPosts</span>()
+    <span class="keyword">async</span> <span class="keyword">let</span> comments = <span class="function">fetchComments</span>()
+    
+    <span class="keyword">return</span> <span class="keyword">try</span> <span class="keyword">await</span> (user, posts, comments)
+}</pre>
+                </div>
+                
+                <h3>5.5 Task取消</h3>
+                <p>Swift的Task取消是<strong>协作式</strong>的，需要任务主动检查取消状态。</p>
+                
+                <div class="code-block">
+                    <div class="code-title">Swift - Task取消三种方式</div>
+                    <pre><span class="comment">// 方式1: 检查isCancelled</span>
+<span class="keyword">func</span> <span class="function">processLargeData</span>() <span class="keyword">async</span> {
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">1</span>...<span class="number">10000</span> {
+        <span class="keyword">if</span> <span class="type">Task</span>.isCancelled {
+            <span class="keyword">return</span>
+        }
+        <span class="keyword">await</span> <span class="function">processItem</span>(i)
+    }
+}
+
+<span class="comment">// 方式2: try Task.checkCancellation()</span>
+<span class="keyword">try</span> <span class="type">Task</span>.<span class="function">checkCancellation</span>()  <span class="comment">// 如果已取消，抛出CancellationError</span>
+
+<span class="comment">// 方式3: withTaskCancellationHandler</span>
+<span class="keyword">try</span> <span class="keyword">await</span> <span class="function">withTaskCancellationHandler</span> {
+    <span class="keyword">try</span> <span class="keyword">await</span> <span class="function">downloadFile</span>(url)
+} onCancel: {
+    <span class="function">print</span>(<span class="string">"Cleaning up..."</span>)
+}</pre>
+                </div>
+                
+                <div class="info-box">
+                    <strong>取消传播规则：</strong><br>
+                    • 父Task取消时，所有子任务自动标记为取消<br>
+                    • 子任务需要主动检查<code>Task.isCancelled</code><br>
+                    • TaskGroup中的任务会自动传播取消状态<br>
+                    • async let创建的子任务也会继承取消状态
+                </div>
+            </section>
+
+            <section id="application">
+                <h2>🎯 六、应用场景</h2>
+                
+                <h3>6.1 网络请求封装</h3>
+                <div class="code-block">
+                    <div class="code-title">Swift - Actor封装网络层</div>
+                    <pre><span class="keyword">actor</span> <span class="type">NetworkManager</span> {
+    <span class="keyword">static</span> <span class="keyword">let</span> shared = <span class="type">NetworkManager</span>()
+    
+    <span class="keyword">func</span> <span class="function">request</span><<span class="type">T</span>: <span class="type">Decodable</span>>(url: <span class="type">URL</span>, type: <span class="type">T</span>.<span class="type">Type</span>) <span class="keyword">async</span> <span class="keyword">throws</span> -> <span class="type">T</span> {
+        <span class="keyword">let</span> (data, response) = <span class="keyword">try</span> <span class="keyword">await</span> <span class="type">URLSession</span>.shared.<span class="function">data</span>(from: url)
+        
+        <span class="keyword">guard</span> <span class="keyword">let</span> httpResponse = response <span class="keyword">as</span>? <span class="type">HTTPURLResponse</span>,
+              <span class="number">200</span>...<span class="number">299</span> ~= httpResponse.statusCode <span class="keyword">else</span> {
+            <span class="keyword">throw</span> <span class="type">NetworkError</span>.invalidResponse
+        }
+        
+        <span class="keyword">return</span> <span class="keyword">try</span> <span class="type">JSONDecoder</span>().<span class="function">decode</span>(<span class="type">T</span>.<span class="keyword">self</span>, from: data)
+    }
+}
+
+<span class="comment">// 使用</span>
+<span class="keyword">@MainActor</span>
+<span class="keyword">class</span> <span class="type">ViewModel</span>: <span class="type">ObservableObject</span> {
+    <span class="keyword">@Published</span> <span class="keyword">var</span> users: [<span class="type">User</span>] = []
+    
+    <span class="keyword">func</span> <span class="function">loadUsers</span>() <span class="keyword">async</span> {
+        <span class="keyword">do</span> {
+            <span class="keyword">let</span> url = <span class="type">URL</span>(string: <span class="string">"https://api.example.com/users"</span>)!
+            users = <span class="keyword">try</span> <span class="keyword">await</span> <span class="type">NetworkManager</span>.shared.<span class="function">request</span>(url: url, type: [<span class="type">User</span>].<span class="keyword">self</span>)
+        } <span class="keyword">catch</span> {
+            <span class="function">print</span>(<span class="string">"Failed: \(error)"</span>)
+        }
+    }
+}</pre>
+                </div>
+                
+                <h3>6.2 数据缓存Actor</h3>
+                <div class="code-block">
+                    <div class="code-title">Swift - Actor实现缓存管理</div>
+                    <pre><span class="keyword">actor</span> <span class="type">CacheManager</span><<span class="type">Key</span>: <span class="type">Hashable</span>, <span class="type">Value</span>> {
+    <span class="keyword">private</span> <span class="keyword">var</span> cache: [<span class="type">Key</span>: <span class="type">CachedValue</span>] = [:]
+    <span class="keyword">private</span> <span class="keyword">let</span> expirationInterval: <span class="type">TimeInterval</span>
+    
+    <span class="keyword">struct</span> <span class="type">CachedValue</span> {
+        <span class="keyword">let</span> value: <span class="type">Value</span>
+        <span class="keyword">let</span> timestamp: <span class="type">Date</span>
+    }
+    
+    <span class="keyword">init</span>(expirationInterval: <span class="type">TimeInterval</span> = <span class="number">300</span>) {
+        <span class="keyword">self</span>.expirationInterval = expirationInterval
+    }
+    
+    <span class="keyword">func</span> <span class="function">get</span>(<span class="keyword">for</span> key: <span class="type">Key</span>) -> <span class="type">Value</span>? {
+        <span class="keyword">guard</span> <span class="keyword">let</span> cached = cache[key] <span class="keyword">else</span> { <span class="keyword">return</span> <span class="keyword">nil</span> }
+        
+        <span class="keyword">if</span> <span class="type">Date</span>().<span class="function">timeIntervalSince</span>(cached.timestamp) > expirationInterval {
+            cache[key] = <span class="keyword">nil</span>
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+        }
+        
+        <span class="keyword">return</span> cached.value
+    }
+    
+    <span class="keyword">func</span> <span class="function">set</span>(<span class="keyword">_</span> value: <span class="type">Value</span>, <span class="keyword">for</span> key: <span class="type">Key</span>) {
+        cache[key] = <span class="type">CachedValue</span>(value: value, timestamp: <span class="type">Date</span>())
+    }
+}</pre>
+                </div>
+                
+                <h3>6.3 图片加载</h3>
+                <div class="code-block">
+                    <div class="code-title">Swift - Actor实现图片加载器</div>
+                    <pre><span class="keyword">actor</span> <span class="type">ImageLoader</span> {
+    <span class="keyword">private</span> <span class="keyword">var</span> cache: [<span class="type">URL</span>: <span class="type">UIImage</span>] = [:]
+    <span class="keyword">private</span> <span class="keyword">var</span> loadingTasks: [<span class="type">URL</span>: <span class="type">Task</span><<span class="type">UIImage</span>, <span class="type">Error</span>>] = [:]
+    
+    <span class="keyword">func</span> <span class="function">loadImage</span>(from url: <span class="type">URL</span>) <span class="keyword">async</span> <span class="keyword">throws</span> -> <span class="type">UIImage</span> {
+        <span class="comment">// 检查缓存</span>
+        <span class="keyword">if</span> <span class="keyword">let</span> cached = cache[url] {
+            <span class="keyword">return</span> cached
+        }
+        
+        <span class="comment">// 检查是否正在加载</span>
+        <span class="keyword">if</span> <span class="keyword">let</span> existingTask = loadingTasks[url] {
+            <span class="keyword">return</span> <span class="keyword">try</span> <span class="keyword">await</span> existingTask.value
+        }
+        
+        <span class="comment">// 创建加载任务</span>
+        <span class="keyword">let</span> task = <span class="type">Task</span> {
+            <span class="keyword">let</span> (data, _) = <span class="keyword">try</span> <span class="keyword">await</span> <span class="type">URLSession</span>.shared.<span class="function">data</span>(from: url)
+            <span class="keyword">guard</span> <span class="keyword">let</span> image = <span class="type">UIImage</span>(data: data) <span class="keyword">else</span> {
+                <span class="keyword">throw</span> <span class="type">ImageError</span>.invalidData
+            }
+            <span class="keyword">return</span> image
+        }
+        
+        loadingTasks[url] = task
+        
+        <span class="keyword">do</span> {
+            <span class="keyword">let</span> image = <span class="keyword">try</span> <span class="keyword">await</span> task.value
+            cache[url] = image
+            loadingTasks[url] = <span class="keyword">nil</span>
+            <span class="keyword">return</span> image
+        } <span class="keyword">catch</span> {
+            loadingTasks[url] = <span class="keyword">nil</span>
+            <span class="keyword">throw</span> error
+        }
+    }
+}</pre>
+                </div>
+            </section>
+
+            <section id="advanced">
+                <h2>🚀 七、高级技巧与最佳实践</h2>
+                
+                <h3>7.1 避免数据竞争</h3>
+                <div class="success-box">
+                    <strong>1. 优先使用Actor保护共享状态</strong><br>
+                    • 编译器保证数据隔离<br>
+                    • 自动序列化访问<br>
+                    • 避免手动加锁<br><br>
+                    
+                    <strong>2. 使用Sendable标记跨并发域的类型</strong><br>
+                    • 值类型优先（struct/enum）<br>
+                    • 避免在闭包中捕获可变状态<br>
+                    • 使用@Sendable闭包<br><br>
+                    
+                    <strong>3. 使用@MainActor确保UI更新在主线程</strong><br>
+                    • 标记ViewModel类<br>
+                    • 标记UI更新方法<br>
+                    • 使用MainActor.run
+                </div>
+                
+                <h3>7.2 性能优化</h3>
+                <ul>
+                    <li><strong>使用async let实现并发执行</strong> - 多个独立异步操作同时执行</li>
+                    <li><strong>合理使用TaskGroup批量处理</strong> - 动态数量的并发任务</li>
+                    <li><strong>避免过度创建Task</strong> - Task有创建开销，复用现有Task</li>
+                    <li><strong>使用Actor本地缓存减少异步调用</strong> - 降低await频率</li>
+                    <li><strong>选择合适的Task优先级</strong> - 根据任务重要性设置优先级</li>
+                </ul>
+                
+                <h3>7.3 错误处理</h3>
+                <ul>
+                    <li><strong>使用try/catch统一处理异步错误</strong> - 简化错误处理逻辑</li>
+                    <li><strong>在TaskGroup中处理部分失败</strong> - 不让一个失败影响整体</li>
+                    <li><strong>利用Task取消机制及时释放资源</strong> - 使用withTaskCancellationHandler</li>
+                    <li><strong>使用Result类型封装异步结果</strong> - 延迟错误处理</li>
+                </ul>
+                
+                <h3>7.4 调试技巧</h3>
+                <div class="info-box">
+                    <strong>Xcode调试工具：</strong><br>
+                    • <strong>Task Debugger</strong>：查看任务层次结构<br>
+                    • <strong>Runtime Issues</strong>：检测数据竞争<br>
+                    • <strong>Thread Sanitizer</strong>：运行时检测线程问题<br>
+                    • <strong>Instruments - System Trace</strong>：分析并发性能
+                </div>
+                
+                <div class="diagram">
+                    <pre>Swift并发最佳实践总结
+
+┌─────────────────────────────────────┐
+│   优先使用Actor保护共享可变状态      │
+│   ├─ 编译器检查数据竞争             │
+│   ├─ 自动序列化访问                 │
+│   └─ 避免手动加锁                   │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│   使用async/await替代回调            │
+│   ├─ 代码更清晰                     │
+│   ├─ 错误处理统一                   │
+│   └─ 性能更好                       │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│   并发执行独立任务提升性能           │
+│   ├─ async let并发执行              │
+│   ├─ TaskGroup批量处理              │
+│   └─ 选择合适的优先级               │
+└─────────────────────────────────────┘</pre>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <h3 style="margin-bottom: 20px;">📚 参考文献</h3>
+            <div style="text-align: left; max-width: 800px; margin: 0 auto;">
+                <ol>
+                    <li><a href="https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html" style="color: #60a5fa; text-decoration: none;" target="_blank">Swift官方文档 - Concurrency</a></li>
+                    <li><a href="https://github.com/apple/swift-evolution/blob/main/proposals/0296-async-await.md" style="color: #60a5fa; text-decoration: none;" target="_blank">SE-0296: Async/await</a></li>
+                    <li><a href="https://github.com/apple/swift-evolution/blob/main/proposals/0306-actors.md" style="color: #60a5fa; text-decoration: none;" target="_blank">SE-0306: Actors</a></li>
+                    <li><a href="https://github.com/apple/swift-evolution/blob/main/proposals/0302-concurrent-value-and-concurrent-closures.md" style="color: #60a5fa; text-decoration: none;" target="_blank">SE-0302: Sendable and @Sendable closures</a></li>
+                    <li>WWDC 2021: Meet async/await in Swift</li>
+                    <li>WWDC 2021: Protect mutable state with Swift actors</li>
+                    <li>WWDC 2021: Swift concurrency: Behind the scenes</li>
+                </ol>
+            </div>
+            <p style="margin-top: 40px; opacity: 0.8;">© 2024 | Swift异步与多线程详解 | 从原理到实践</p>
+        </footer>
+    </div>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

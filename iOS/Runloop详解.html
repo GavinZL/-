@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深入理解iOS/Swift中的Runloop运行循环</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #1d1d1f;
+            border-bottom: 3px solid #0071e3;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            font-size: 2em;
+            color: #0071e3;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            border-left: 5px solid #0071e3;
+            padding-left: 15px;
+        }
+        h3 {
+            font-size: 1.5em;
+            color: #424245;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        h4 {
+            font-size: 1.2em;
+            color: #6e6e73;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .content-block {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        pre {
+            background-color: #f6f8fa;
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        code {
+            font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+            background-color: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        .key-point {
+            background-color: #e7f3ff;
+            border-left: 4px solid #0071e3;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .tree-structure {
+            background-color: #f9f9f9;
+            border: 1px solid #e1e4e8;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            white-space: pre;
+            overflow-x: auto;
+            color: #2c3e50;
+        }
+        .reference {
+            background-color: #f1f1f1;
+            padding: 20px;
+            margin-top: 40px;
+            border-radius: 8px;
+            font-size: 0.95em;
+        }
+        .reference h2 {
+            margin-top: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #d1d5da;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f6f8fa;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <h1>深入理解iOS/Swift中的Runloop运行循环</h1>
+
+    <div class="content-block">
+        <h2>一、概念与背景</h2>
+        
+        <h3>1.1 什么是Runloop？</h3>
+        <p><span class="highlight">RunLoop（运行循环）</span>是iOS/macOS中管理线程生命周期与事件处理的核心机制，其本质是一个基于<strong>事件驱动</strong>的无限循环，负责在「有任务时执行任务，无任务时休眠」的循环逻辑。</p>
+        
+        <div class="key-point">
+            <strong>核心作用：</strong>
+            <ul>
+                <li><strong>线程保活</strong>：防止线程执行完任务后立即退出，保持活跃状态以响应后续事件</li>
+                <li><strong>资源优化</strong>：无任务时休眠，避免CPU空转浪费资源</li>
+                <li><strong>事件分发</strong>：统一管理和分发各种事件源（触摸、定时器、网络等）</li>
+            </ul>
+        </div>
+
+        <h3>1.2 为什么需要Runloop？</h3>
+        <p>在没有Runloop的情况下，线程的生命周期模型如下：</p>
+        <pre><code>// 普通线程模型
+Thread *thread = [[Thread alloc] init];
+[thread start];  // 执行完任务后线程立即退出
+
+void threadFunction() {
+    // 执行任务
+    doSomething();
+    // 线程退出
+}</code></pre>
+
+        <p>这种模型存在以下问题：</p>
+        <ul>
+            <li>线程无法响应后续事件</li>
+            <li>需要频繁创建销毁线程，资源开销大</li>
+            <li>无法实现持续的事件监听</li>
+        </ul>
+
+        <p><strong>Runloop的引入</strong>解决了这些问题：</p>
+        <pre><code>// 有Runloop的线程模型
+void runloopThread() {
+    while (true) {
+        // 等待事件
+        Event event = waitForEvent();
+        
+        // 处理事件
+        if (event) {
+            handleEvent(event);
+        } else {
+            // 无事件时休眠
+            sleep();
+        }
+    }
+}</code></pre>
+
+        <h3>1.3 Runloop的层次结构</h3>
+        <div class="tree-structure">
+Runloop层次体系
+├── Foundation层（NSRunloop）
+│   └── 基于CFRunloop的面向对象封装
+│
+└── Core Foundation层（CFRunloop）
+    ├── 开源实现（可查看源码）
+    ├── 基于C语言实现
+    └── 提供底层API
+        </div>
+
+        <div class="key-point">
+            <strong>两层API关系：</strong>
+            <ul>
+                <li><code>NSRunLoop</code>：OC面向对象封装，线程安全，易用性高</li>
+                <li><code>CFRunLoopRef</code>：底层C语言实现，性能更高，功能更完整</li>
+                <li>可通过<code>NSRunLoop.getCFRunLoop()</code>获取底层对象</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="content-block">
+        <h2>二、核心机制与实现原理</h2>
+
+        <h3>2.1 Runloop的核心组成（MECE分析）</h3>
+        <p>Runloop由以下五大核心组件构成：</p>
+
+        <h4>2.1.1 CFRunLoopRef（Runloop对象）</h4>
+        <p>每个线程都有唯一对应的Runloop对象：</p>
+        <pre><code>// 源码结构（简化版）
+struct __CFRunLoop {
+    pthread_t _pthread;              // 对应的线程
+    CFMutableSetRef _commonModes;    // 通用模式集合
+    CFMutableSetRef _commonModeItems;// 通用模式项
+    CFRunLoopModeRef _currentMode;   // 当前运行模式
+    CFMutableSetRef _modes;          // 所有模式集合
+};</code></pre>
+
+        <pre><code>// 获取Runloop对象
+// 主线程Runloop（自动创建并启动）
+let mainRunloop = RunLoop.main
+let cfMainRunloop = CFRunLoopGetMain()
+
+// 当前线程Runloop（懒加载创建）
+let currentRunloop = RunLoop.current
+let cfCurrentRunloop = CFRunLoopGetCurrent()</code></pre>
+
+        <div class="warning">
+            <strong>注意：</strong>主线程的Runloop在应用启动时自动创建并运行，子线程的Runloop需要手动获取（首次获取时自动创建）和启动。
+        </div>
+
+        <h4>2.1.2 CFRunLoopModeRef（运行模式）</h4>
+        <p>Mode定义了Runloop在特定场景下处理哪些事件源：</p>
+        <pre><code>// 源码结构
+struct __CFRunLoopMode {
+    CFStringRef _name;            // 模式名称
+    CFMutableSetRef _sources0;    // Source0事件集合
+    CFMutableSetRef _sources1;    // Source1事件集合
+    CFMutableArrayRef _observers; // 观察者集合
+    CFMutableArrayRef _timers;    // 定时器集合
+};</code></pre>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>模式名称</th>
+                    <th>说明</th>
+                    <th>应用场景</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>NSDefaultRunLoopMode</code></td>
+                    <td>默认模式，空闲状态</td>
+                    <td>App正常运行时的大部分时间</td>
+                </tr>
+                <tr>
+                    <td><code>UITrackingRunLoopMode</code></td>
+                    <td>UI追踪模式</td>
+                    <td>ScrollView滚动、手势追踪时</td>
+                </tr>
+                <tr>
+                    <td><code>NSRunLoopCommonModes</code></td>
+                    <td>通用模式标记（伪模式）</td>
+                    <td>将事件添加到多个模式中</td>
+                </tr>
+                <tr>
+                    <td><code>UIInitializationRunLoopMode</code></td>
+                    <td>初始化模式</td>
+                    <td>App启动时的私有模式</td>
+                </tr>
+                <tr>
+                    <td><code>GSEventReceiveRunLoopMode</code></td>
+                    <td>系统事件接收模式</td>
+                    <td>接收系统内部事件</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="key-point">
+            <strong>重要特性：</strong>
+            <ul>
+                <li>Runloop每次只能运行在一个Mode下</li>
+                <li>切换Mode需要退出当前循环，重新进入</li>
+                <li><code>CommonModes</code>是一个标记，包含Default和Tracking模式</li>
+            </ul>
+        </div>
+
+        <h4>2.1.3 CFRunLoopSourceRef（事件源）</h4>
+        <p>事件源分为两类：</p>
+
+        <h5>Source0（非基于Port的事件）</h5>
+        <ul>
+            <li>触摸事件处理</li>
+            <li>performSelector系列方法</li>
+            <li>需要手动唤醒Runloop</li>
+        </ul>
+
+        <pre><code>// Source0源码结构
+struct __CFRunLoopSource {
+    CFRunLoopSourceContext context; // 回调函数上下文
+    void (*perform)(void *info);    // 执行回调
+};</code></pre>
+
+        <h5>Source1（基于Port的事件）</h5>
+        <ul>
+            <li>系统底层通过mach_port通信的事件</li>
+            <li>可以主动唤醒Runloop</li>
+            <li>用于线程间通信</li>
+        </ul>
+
+        <pre><code>// Source1示例：线程间通信
+class ThreadCommunication {
+    var thread: Thread?
+    var runloop: CFRunLoop?
+    
+    func createWorkerThread() {
+        thread = Thread {
+            // 获取当前线程Runloop
+            self.runloop = CFRunLoopGetCurrent()
+            
+            // 添加Source1（Port）
+            let port = NSPort()
+            RunLoop.current.add(port, forMode: .default)
+            
+            // 启动Runloop
+            CFRunLoopRun()
+        }
+        thread?.start()
+    }
+    
+    func sendMessageToWorker() {
+        // 通过Port发送消息，会唤醒Runloop
+        // Source1自动唤醒目标线程
+    }
+}</code></pre>
+
+        <h4>2.1.4 CFRunLoopTimerRef（定时器）</h4>
+        <p>基于时间的触发源：</p>
+
+        <pre><code>// Timer源码结构
+struct __CFRunLoopTimer {
+    CFAbsoluteTime _nextFireDate;  // 下次触发时间
+    CFTimeInterval _interval;      // 触发间隔
+    void (*_callout)(CFRunLoopTimerRef, void *); // 回调函数
+};</code></pre>
+
+        <pre><code>// Swift中的Timer使用
+// 1. 普通Timer（需要手动加入Runloop）
+let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
+    print("Timer fired")
+}
+RunLoop.current.add(timer, forMode: .default)
+
+// 2. 自动加入Runloop的Timer
+let scheduledTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+    print("Scheduled timer fired")
+}
+
+// 3. 添加到CommonModes（解决滚动时停止问题）
+RunLoop.current.add(timer, forMode: .common)
+
+// 4. GCD Timer（不依赖Runloop，更精准）
+let gcdTimer = DispatchSource.makeTimerSource(queue: .main)
+gcdTimer.schedule(deadline: .now(), repeating: 1.0)
+gcdTimer.setEventHandler {
+    print("GCD timer fired")
+}
+gcdTimer.resume()</code></pre>
+
+        <div class="warning">
+            <strong>常见问题：</strong>ScrollView滚动时Timer停止触发
+            <br><strong>原因：</strong>滚动时Runloop切换到TrackingMode，而Timer只添加在DefaultMode
+            <br><strong>解决：</strong>将Timer添加到CommonModes
+        </div>
+
+        <h4>2.1.5 CFRunLoopObserverRef（观察者）</h4>
+        <p>监听Runloop状态变化的机制：</p>
+
+        <pre><code>// Observer可监听的状态
+typedef CF_OPTIONS(CFOptionFlags, CFRunLoopActivity) {
+    kCFRunLoopEntry         = (1UL << 0),  // 即将进入Runloop
+    kCFRunLoopBeforeTimers  = (1UL << 1),  // 即将处理Timer
+    kCFRunLoopBeforeSources = (1UL << 2),  // 即将处理Source
+    kCFRunLoopBeforeWaiting = (1UL << 5),  // 即将进入休眠
+    kCFRunLoopAfterWaiting  = (1UL << 6),  // 刚从休眠中唤醒
+    kCFRunLoopExit          = (1UL << 7),  // 即将退出Runloop
+    kCFRunLoopAllActivities = 0x0FFFFFFFU  // 所有状态
+};</code></pre>
+
+        <pre><code>// 添加Observer监听Runloop状态
+func addRunloopObserver() {
+    let observer = CFRunLoopObserverCreateWithHandler(
+        kCFAllocatorDefault,
+        CFRunLoopActivity.allActivities.rawValue,
+        true,  // 是否重复
+        0      // 优先级
+    ) { observer, activity in
+        switch activity {
+        case .entry:
+            print("即将进入Runloop")
+        case .beforeTimers:
+            print("即将处理Timer")
+        case .beforeSources:
+            print("即将处理Source")
+        case .beforeWaiting:
+            print("即将休眠")
+        case .afterWaiting:
+            print("刚唤醒")
+        case .exit:
+            print("即将退出")
+        default:
+            break
+        }
+    }
+    
+    CFRunLoopAddObserver(CFRunLoopGetCurrent(), observer, .defaultMode)
+}</code></pre>
+
+        <h3>2.2 Runloop运行机制详解</h3>
+
+        <h4>2.2.1 完整运行流程</h4>
+        <pre><code>// Runloop核心循环伪代码
+int CFRunLoopRunSpecific(CFRunLoopRef rl, CFStringRef modeName) {
+    // 1. 通知Observer：即将进入Runloop
+    __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopEntry);
+    
+    do {
+        // 2. 通知Observer：即将处理Timer
+        __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopBeforeTimers);
+        
+        // 3. 通知Observer：即将处理Source0
+        __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopBeforeSources);
+        
+        // 4. 处理Blocks（使用CFRunLoopPerformBlock添加的）
+        __CFRunLoopDoBlocks(rl, currentMode);
+        
+        // 5. 处理Source0事件
+        if (__CFRunLoopDoSources0(rl, currentMode)) {
+            // 处理完Source0后再次处理Blocks
+            __CFRunLoopDoBlocks(rl, currentMode);
+        }
+        
+        // 6. 如果有Source1，直接处理并跳转到第9步
+        if (__CFRunLoopServiceMachPort()) {
+            goto handle_msg;
+        }
+        
+        // 7. 通知Observer：即将休眠
+        __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopBeforeWaiting);
+        
+        // 8. 进入休眠，等待唤醒
+        __CFRunLoopSetSleeping(rl);
+        __CFRunLoopServiceMachPort(waitSet, &msg);
+        __CFRunLoopUnsetSleeping(rl);
+        
+        // 9. 通知Observer：刚被唤醒
+        __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopAfterWaiting);
+        
+    handle_msg:
+        // 10. 处理唤醒原因
+        if (被Timer唤醒) {
+            __CFRunLoopDoTimers(rl, currentMode);
+        } 
+        else if (被GCD唤醒) {
+            __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__(msg);
+        } 
+        else if (被Source1唤醒) {
+            __CFRunLoopDoSource1(rl, currentMode, source1);
+        }
+        
+        // 11. 处理Blocks
+        __CFRunLoopDoBlocks(rl, currentMode);
+        
+    } while (!stop && !timeout);
+    
+    // 12. 通知Observer：即将退出Runloop
+    __CFRunLoopDoObservers(rl, currentMode, kCFRunLoopExit);
+}</code></pre>
+
+        <h4>2.2.2 唤醒机制</h4>
+        <p>Runloop可以被以下方式唤醒：</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>唤醒方式</th>
+                    <th>说明</th>
+                    <th>底层实现</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Source1事件</td>
+                    <td>基于mach_port的事件</td>
+                    <td>内核发送消息到端口</td>
+                </tr>
+                <tr>
+                    <td>Timer到期</td>
+                    <td>定时器触发时间到达</td>
+                    <td>内核定时器触发</td>
+                </tr>
+                <tr>
+                    <td>外部手动唤醒</td>
+                    <td>调用CFRunLoopWakeUp</td>
+                    <td>向mach_port发送消息</td>
+                </tr>
+                <tr>
+                    <td>超时退出</td>
+                    <td>运行时间达到设定值</td>
+                    <td>mach_msg超时返回</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>2.2.3 底层实现：mach_msg机制</h4>
+        <p>Runloop的休眠和唤醒依赖于macOS/iOS的Mach内核机制：</p>
+        <pre><code>// 底层休眠/唤醒实现
+mach_msg_return_t mach_msg(
+    mach_msg_header_t *msg,
+    mach_msg_option_t option,
+    mach_msg_size_t send_size,
+    mach_msg_size_t rcv_size,
+    mach_port_t rcv_name,
+    mach_msg_timeout_t timeout,
+    mach_port_t notify
+);
+
+// Runloop休眠时调用
+mach_msg(
+    NULL,                    // 不发送消息
+    MACH_RCV_MSG,           // 接收模式
+    0,                      // 发送大小
+    sizeof(buffer),         // 接收缓冲区大小
+    port,                   // 监听的端口
+    timeout,                // 超时时间
+    MACH_PORT_NULL
+);
+// 此调用会让线程进入内核态休眠，直到端口收到消息</code></pre>
+
+        <div class="key-point">
+            <strong>休眠机制的优势：</strong>
+            <ul>
+                <li><strong>真正休眠</strong>：线程进入内核态休眠，不占用CPU资源</li>
+                <li><strong>即时响应</strong>：内核收到消息后立即唤醒线程</li>
+                <li><strong>高效能</strong>：避免轮询检查，系统资源消耗最小</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="content-block">
+        <h2>三、应用场景</h2>
+
+        <h3>3.1 常驻线程（保活线程）</h3>
+        <p>使用Runloop保持线程不退出，实现长期任务处理：</p>
+        <pre><code>class PermanentThread {
+    private var thread: Thread?
+    private var runloop: CFRunLoop?
+    
+    // 创建常驻线程
+    func createPermanentThread() {
+        thread = Thread { [weak self] in
+            // 必须添加一个Source/Timer/Observer，否则Runloop会立即退出
+            // 方法1：添加一个永不触发的Port
+            let port = NSPort()
+            RunLoop.current.add(port, forMode: .default)
+            
+            // 或方法2：添加一个永不触发的Timer
+            // let timer = Timer(timeInterval: Double.greatestFiniteMagnitude, 
+            //                   repeats: true) { _ in }
+            // RunLoop.current.add(timer, forMode: .default)
+            
+            // 保存Runloop引用
+            self?.runloop = CFRunLoopGetCurrent()
+            
+            // 启动Runloop
+            CFRunLoopRun()
+            
+            print("Runloop退出")
+        }
+        thread?.start()
+    }
+    
+    // 在常驻线程执行任务
+    func executeTask(_ block: @escaping () -> Void) {
+        guard let thread = thread else { return }
+        perform(#selector(runTask(_:)), 
+                on: thread, 
+                with: block, 
+                waitUntilDone: false)
+    }
+    
+    @objc private func runTask(_ block: () -> Void) {
+        block()
+    }
+    
+    // 停止常驻线程
+    func stop() {
+        guard let runloop = runloop else { return }
+        CFRunLoopStop(runloop)
+    }
+}
+
+// 使用示例
+let permanentThread = PermanentThread()
+permanentThread.createPermanentThread()
+
+// 在后台线程执行耗时操作
+permanentThread.executeTask {
+    print("在常驻线程执行任务：\(Thread.current)")
+    // 执行耗时操作
+}
+
+// 不需要时停止
+// permanentThread.stop()</code></pre>
+
+        <h3>3.2 监控卡顿检测</h3>
+        <p>利用Runloop Observer监听主线程卡顿：</p>
+        <pre><code>class FPSMonitor {
+    private var observer: CFRunLoopObserver?
+    private var semaphore = DispatchSemaphore(value: 0)
+    private var activity: CFRunLoopActivity = .entry
+    
+    func startMonitoring() {
+        observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.allActivities.rawValue,
+            true,
+            0
+        ) { [weak self] _, activity in
+            self?.activity = activity
+            self?.semaphore.signal()
+        }
+        
+        CFRunLoopAddObserver(
+            CFRunLoopGetMain(),
+            observer,
+            CFRunLoopMode.commonModes
+        )
+        
+        // 在子线程监控
+        DispatchQueue.global().async {
+            self.monitorLoop()
+        }
+    }
+    
+    private func monitorLoop() {
+        while true {
+            // 等待Runloop状态变化，超时时间250ms
+            let timeout = semaphore.wait(timeout: .now() + 0.25)
+            
+            if timeout == .timedOut {
+                // 超时说明主线程卡顿
+                if activity == .beforeSources || activity == .afterWaiting {
+                    print("⚠️ 检测到主线程卡顿！")
+                    // 记录堆栈信息
+                    let callStack = Thread.callStackSymbols
+                    print("堆栈：\(callStack)")
+                }
+            }
+        }
+    }
+    
+    func stopMonitoring() {
+        if let observer = observer {
+            CFRunLoopRemoveObserver(
+                CFRunLoopGetMain(),
+                observer,
+                CFRunLoopMode.commonModes
+            )
+        }
+    }
+}</code></pre>
+
+        <h3>3.3 自动释放池的管理</h3>
+        <p>Runloop自动创建和释放AutoreleasePool：</p>
+        <pre><code>// Runloop与AutoreleasePool的关系
+/*
+主线程Runloop在每次循环中自动管理AutoreleasePool：
+
+1. kCFRunLoopEntry（进入Runloop）
+   → 创建AutoreleasePool (_objc_autoreleasePoolPush)
+
+2. kCFRunLoopBeforeWaiting（即将休眠）
+   → 释放旧的Pool (_objc_autoreleasePoolPop)
+   → 创建新的Pool (_objc_autoreleasePoolPush)
+
+3. kCFRunLoopExit（退出Runloop）
+   → 释放Pool (_objc_autoreleasePoolPop)
+*/
+
+// 子线程需要手动管理
+DispatchQueue.global().async {
+    // 没有Runloop的子线程，需要手动创建
+    autoreleasepool {
+        // 创建大量临时对象
+        for i in 0..<10000 {
+            let data = NSData(bytes: [UInt8](repeating: 0, count: 1000), 
+                            length: 1000)
+            // data会被加入autoreleasepool
+        }
+    } // 释放pool，回收内存
+}
+
+// 如果子线程启动了Runloop
+Thread.detachNewThread {
+    // 手动创建第一个Pool
+    autoreleasepool {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        // Runloop会自动管理后续的AutoreleasePool
+        CFRunLoopRun()
+    }
+}</code></pre>
+
+        <h3>3.4 响应用户交互</h3>
+        <p>主线程Runloop处理各种用户事件：</p>
+        <pre><code>// 触摸事件处理流程
+/*
+1. 用户触摸屏幕
+   ↓
+2. IOKit.framework生成IOHIDEvent
+   ↓
+3. SpringBoard接收事件，通过mach_port转发给App进程
+   ↓
+4. Source1接收IOHIDEvent，转换为Source0
+   ↓
+5. Source0包装为UIEvent，分发给UIApplication
+   ↓
+6. UIApplication调用sendEvent:分发给UIWindow
+   ↓
+7. UIWindow查找最佳响应者（hitTest）
+   ↓
+8. 响应者链处理事件
+*/
+
+// 手势识别器也依赖Runloop
+class CustomGestureHandler: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        let tap = UITapGestureRecognizer(target: self, 
+                                         action: #selector(handleTap))
+        view.addGestureRecognizer(tap)
+        
+        // 手势识别在Runloop的Source0阶段处理
+    }
+    
+    @objc func handleTap() {
+        print("处理点击事件")
+    }
+}</code></pre>
+
+        <h3>3.5 界面更新</h3>
+        <p>UI渲染与Runloop的关系：</p>
+        <pre><code>// 界面更新机制
+class ViewUpdateMechanism {
+    func updateUI() {
+        // 修改UI属性时，不会立即渲染
+        let view = UIView()
+        view.backgroundColor = .red  // 标记需要重绘
+        view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)  // 标记需要布局
+        
+        // 实际渲染发生在Runloop即将休眠前
+        /*
+        Runloop处理流程：
+        1. Source0处理事件（如触摸）
+        2. 修改UI属性，标记需要更新
+        3. kCFRunLoopBeforeWaiting时
+           → CA::Transaction::commit()
+           → 提交图层树到Render Server
+           → GPU渲染
+        */
+    }
+    
+    // 强制立即渲染
+    func forceRender() {
+        let view = UIView()
+        view.backgroundColor = .blue
+        
+        // 立即布局
+        view.layoutIfNeeded()
+        
+        // 或使用CATransaction强制提交
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        view.layer.backgroundColor = UIColor.green.cgColor
+        CATransaction.commit()
+    }
+}
+
+// 异步绘制优化
+class AsyncDrawingOptimization {
+    func asyncDraw() {
+        let label = UILabel()
+        
+        // 在子线程绘制文本
+        DispatchQueue.global().async {
+            let string = "大量文本内容..."
+            let size = CGSize(width: 300, height: 0)
+            
+            // 绘制到图片
+            UIGraphicsBeginImageContextWithOptions(size, false, 0)
+            string.draw(in: CGRect(origin: .zero, size: size))
+            let image = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            
+            // 回到主线程更新
+            DispatchQueue.main.async {
+                label.layer.contents = image?.cgImage
+            }
+        }
+    }
+}</code></pre>
+
+        <h3>3.6 网络请求</h3>
+        <p>NSURLConnection与Runloop的关系：</p>
+        <pre><code>// NSURLConnection依赖Runloop
+class NetworkWithRunloop {
+    func startRequest() {
+        let url = URL(string: "https://api.example.com")!
+        let request = URLRequest(url: url)
+        
+        // NSURLConnection在当前线程的Runloop中调度
+        // 必须保证Runloop在运行
+        let connection = NSURLConnection(request: request, 
+                                        delegate: self,
+                                        startImmediately: false)
+        
+        // 指定Runloop模式
+        connection?.schedule(in: .current, forMode: .common)
+        connection?.start()
+    }
+    
+    // 子线程中使用NSURLConnection
+    func requestInBackgroundThread() {
+        Thread.detachNewThread {
+            let url = URL(string: "https://api.example.com")!
+            let request = URLRequest(url: url)
+            
+            // 必须启动Runloop
+            let connection = NSURLConnection(request: request, 
+                                            delegate: self,
+                                            startImmediately: false)
+            connection?.schedule(in: .current, forMode: .default)
+            connection?.start()
+            
+            // 启动Runloop接收回调
+            CFRunLoopRun()
+        }
+    }
+}
+
+// URLSession使用GCD，不依赖Runloop
+class ModernNetworking {
+    func useURLSession() {
+        let url = URL(string: "https://api.example.com")!
+        
+        // URLSession底层使用GCD，不依赖Runloop
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            // 在GCD队列回调，不需要Runloop
+            print("请求完成")
+        }
+        task.resume()
+    }
+}</code></pre>
+    </div>
+
+    <div class="content-block">
+        <h2>四、高级技巧与最佳实践</h2>
+
+        <h3>4.1 performSelector系列方法</h3>
+        <p>不同的performSelector方法与Runloop的关系：</p>
+        <pre><code>class PerformSelectorDemo: NSObject {
+    func testPerformSelector() {
+        // 1. 立即执行（不依赖Runloop）
+        performSelector(onMainThread: #selector(task1), 
+                       with: nil, 
+                       waitUntilDone: false)
+        
+        // 2. 延迟执行（依赖Runloop）
+        perform(#selector(task2), 
+               with: nil, 
+               afterDelay: 1.0)
+        
+        // 3. 在指定Runloop模式执行
+        perform(#selector(task3), 
+               with: nil, 
+               afterDelay: 1.0,
+               inModes: [.common])
+        
+        // 4. 取消延迟执行
+        NSObject.cancelPreviousPerformRequests(withTarget: self, 
+                                               selector: #selector(task2), 
+                                               object: nil)
+    }
+    
+    @objc func task1() { print("Task 1") }
+    @objc func task2() { print("Task 2") }
+    @objc func task3() { print("Task 3") }
+    
+    // 注意事项
+    func warningCase() {
+        // ⚠️ 子线程如果没有Runloop，perform不会执行
+        Thread.detachNewThread {
+            self.perform(#selector(self.task1), 
+                        with: nil, 
+                        afterDelay: 1.0)
+            // 不会执行，因为线程没有启动Runloop
+        }
+        
+        // ✅ 正确做法
+        Thread.detachNewThread {
+            self.perform(#selector(self.task1), 
+                        with: nil, 
+                        afterDelay: 1.0)
+            // 启动Runloop
+            RunLoop.current.run()
+        }
+    }
+}</code></pre>
+
+        <h3>4.2 Runloop启动与退出</h3>
+        <p>掌握Runloop的完整生命周期管理：</p>
+        <pre><code>class RunloopLifecycle {
+    // 启动方式1：无限循环（常用于后台线程）
+    func method1_run() {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        // 一直运行，直到调用CFRunLoopStop
+        RunLoop.current.run()
+        print("Runloop退出")
+    }
+    
+    // 启动方式2：运行到指定时间
+    func method2_runUntilDate() {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        // 运行10秒后自动退出
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 10))
+        print("Runloop超时退出")
+    }
+    
+    // 启动方式3：运行指定模式
+    func method3_runMode() {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        // 运行一次，处理完事件后退出
+        RunLoop.current.run(mode: .default, before: Date.distantFuture)
+        print("处理完一次事件")
+    }
+    
+    // 启动方式4：CFRunLoop底层API（最灵活）
+    func method4_cfRunloop() {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        let runloop = CFRunLoopGetCurrent()
+        
+        // 运行指定秒数
+        CFRunLoopRunInMode(.defaultMode, 10.0, false)
+        
+        // 或无限运行
+        CFRunLoopRun()
+        
+        // 停止Runloop
+        CFRunLoopStop(runloop)
+    }
+    
+    // 安全退出Runloop
+    class SafeRunloopThread {
+        private var thread: Thread?
+        private var runloop: CFRunLoop?
+        private var shouldStop = false
+        
+        func start() {
+            thread = Thread { [weak self] in
+                guard let self = self else { return }
+                
+                let port = NSPort()
+                RunLoop.current.add(port, forMode: .default)
+                self.runloop = CFRunLoopGetCurrent()
+                
+                // 使用循环控制退出
+                while !self.shouldStop {
+                    // 每次运行一小段时间，检查退出标志
+                    RunLoop.current.run(mode: .default, 
+                                       before: Date(timeIntervalSinceNow: 0.5))
+                }
+                
+                print("Runloop安全退出")
+            }
+            thread?.start()
+        }
+        
+        func stop() {
+            shouldStop = true
+            if let runloop = runloop {
+                CFRunLoopStop(runloop)
+            }
+        }
+    }
+}</code></pre>
+
+        <h3>4.3 模式切换优化</h3>
+        <p>合理使用Runloop模式提升性能：</p>
+        <pre><code>class RunloopModeOptimization {
+    // 问题：滚动时Timer停止
+    func problemCase() {
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, 
+                                        repeats: true) { _ in
+            print("Timer fired")
+        }
+        // 默认添加到DefaultMode，滚动时不触发
+    }
+    
+    // 解决方案1：添加到CommonModes
+    func solution1_commonModes() {
+        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
+            print("Timer fired")
+        }
+        // 同时在Default和Tracking模式运行
+        RunLoop.current.add(timer, forMode: .common)
+    }
+    
+    // 解决方案2：多模式添加
+    func solution2_multipleModes() {
+        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
+            print("Timer fired")
+        }
+        RunLoop.current.add(timer, forMode: .default)
+        RunLoop.current.add(timer, forMode: .tracking)
+    }
+    
+    // 解决方案3：使用GCD Timer
+    func solution3_gcdTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now(), repeating: 1.0)
+        timer.setEventHandler {
+            print("GCD timer fired")
+        }
+        timer.resume()
+        // GCD Timer不依赖Runloop，不受模式切换影响
+    }
+    
+    // 性能优化：滚动时暂停非必要任务
+    func performanceOptimization() {
+        let scrollView = UIScrollView()
+        
+        // 滚动开始
+        NotificationCenter.default.addObserver(
+            forName: UIScrollView.willBeginDraggingNotification,
+            object: scrollView,
+            queue: .main
+        ) { _ in
+            // 暂停非必要的Timer
+            print("进入Tracking模式，暂停后台任务")
+        }
+        
+        // 滚动结束
+        NotificationCenter.default.addObserver(
+            forName: UIScrollView.didEndDraggingNotification,
+            object: scrollView,
+            queue: .main
+        ) { _ in
+            // 恢复任务
+            print("回到Default模式，恢复后台任务")
+        }
+    }
+}</code></pre>
+
+        <h3>4.4 源码分析：Runloop底层实现</h3>
+        <p>基于开源的CF-1153.18版本分析关键实现：</p>
+        <pre><code>// CFRunLoop核心数据结构
+struct __CFRunLoop {
+    CFRuntimeBase _base;
+    pthread_mutex_t _lock;           // 互斥锁
+    __CFPort _wakeUpPort;            // 唤醒端口
+    Boolean _unused;
+    volatile _per_run_data *_perRunData;
+    pthread_t _pthread;              // 对应线程
+    uint32_t _winthread;
+    CFMutableSetRef _commonModes;    // Common标记的模式集合
+    CFMutableSetRef _commonModeItems;// Common标记的items
+    CFRunLoopModeRef _currentMode;   // 当前模式
+    CFMutableSetRef _modes;          // 所有模式
+    struct _block_item *_blocks_head;// Block链表头
+    struct _block_item *_blocks_tail;// Block链表尾
+    CFAbsoluteTime _runTime;
+    CFAbsoluteTime _sleepTime;
+    CFTypeRef _counterpart;
+};
+
+// Runloop与线程的映射关系
+// 全局字典存储：thread → runloop
+CFMutableDictionaryRef __CFRunLoops = NULL;
+CFLock_t loopsLock = CFLockInit;
+
+CFRunLoopRef _CFRunLoopGet0(pthread_t t) {
+    if (pthread_equal(t, kNilPthreadT)) {
+        t = pthread_main_thread_np();
+    }
+    __CFLock(&loopsLock);
+    
+    if (!__CFRunLoops) {
+        __CFUnlock(&loopsLock);
+        // 第一次调用，创建字典
+        CFMutableDictionaryRef dict = CFDictionaryCreateMutable(...);
+        
+        // 创建主线程Runloop
+        CFRunLoopRef mainLoop = __CFRunLoopCreate(pthread_main_thread_np());
+        CFDictionarySetValue(dict, pthread_main_thread_np(), mainLoop);
+        
+        __CFRunLoops = dict;
+    }
+    
+    // 从字典获取Runloop
+    CFRunLoopRef loop = (CFRunLoopRef)CFDictionaryGetValue(__CFRunLoops, t);
+    __CFUnlock(&loopsLock);
+    
+    if (!loop) {
+        // 不存在则创建
+        CFRunLoopRef newLoop = __CFRunLoopCreate(t);
+        __CFLock(&loopsLock);
+        loop = (CFRunLoopRef)CFDictionaryGetValue(__CFRunLoops, t);
+        if (!loop) {
+            CFDictionarySetValue(__CFRunLoops, t, newLoop);
+            loop = newLoop;
+        }
+        __CFUnlock(&loopsLock);
+    }
+    
+    return loop;
+}
+
+// 休眠/唤醒的核心实现
+static int32_t __CFRunLoopRun(...) {
+    // ... 前面的处理
+    
+    // 进入休眠
+    __CFRunLoopSetSleeping(rl);
+    
+    // 调用mach_msg等待消息
+    mach_msg_return_t msg_ret = 0;
+    msg_ret = mach_msg(
+        msg,                    // 消息头
+        MACH_RCV_MSG,          // 接收模式
+        0,                     // 发送大小
+        sizeof(msg_buffer),    // 接收大小
+        port,                  // 监听的端口
+        timeout,               // 超时时间
+        MACH_PORT_NULL         // 通知端口
+    );
+    
+    // 被唤醒
+    __CFRunLoopUnsetSleeping(rl);
+    
+    // 根据返回值判断唤醒原因
+    if (msg_ret == MACH_MSG_SUCCESS) {
+        // 处理消息
+    } else if (msg_ret == MACH_RCV_TIMED_OUT) {
+        // 超时
+    }
+    
+    // ... 后续处理
+}</code></pre>
+
+        <h3>4.5 内存管理注意事项</h3>
+        <pre><code>class RunloopMemoryManagement {
+    // 避免循环引用
+    func avoidRetainCycle() {
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, 
+                                        repeats: true) { [weak self] _ in
+            self?.doSomething()
+        }
+        
+        // 记得在deinit中释放
+        // timer.invalidate()
+    }
+    
+    // Observer的正确释放
+    func properObserverRelease() {
+        var observer: CFRunLoopObserver?
+        
+        observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.allActivities.rawValue,
+            true,
+            0
+        ) { _, _ in
+            print("Observer triggered")
+        }
+        
+        if let observer = observer {
+            CFRunLoopAddObserver(CFRunLoopGetCurrent(), observer, .defaultMode)
+        }
+        
+        // 使用完毕后移除
+        // CFRunLoopRemoveObserver(CFRunLoopGetCurrent(), observer, .defaultMode)
+    }
+    
+    // 线程安全的Runloop访问
+    func threadSafeAccess() {
+        // ✅ 正确：在线程内部访问自己的Runloop
+        Thread.detachNewThread {
+            let runloop = RunLoop.current
+            // 使用runloop
+        }
+        
+        // ⚠️ 危险：跨线程访问Runloop
+        var otherRunloop: RunLoop?
+        Thread.detachNewThread {
+            otherRunloop = RunLoop.current
+        }
+        // 不要在其他线程操作otherRunloop
+    }
+}</code></pre>
+
+        <h3>4.6 实战：AFNetworking中的Runloop应用</h3>
+        <p>分析AFNetworking 2.x如何使用Runloop：</p>
+        <pre><code>// AFNetworking的常驻线程实现（简化版）
+class AFNetworkingRunloopDemo {
+    static let shared = AFNetworkingRunloopDemo()
+    private var networkThread: Thread?
+    private var networkRunloop: RunLoop?
+    
+    private init() {
+        networkThread = Thread(target: self, 
+                              selector: #selector(networkThreadMain), 
+                              object: nil)
+        networkThread?.name = "AFNetworking"
+        networkThread?.start()
+    }
+    
+    @objc private func networkThreadMain() {
+        // 保证Runloop不退出
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        // 保存Runloop引用
+        networkRunloop = RunLoop.current
+        
+        // 启动Runloop
+        while !Thread.current.isCancelled {
+            RunLoop.current.run(mode: .default, 
+                               before: Date.distantFuture)
+        }
+    }
+    
+    func performTask(_ task: @escaping () -> Void) {
+        guard let thread = networkThread else { return }
+        
+        perform(#selector(executeTask(_:)), 
+               on: thread, 
+               with: task, 
+               waitUntilDone: false)
+    }
+    
+    @objc private func executeTask(_ task: () -> Void) {
+        task()
+    }
+}
+
+// 为什么AFNetworking需要常驻线程？
+/*
+1. NSURLConnection的delegate回调需要在有Runloop的线程
+2. 避免频繁创建销毁线程，提升性能
+3. 统一管理网络请求，便于取消和控制
+
+注意：AFNetworking 3.x以后改用NSURLSession，
+不再需要常驻线程，因为URLSession基于GCD实现
+*/</code></pre>
+    </div>
+
+    <div class="content-block">
+        <h2>五、常见问题与调试技巧</h2>
+
+        <h3>5.1 常见问题排查</h3>
+        
+        <h4>问题1：Timer不触发</h4>
+        <pre><code>// 问题代码
+func timerNotWorking() {
+    Thread.detachNewThread {
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, 
+                                        repeats: true) { _ in
+            print("Timer") // 不会打印
+        }
+    }
+}
+
+// 原因：子线程没有启动Runloop
+
+// 解决方案
+func timerWorking() {
+    Thread.detachNewThread {
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, 
+                                        repeats: true) { _ in
+            print("Timer") // 会打印
+        }
+        
+        // 启动Runloop
+        RunLoop.current.run()
+    }
+}</code></pre>
+
+        <h4>问题2：performSelector延迟执行无效</h4>
+        <pre><code>// 问题代码
+func performSelectorNotWorking() {
+    Thread.detachNewThread {
+        self.perform(#selector(self.task), 
+                    with: nil, 
+                    afterDelay: 1.0)
+        // 不会执行
+    }
+}
+
+// 原因：同上，需要Runloop
+
+// 解决方案
+func performSelectorWorking() {
+    Thread.detachNewThread {
+        self.perform(#selector(self.task), 
+                    with: nil, 
+                    afterDelay: 1.0)
+        RunLoop.current.run()
+    }
+}
+
+@objc func task() {
+    print("Task executed")
+}</code></pre>
+
+        <h4>问题3：Runloop无法退出</h4>
+        <pre><code>// 问题代码
+func runloopCannotExit() {
+    Thread.detachNewThread {
+        // RunLoop.run()会一直运行，无法退出
+        RunLoop.current.run()
+        print("Never printed")
+    }
+}
+
+// 解决方案1：使用CFRunLoopStop
+class StoppableRunloop {
+    var runloop: CFRunLoop?
+    
+    func start() {
+        Thread.detachNewThread {
+            let port = NSPort()
+            RunLoop.current.add(port, forMode: .default)
+            
+            self.runloop = CFRunLoopGetCurrent()
+            CFRunLoopRun()
+            
+            print("Runloop exited")
+        }
+    }
+    
+    func stop() {
+        if let runloop = runloop {
+            CFRunLoopStop(runloop)
+        }
+    }
+}
+
+// 解决方案2：使用循环控制
+func controlledRunloop() {
+    var shouldStop = false
+    
+    Thread.detachNewThread {
+        let port = NSPort()
+        RunLoop.current.add(port, forMode: .default)
+        
+        while !shouldStop {
+            RunLoop.current.run(mode: .default, 
+                               before: Date(timeIntervalSinceNow: 0.5))
+        }
+        
+        print("Runloop exited")
+    }
+    
+    // 停止
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        shouldStop = true
+    }
+}</code></pre>
+
+        <h3>5.2 调试技巧</h3>
+        
+        <h4>5.2.1 查看当前Runloop状态</h4>
+        <pre><code>func inspectRunloop() {
+    let runloop = CFRunLoopGetCurrent()
+    
+    // 获取所有模式
+    let modes = CFRunLoopCopyAllModes(runloop) as? [CFRunLoopMode]
+    print("所有模式：\(modes ?? [])")
+    
+    // 获取当前模式
+    let currentMode = CFRunLoopCopyCurrentMode(runloop)
+    print("当前模式：\(currentMode ?? "None")")
+    
+    // 打印Runloop详细信息
+    print("Runloop：\(runloop)")
+    print("NSRunLoop：\(RunLoop.current)")
+}</code></pre>
+
+        <h4>5.2.2 监控Runloop活动</h4>
+        <pre><code>class RunloopDebugger {
+    func startDebugging() {
+        let activities: CFRunLoopActivity = [
+            .entry, .beforeTimers, .beforeSources,
+            .beforeWaiting, .afterWaiting, .exit
+        ]
+        
+        let observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            activities.rawValue,
+            true,
+            0
+        ) { _, activity in
+            let timestamp = Date()
+            let activityName = self.activityName(activity)
+            print("[\(timestamp)] Runloop: \(activityName)")
+        }
+        
+        CFRunLoopAddObserver(CFRunLoopGetCurrent(), observer, .commonModes)
+    }
+    
+    private func activityName(_ activity: CFRunLoopActivity) -> String {
+        switch activity {
+        case .entry: return "Entry"
+        case .beforeTimers: return "BeforeTimers"
+        case .beforeSources: return "BeforeSources"
+        case .beforeWaiting: return "BeforeWaiting"
+        case .afterWaiting: return "AfterWaiting"
+        case .exit: return "Exit"
+        default: return "Unknown"
+        }
+    }
+}</code></pre>
+
+        <h4>5.2.3 性能分析</h4>
+        <pre><code>class RunloopPerformanceAnalyzer {
+    private var lastTimestamp: CFAbsoluteTime = 0
+    
+    func startAnalyzing() {
+        let observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.beforeWaiting.rawValue,
+            true,
+            0
+        ) { [weak self] _, _ in
+            guard let self = self else { return }
+            
+            let currentTime = CFAbsoluteTimeGetCurrent()
+            
+            if self.lastTimestamp > 0 {
+                let duration = currentTime - self.lastTimestamp
+                
+                // 检测主线程卡顿（超过16.67ms）
+                if duration > 0.0167 {
+                    print("⚠️ 主线程卡顿：\(duration * 1000)ms")
+                }
+            }
+            
+            self.lastTimestamp = currentTime
+        }
+        
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    }
+}</code></pre>
+
+        <h3>5.3 最佳实践总结</h3>
+        <div class="key-point">
+            <strong>Runloop使用建议：</strong>
+            <ul>
+                <li>✅ 主线程Runloop由系统管理，无需手动启动</li>
+                <li>✅ 子线程需要长期响应事件时，使用Runloop保活</li>
+                <li>✅ Timer添加到CommonModes避免滚动停止问题</li>
+                <li>✅ 使用GCD Timer替代NSTimer，避免Runloop依赖</li>
+                <li>⚠️ 避免在Runloop回调中执行耗时操作</li>
+                <li>⚠️ 及时释放Observer和Timer，避免内存泄漏</li>
+                <li>⚠️ 跨线程访问Runloop要特别小心</li>
+                <li>❌ 不要在子线程使用performSelector:afterDelay:而不启动Runloop</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="reference">
+        <h2>参考资料</h2>
+        <ol>
+            <li>
+                <strong>Apple官方文档</strong>
+                <ul>
+                    <li><a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html">Threading Programming Guide - Run Loops</a></li>
+                    <li><a href="https://developer.apple.com/documentation/foundation/runloop">NSRunLoop - Foundation | Apple Developer</a></li>
+                    <li><a href="https://developer.apple.com/documentation/corefoundation/cfrunloop-rht">CFRunLoop - Core Foundation | Apple Developer</a></li>
+                </ul>
+            </li>
+            <li>
+                <strong>开源项目</strong>
+                <ul>
+                    <li><a href="https://opensource.apple.com/source/CF/">CF-1153.18 (Core Foundation源码)</a></li>
+                    <li><a href="https://github.com/AFNetworking/AFNetworking">AFNetworking - GitHub</a></li>
+                </ul>
+            </li>
+            <li>
+                <strong>深度文章</strong>
+                <ul>
+                    <li>《深入理解RunLoop》- ibireme</li>
+                    <li>《iOS RunLoop完全指南》- sunnyxx</li>
+                    <li>《Runloop源码分析》- bang</li>
+                </ul>
+            </li>
+            <li>
+                <strong>WWDC视频</strong>
+                <ul>
+                    <li>WWDC 2012 - Session 211: Building Concurrent User Interfaces</li>
+                    <li>WWDC 2015 - Session 718: Building Responsive and Efficient Apps</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px; padding: 20px; background-color: #f9f9f9; border-radius: 8px;">
+        <p style="font-size: 0.9em; color: #666;">
+            文档生成时间：2025年10月18日<br>
+            适用版本：iOS 13.0+ / Swift 5.0+
+        </p>
+    </div>
+</body>
+</html>

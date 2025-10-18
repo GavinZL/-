@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深入理解iOS内存管理与weak弱引用机制</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; line-height: 1.8; color: #333; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 60px 40px; text-align: center; }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 700; }
+        nav { background: #f8f9fa; padding: 20px 40px; border-bottom: 3px solid #667eea; position: sticky; top: 0; z-index: 100; }
+        nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 15px; }
+        nav a { text-decoration: none; color: #667eea; padding: 8px 16px; border-radius: 8px; transition: all 0.3s; font-weight: 500; }
+        nav a:hover { background: #667eea; color: white; }
+        .content { padding: 40px; }
+        section { margin-bottom: 60px; scroll-margin-top: 80px; }
+        h2 { color: #667eea; font-size: 2em; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid #667eea; }
+        h3 { color: #764ba2; font-size: 1.5em; margin: 30px 0 15px 0; padding-left: 15px; border-left: 4px solid #764ba2; }
+        h4 { color: #555; font-size: 1.2em; margin: 20px 0 10px 0; }
+        p { margin-bottom: 15px; }
+        .highlight { background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 5px solid #667eea; }
+        .code-block { 
+            background: #282c34; 
+            color: #abb2bf; 
+            padding: 20px; 
+            border-radius: 10px; 
+            overflow-x: auto; 
+            margin: 20px 0; 
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
+            font-size: 14px; 
+            line-height: 1.8;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .code-block::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            color: #5c6370;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .code-block pre {
+            margin: 0;
+            white-space: pre;
+            word-wrap: normal;
+        }
+        /* 语法高亮颜色 */
+        .keyword { color: #c678dd; font-weight: 600; }  /* 关键字 */
+        .type { color: #e5c07b; font-weight: 500; }     /* 类型 */
+        .function { color: #61afef; }                   /* 函数 */
+        .string { color: #98c379; }                     /* 字符串 */
+        .comment { color: #5c6370; font-style: italic; } /* 注释 */
+        .number { color: #d19a66; }                     /* 数字 */
+        .operator { color: #56b6c2; }                   /* 操作符 */
+        .property { color: #e06c75; }                   /* 属性 */
+        .variable { color: #abb2bf; }                   /* 变量 */
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+        .flow-diagram { background: white; border: 2px solid #667eea; border-radius: 10px; padding: 30px; margin: 20px 0; text-align: center; }
+        .flow-step { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 8px; display: inline-block; margin: 10px; }
+        .flow-arrow { font-size: 2em; color: #667eea; display: block; margin: 10px 0; }
+        ul, ol { margin: 15px 0 15px 30px; }
+        li { margin-bottom: 10px; }
+        .note { background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .warning { background: #f8d7da; border-left: 5px solid #dc3545; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .tip { background: #d1ecf1; border-left: 5px solid #17a2b8; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 深入理解iOS内存管理与weak弱引用机制</h1>
+            <p>从原理到实践 · 源码级剖析 · 系统工程师视角</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#concept">概念与背景</a></li>
+                <li><a href="#mechanism">核心机制</a></li>
+                <li><a href="#autorelease">Autorelease机制</a></li>
+                <li><a href="#weak">weak原理</a></li>
+                <li><a href="#swift-memory">Swift内存管理</a></li>
+                <li><a href="#app">应用场景</a></li>
+                <li><a href="#advanced">高级技巧</a></li>
+            </ul>
+        </nav>
+
+        <div class="content">
+            <section id="concept">
+                <h2>一、概念与背景</h2>
+                <h3>1.1 内存管理的本质</h3>
+                <p>iOS采用<strong>引用计数（Reference Counting）</strong>机制管理对象内存。当对象的引用计数为0时，系统自动释放该对象。</p>
+                <div class="highlight"><strong>核心原则：</strong>谁创建谁释放，谁持有谁负责。</div>
+
+                <h3>1.2 引用类型对比</h3>
+                <table>
+                    <tr><th>类型</th><th>引用计数</th><th>释放后</th><th>场景</th></tr>
+                    <tr><td><strong>strong</strong></td><td>+1</td><td>保持原值</td><td>默认，拥有所有权</td></tr>
+                    <tr><td><strong>weak</strong></td><td>不变</td><td>自动置nil</td><td>避免循环引用</td></tr>
+                    <tr><td><strong>unowned</strong></td><td>不变</td><td>野指针⚠️</td><td>确定生命周期</td></tr>
+                    <tr><td><strong>copy</strong></td><td>新对象+1</td><td>不受影响</td><td>不可变对象</td></tr>
+                </table>
+
+                <h3>1.3 演进历程</h3>
+                <ul>
+                    <li><strong>MRC时代</strong>：手动retain/release</li>
+                    <li><strong>ARC时代</strong>：编译器自动插入内存管理代码（iOS 5+）</li>
+                    <li><strong>Swift时代</strong>：更安全，编译期检查，值类型优先</li>
+                </ul>
+                <div class="note"><strong>📌 注意：</strong>ARC是编译期特性，不是垃圾回收！运行时仍是引用计数机制。</div>
+            </section>
+
+            <section id="mechanism">
+                <h2>二、核心内存管理机制</h2>
+                <h3>2.1 引用计数存储位置</h3>
+                <h4>2.1.1 isa指针中的extra_rc字段（19位）</h4>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// objc4-781源码 objc-private.h</span>
+<span class="keyword">union</span> <span class="type">isa_t</span> {
+    <span class="type">Class</span> cls;
+    <span class="type">uintptr_t</span> bits;
+    <span class="keyword">struct</span> {
+        <span class="type">uintptr_t</span> <span class="property">nonpointer</span>        : <span class="number">1</span>;  <span class="comment">// 优化的isa</span>
+        <span class="type">uintptr_t</span> <span class="property">has_assoc</span>         : <span class="number">1</span>;  <span class="comment">// 有关联对象</span>
+        <span class="type">uintptr_t</span> <span class="property">has_cxx_dtor</span>      : <span class="number">1</span>;  <span class="comment">// 有C++析构</span>
+        <span class="type">uintptr_t</span> <span class="property">shiftcls</span>          : <span class="number">33</span>; <span class="comment">// 类指针(ARM64)</span>
+        <span class="type">uintptr_t</span> <span class="property">magic</span>             : <span class="number">6</span>;  <span class="comment">// 魔数</span>
+        <span class="type">uintptr_t</span> <span class="property">weakly_referenced</span> : <span class="number">1</span>;  <span class="comment">// 被弱引用</span>
+        <span class="type">uintptr_t</span> <span class="property">deallocating</span>      : <span class="number">1</span>;  <span class="comment">// 正在释放</span>
+        <span class="type">uintptr_t</span> <span class="property">has_sidetable_rc</span>  : <span class="number">1</span>;  <span class="comment">// RC溢出到SideTable</span>
+        <span class="type">uintptr_t</span> <span class="property">extra_rc</span>          : <span class="number">19</span>; <span class="comment">// ⭐额外引用计数(0~524287)</span>
+    };
+};</pre></div>
+                <div class="highlight"><strong>优化：</strong>extra_rc可存储0~524,287的引用计数，绝大多数对象无需额外内存。</div>
+
+                <h4>2.1.2 SideTable数据结构</h4>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// objc4-781源码 NSObject.mm</span>
+<span class="keyword">struct</span> <span class="type">SideTable</span> {
+    <span class="type">spinlock_t</span> slock;           <span class="comment">// 自旋锁，线程安全</span>
+    <span class="type">RefcountMap</span> refcnts;        <span class="comment">// ⭐引用计数表(哈希)</span>
+    <span class="type">weak_table_t</span> weak_table;    <span class="comment">// ⭐弱引用表</span>
+};
+
+<span class="comment">// 全局64个SideTable，通过对象地址哈希分散存储</span>
+<span class="keyword">static</span> <span class="type">StripedMap</span>&lt;<span class="type">SideTable</span>&gt; <span class="variable">SideTables</span>;</pre></div>
+                <div class="tip"><strong>💡 设计亮点：</strong>64个SideTable降低锁竞争，提升多线程性能。</div>
+
+                <h3>2.2 引用计数操作</h3>
+                <h4>retain流程</h4>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="type">id</span> <span class="function">objc_retain</span>(<span class="type">id</span> obj) {
+    <span class="keyword">if</span> (!obj) <span class="keyword">return</span> obj;
+    <span class="keyword">if</span> (obj-&gt;<span class="function">isTaggedPointer</span>()) <span class="keyword">return</span> obj;  <span class="comment">// Tagged Pointer不需管理</span>
+    <span class="keyword">return</span> obj-&gt;<span class="function">retain</span>();
+}
+
+<span class="keyword">inline</span> <span class="type">id</span> <span class="type">objc_object</span>::<span class="function">retain</span>() {
+    <span class="comment">// 1. 尝试在isa的extra_rc中+1</span>
+    <span class="type">isa_t</span> oldisa = <span class="function">LoadExclusive</span>(&isa.bits);
+    <span class="type">isa_t</span> newisa = oldisa;
+    
+    <span class="comment">// 2. extra_rc未溢出，直接+1</span>
+    <span class="keyword">if</span> (!newisa.<span class="function">has_sidetable_rc</span>()) {
+        newisa.extra_rc++;
+        <span class="keyword">if</span> (<span class="function">StoreExclusive</span>(&isa.bits, oldisa.bits, newisa.bits)) {
+            <span class="keyword">return</span> (<span class="type">id</span>)<span class="keyword">this</span>;
+        }
+    }
+    
+    <span class="comment">// 3. extra_rc溢出，转移一半到SideTable</span>
+    <span class="keyword">return</span> <span class="function">rootRetain_overflow</span>(tryRetain);
+}</pre></div>
+
+                <h4>release流程</h4>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="keyword">inline</span> <span class="type">bool</span> <span class="type">objc_object</span>::<span class="function">release</span>() {
+    <span class="comment">// 1. 尝试在extra_rc中-1</span>
+    <span class="keyword">if</span> (newisa.extra_rc &gt; <span class="number">0</span>) {
+        newisa.extra_rc--;
+        <span class="keyword">return</span> <span class="keyword">false</span>;  <span class="comment">// 不需要dealloc</span>
+    }
+    
+    <span class="comment">// 2. extra_rc为0，从SideTable借位或dealloc</span>
+    <span class="keyword">return</span> <span class="function">rootRelease_underflow</span>(performDealloc);
+}</pre></div>
+
+                <h3>2.3 dealloc完整流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">1. 调用dealloc</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">2. _objc_rootDealloc</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">3. objc_destructInstance</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">4.1 clearDeallocating(清理weak)<br/>4.2 移除关联对象<br/>4.3 C++析构<br/>4.4 清理引用计数表</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">5. free(obj)</div>
+                </div>
+
+                <div class="code-block" data-lang="Objective-C"><pre><span class="type">void</span> <span class="function">objc_destructInstance</span>(<span class="type">id</span> obj) {
+    <span class="keyword">if</span> (obj) {
+        <span class="type">Class</span> isa = obj-&gt;<span class="function">getIsa</span>();
+        <span class="keyword">if</span> (isa-&gt;<span class="function">hasCxxDtor</span>()) {
+            <span class="function">object_cxxDestruct</span>(obj);
+        }
+        <span class="keyword">if</span> (isa-&gt;<span class="function">instancesHaveAssociatedObjects</span>()) {
+            <span class="function">_object_remove_assocations</span>(obj);
+        }
+        obj-&gt;<span class="function">clearDeallocating</span>();  <span class="comment">// ⭐清理weak引用</span>
+    }
+}</pre></div>
+            </section>
+
+            <section id="autorelease">
+                <h2>三、Autorelease机制</h2>
+                <h3>3.1 Autorelease概念</h3>
+                <p><strong>autorelease</strong>是一种延迟释放机制，它允许对象在当前作用域结束后，在未来某个时刻自动调用release。这在MRC时代用于解决方法返回值的内存管理问题。</p>
+                <div class="highlight"><strong>核心思想：</strong>对象不立即release，而是注册到AutoreleasePool中，等待pool销毁时统一释放。</div>
+
+                <h3>3.2 AutoreleasePoolPage数据结构</h3>
+                <div class="code-block" data-lang="C++"><pre><span class="comment">// objc4-781源码 NSObject.mm</span>
+<span class="keyword">class</span> <span class="type">AutoreleasePoolPage</span> {
+    <span class="keyword">static</span> <span class="type">size_t</span> <span class="keyword">const</span> SIZE = <span class="number">4096</span>;  <span class="comment">// 4KB页大小</span>
+    <span class="type">magic_t</span> <span class="keyword">const</span> magic;              <span class="comment">// 完整性检查</span>
+    <span class="type">id</span> *next;                         <span class="comment">// ⭐指向下一个可用位置</span>
+    <span class="type">pthread_t</span> <span class="keyword">const</span> thread;           <span class="comment">// 所属线程</span>
+    <span class="type">AutoreleasePoolPage</span> *<span class="keyword">const</span> parent; <span class="comment">// 父页（双向链表）</span>
+    <span class="type">AutoreleasePoolPage</span> *child;        <span class="comment">// 子页</span>
+    <span class="type">uint32_t</span> <span class="keyword">const</span> depth;              <span class="comment">// 深度</span>
+    <span class="type">uint32_t</span> hiwat;                    <span class="comment">// high water mark</span>
+};
+<span class="comment">// 每个Page可存储约505个对象指针</span></pre></div>
+                <div class="tip"><strong>💡 设计亮点：</strong>每个线程独立的Page栈（TLS），多个Page双向链表连接，4KB页大小内存对齐。</div>
+
+                <h3>3.3 Autorelease工作原理</h3>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="comment">// @autoreleasepool编译器转换</span>
+<span class="keyword">@autoreleasepool</span> {
+    <span class="type">NSString</span> *str = [<span class="type">NSString</span> <span class="function">stringWithFormat</span>:<span class="string">@"Hello"</span>];
+}
+<span class="comment">// 转换为：</span>
+<span class="type">void</span> *context = <span class="function">objc_autoreleasePoolPush</span>();  <span class="comment">// push: 插入POOL_BOUNDARY</span>
+<span class="type">NSString</span> *str = [<span class="type">NSString</span> <span class="function">stringWithFormat</span>:<span class="string">@"Hello"</span>];
+<span class="function">objc_autoreleasePoolPop</span>(context);  <span class="comment">// pop: 释放所有对象</span></pre></div>
+
+                <div class="code-block" data-lang="C++"><pre><span class="comment">// AutoreleasePoolPage::push</span>
+<span class="keyword">static</span> <span class="keyword">inline</span> <span class="type">void</span> * <span class="function">push</span>() {
+    <span class="type">id</span> *dest = <span class="function">autoreleaseFast</span>(POOL_BOUNDARY);  <span class="comment">// 插入边界标记</span>
+    <span class="keyword">return</span> dest;  <span class="comment">// 返回token</span>
+}
+
+<span class="comment">// AutoreleasePoolPage::pop</span>
+<span class="keyword">static</span> <span class="keyword">inline</span> <span class="type">void</span> <span class="function">pop</span>(<span class="type">void</span> *token) {
+    <span class="type">AutoreleasePoolPage</span> *page = <span class="function">pageForPointer</span>(token);
+    <span class="type">id</span> *stop = (<span class="type">id</span> *)token;
+    page-&gt;<span class="function">releaseUntil</span>(stop);  <span class="comment">// 释放到边界</span>
+}
+
+<span class="type">void</span> <span class="function">releaseUntil</span>(<span class="type">id</span> *stop) {
+    <span class="keyword">while</span> (<span class="keyword">this</span>-&gt;next != stop) {
+        page-&gt;next--;
+        <span class="type">id</span> obj = *page-&gt;next;
+        <span class="keyword">if</span> (obj == POOL_BOUNDARY) <span class="keyword">break</span>;
+        <span class="function">objc_release</span>(obj);  <span class="comment">// ⭐调用release</span>
+    }
+}</pre></div>
+
+                <h3>3.4 RunLoop与AutoreleasePool</h3>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// 主线程RunLoop自动管理Pool</span>
+<span class="comment">// kCFRunLoopEntry（进入Loop） → objc_autoreleasePoolPush()</span>
+<span class="comment">// kCFRunLoopBeforeWaiting（休眠前） → Pop旧pool + Push新pool</span>
+<span class="comment">// kCFRunLoopExit（退出Loop） → objc_autoreleasePoolPop()</span></pre></div>
+                <div class="highlight"><strong>生命周期：</strong>App启动→RunLoop创建pool→每次事件循环创建新pool→事件处理完毕pop。</div>
+
+                <h3>3.5 实际应用</h3>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="comment">// 场景1：循环中大量临时对象</span>
+<span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">100000</span>; i++) {
+    <span class="keyword">@autoreleasepool</span> {  <span class="comment">// ⭐每次循环释放</span>
+        <span class="type">NSString</span> *str = [<span class="type">NSString</span> <span class="function">stringWithFormat</span>:<span class="string">@"%d"</span>, i];
+        <span class="type">UIImage</span> *img = [<span class="type">UIImage</span> <span class="function">imageNamed</span>:<span class="string">@"large.png"</span>];
+    }
+}
+
+<span class="comment">// 场景2：非主线程无RunLoop</span>
+<span class="function">dispatch_async</span>(queue, ^{
+    <span class="keyword">@autoreleasepool</span> {  <span class="comment">// ⭐必须手动创建</span>
+        <span class="type">NSData</span> *data = [<span class="type">NSData</span> <span class="function">dataWithContentsOfURL</span>:url];
+    }
+});</pre></div>
+                <div class="warning"><strong>⚠️ 注意：</strong>循环中大量autorelease导致内存峰值，非主线程必须手动管理pool。</div>
+            </section>
+
+            <section id="weak">
+                <h2>四、weak弱引用工作原理</h2>
+                <h3>4.1 核心数据结构</h3>
+                <h4>weak_table_t 全局弱引用表</h4>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// objc4-781源码 objc-weak.h</span>
+<span class="keyword">struct</span> <span class="type">weak_table_t</span> {
+    <span class="type">weak_entry_t</span> *weak_entries;  <span class="comment">// ⭐弱引用条目数组(哈希表)</span>
+    <span class="type">size_t</span> num_entries;          <span class="comment">// 条目数量</span>
+    <span class="type">uintptr_t</span> mask;              <span class="comment">// 哈希掩码</span>
+    <span class="type">uintptr_t</span> max_hash_displacement;
+};</pre></div>
+
+                <h4>weak_entry_t 弱引用条目</h4>
+                <div class="code-block" data-lang="C"><pre><span class="keyword">struct</span> <span class="type">weak_entry_t</span> {
+    <span class="type">DisguisedPtr</span>&lt;<span class="type">objc_object</span>&gt; referent;  <span class="comment">// ⭐被弱引用的对象</span>
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> {
+            <span class="type">weak_referrer_t</span> *referrers;  <span class="comment">// ⭐动态数组: weak指针地址</span>
+            <span class="type">uintptr_t</span> num_refs : <span class="number">62</span>;     <span class="comment">// 引用数量</span>
+        };
+        <span class="keyword">struct</span> {
+            <span class="type">weak_referrer_t</span> inline_referrers[<span class="number">4</span>];  <span class="comment">// ⭐内联数组优化</span>
+        };
+    };
+};
+<span class="comment">// weak_referrer_t = weak指针的地址</span></pre></div>
+                <div class="highlight"><strong>存储优化：</strong>≤4个weak引用用内联数组，>4个用动态数组。</div>
+
+                <h3>4.2 weak注册流程</h3>
+                <p>声明 <code>__weak UIViewController *weakVC = vc;</code> 编译器转换为：</p>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="type">UIViewController</span> *weakVC = <span class="keyword">nil</span>;
+<span class="function">objc_initWeak</span>(&weakVC, vc);
+
+<span class="comment">// objc_storeWeak核心实现</span>
+<span class="type">id</span> <span class="function">objc_storeWeak</span>(<span class="type">id</span> *location, <span class="type">id</span> newObj) {
+    <span class="comment">// 1. 如果旧对象存在，从weak_table移除</span>
+    <span class="function">weak_unregister_no_lock</span>(&oldTable-&gt;weak_table, oldObj, location);
+    
+    <span class="comment">// 2. 注册新的weak指针到weak_table</span>
+    newObj = <span class="function">weak_register_no_lock</span>(&newTable-&gt;weak_table, newObj, location);
+    
+    <span class="comment">// 3. 在isa中标记对象被弱引用</span>
+    newObj-&gt;<span class="function">setWeaklyReferenced_nolock</span>();
+    
+    <span class="comment">// 4. 赋值给weak指针</span>
+    *location = newObj;
+    <span class="keyword">return</span> newObj;
+}</pre></div>
+
+                <h4>weak_register_no_lock注册细节</h4>
+                <div class="code-block" data-lang="C"><pre><span class="type">id</span> <span class="function">weak_register_no_lock</span>(<span class="type">weak_table_t</span> *weak_table, <span class="type">id</span> referent, 
+                          <span class="type">id</span> *referrer, <span class="type">bool</span> crashIfDeallocating) {
+    <span class="comment">// 1. 检查对象是否正在释放</span>
+    <span class="keyword">if</span> (obj-&gt;<span class="function">isDeallocating</span>()) {
+        <span class="function">_objc_fatal</span>(<span class="string">"Cannot form weak reference"</span>);
+        <span class="keyword">return</span> <span class="keyword">nil</span>;
+    }
+    
+    <span class="comment">// 2. 在weak_table中查找或创建weak_entry</span>
+    <span class="type">weak_entry_t</span> *entry;
+    <span class="keyword">if</span> ((entry = <span class="function">weak_entry_for_referent</span>(weak_table, referent))) {
+        <span class="function">append_referrer</span>(entry, referrer);  <span class="comment">// 找到，添加weak指针</span>
+    } <span class="keyword">else</span> {
+        <span class="type">weak_entry_t</span> new_entry(referent, referrer);
+        <span class="function">weak_grow_maybe</span>(weak_table);  <span class="comment">// 必要时扩容</span>
+        <span class="function">weak_entry_insert</span>(weak_table, &new_entry);  <span class="comment">// 插入新entry</span>
+    }
+    <span class="keyword">return</span> referent;
+}</pre></div>
+
+                <h3>4.3 weak清理流程（自动置nil）</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">对象RC为0</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">dealloc → clearDeallocating</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step" style="background:#dc3545;">weak_clear_no_lock<br/>遍历weak指针，置为nil</div>
+                </div>
+
+                <div class="code-block" data-lang="C"><pre><span class="comment">// objc4-781源码 objc-weak.mm</span>
+<span class="type">void</span> <span class="function">weak_clear_no_lock</span>(<span class="type">weak_table_t</span> *weak_table, <span class="type">id</span> referent_id) {
+    <span class="comment">// 1. 在weak_table中查找对象的weak_entry</span>
+    <span class="type">weak_entry_t</span> *entry = <span class="function">weak_entry_for_referent</span>(weak_table, referent);
+    <span class="keyword">if</span> (entry == <span class="keyword">nil</span>) <span class="keyword">return</span>;
+    
+    <span class="comment">// 2. 遍历所有weak指针，置为nil</span>
+    <span class="type">weak_referrer_t</span> *referrers;
+    <span class="type">size_t</span> count;
+    <span class="keyword">if</span> (entry-&gt;out_of_line_ness) {
+        referrers = entry-&gt;referrers;  <span class="comment">// 动态数组</span>
+        count = entry-&gt;num_refs;
+    } <span class="keyword">else</span> {
+        referrers = entry-&gt;inline_referrers;  <span class="comment">// 内联数组</span>
+        count = <span class="number">4</span>;
+    }
+    
+    <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; count; ++i) {
+        <span class="type">objc_object</span> **referrer = referrers[i];
+        <span class="keyword">if</span> (referrer) {
+            *referrer = <span class="keyword">nil</span>;  <span class="comment">// ⭐置为nil</span>
+        }
+    }
+    
+    <span class="comment">// 3. 移除entry</span>
+    <span class="function">weak_entry_remove</span>(weak_table, entry);
+}</pre></div>
+                <div class="highlight"><strong>自动置nil原理：</strong>
+                    <ol>
+                        <li>weak_entry_t存储对象地址 + weak指针地址数组</li>
+                        <li>dealloc时，通过对象地址找到weak_entry</li>
+                        <li>遍历数组，将每个weak指针置为nil</li>
+                    </ol>
+                </div>
+
+                <h3>4.4 weak vs unowned</h3>
+                <table>
+                    <tr><th>特性</th><th>weak</th><th>unowned</th></tr>
+                    <tr><td>释放后</td><td>自动置nil✅</td><td>野指针⚠️</td></tr>
+                    <tr><td>类型</td><td>Optional</td><td>Non-optional</td></tr>
+                    <tr><td>性能</td><td>需维护weak_table</td><td>无开销</td></tr>
+                    <tr><td>场景</td><td>对象可能先释放</td><td>确定不会先释放</td></tr>
+                </table>
+                <div class="warning"><strong>⚠️ unowned警告：</strong>仅在100%确定生命周期时使用，否则崩溃。</div>
+            </section>
+
+            <section id="swift-memory">
+                <h2>五、Swift内存管理</h2>
+                <h3>5.1 Swift与Objective-C的差异</h3>
+                <p>Swift同样采用<strong>ARC引用计数</strong>机制，但在语言层面引入了更多安全特性。</p>
+                <table>
+                    <tr><th>特性</th><th>Objective-C</th><th>Swift</th></tr>
+                    <tr><td><strong>默认类型</strong></td><td>引用类型（NSObject）</td><td>值类型（Struct/Enum）</td></tr>
+                    <tr><td><strong>引用语法</strong></td><td>strong/weak/__weak</td><td>strong/weak/unowned</td></tr>
+                    <tr><td><strong>编译期检查</strong></td><td>较弱</td><td>强类型、Optional检查</td></tr>
+                    <tr><td><strong>内存安全</strong></td><td>手动管理指针</td><td>无原始指针，更安全</td></tr>
+                    <tr><td><strong>值类型</strong></td><td>无（C struct）</td><td>Struct/Enum一等公民</td></tr>
+                </table>
+
+                <h3>5.2 值类型 vs 引用类型</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// 值类型 - 栈上分配，拷贝传递</span>
+<span class="keyword">struct</span> <span class="type">Point</span> {
+    <span class="keyword">var</span> x: <span class="type">Int</span>
+    <span class="keyword">var</span> y: <span class="type">Int</span>
+}
+<span class="keyword">var</span> p1 = <span class="type">Point</span>(x: <span class="number">10</span>, y: <span class="number">20</span>)
+<span class="keyword">var</span> p2 = p1  <span class="comment">// ⭐拷贝值</span>
+p2.x = <span class="number">30</span>
+<span class="function">print</span>(p1.x)  <span class="comment">// 10</span>
+
+<span class="comment">// 引用类型 - 堆上分配，ARC管理</span>
+<span class="keyword">class</span> <span class="type">Person</span> {
+    <span class="keyword">var</span> name: <span class="type">String</span>
+    <span class="keyword">init</span>(name: <span class="type">String</span>) { <span class="keyword">self</span>.name = name }
+}
+<span class="keyword">var</span> person1 = <span class="type">Person</span>(name: <span class="string">"Alice"</span>)  <span class="comment">// RC=1</span>
+<span class="keyword">var</span> person2 = person1  <span class="comment">// ⭐引用传递，RC=2</span>
+person2.name = <span class="string">"Bob"</span>
+<span class="function">print</span>(person1.name)  <span class="comment">// "Bob"</span></pre></div>
+                <div class="highlight"><strong>设计理念：</strong>值类型优先，避免不必要的引用计数，Array/Dictionary/String都是值类型。</div>
+
+                <h3>5.3 Swift闭包捕莞列表</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="keyword">class</span> <span class="type">NetworkManager</span> {
+    <span class="keyword">var</span> onComplete: (() -&gt; <span class="type">Void</span>)?
+    
+    <span class="comment">// ❗️ 错误：循环引用</span>
+    <span class="keyword">func</span> <span class="function">fetch1</span>() {
+        onComplete = {
+            <span class="function">print</span>(<span class="keyword">self</span>.url)  <span class="comment">// self持有onComplete</span>
+        }
+    }
+    
+    <span class="comment">// ✅ weak捕莞</span>
+    <span class="keyword">func</span> <span class="function">fetch2</span>() {
+        onComplete = { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+            <span class="keyword">guard</span> <span class="keyword">let</span> self = <span class="keyword">self</span> <span class="keyword">else</span> { <span class="keyword">return</span> }
+            <span class="function">print</span>(<span class="keyword">self</span>.url)
+        }
+    }
+    
+    <span class="comment">// ✅ unowned捕莞</span>
+    <span class="keyword">func</span> <span class="function">fetch3</span>() {
+        onComplete = { [<span class="keyword">unowned</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+            <span class="function">print</span>(<span class="keyword">self</span>.url)
+        }
+    }
+}</pre></div>
+
+                <h3>5.4 Copy-on-Write (COW)</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// Swift值类型的COW优化</span>
+<span class="keyword">var</span> array1 = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]
+<span class="keyword">var</span> array2 = array1  <span class="comment">// ⭐不拷贝，共享内存</span>
+array2.<span class="function">append</span>(<span class="number">4</span>)  <span class="comment">// ⭐此时才拷贝</span>
+<span class="function">print</span>(array1)  <span class="comment">// [1, 2, 3]</span>
+<span class="function">print</span>(array2)  <span class="comment">// [1, 2, 3, 4]</span></pre></div>
+
+                <h3>5.5 defer语句</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="keyword">func</span> <span class="function">processFile</span>() <span class="keyword">throws</span> {
+    <span class="keyword">let</span> file = <span class="function">openFile</span>(<span class="string">"data.txt"</span>)
+    <span class="keyword">defer</span> {  <span class="comment">// ⭐作用域结束时执行</span>
+        <span class="function">closeFile</span>(file)
+    }
+    <span class="keyword">if</span> someCondition {
+        <span class="keyword">throw</span> <span class="type">SomeError</span>()  <span class="comment">// defer仍执行</span>
+    }
+}</pre></div>
+
+                <h3>5.6 Swift最佳实践</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// 1. 优先使用值类型</span>
+<span class="keyword">struct</span> <span class="type">User</span> {  <span class="comment">// ✅ 值类型</span>
+    <span class="keyword">let</span> id: <span class="type">Int</span>
+    <span class="keyword">let</span> name: <span class="type">String</span>
+}
+
+<span class="comment">// 2. 闭包明确捕莞</span>
+<span class="function">fetchData</span> { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+    <span class="keyword">guard</span> <span class="keyword">let</span> self = <span class="keyword">self</span> <span class="keyword">else</span> { <span class="keyword">return</span> }
+    <span class="keyword">self</span>.<span class="function">handleResult</span>()
+}
+
+<span class="comment">// 3. defer确保资源释放</span>
+<span class="keyword">func</span> <span class="function">process</span>() {
+    <span class="keyword">let</span> resource = <span class="function">acquire</span>()
+    <span class="keyword">defer</span> { <span class="function">release</span>(resource) }
+}</pre></div>
+                <div class="tip"><strong>💡 优化总结：</strong>值类型优先、COW优化、编译期检查、明确捕莹、defer语句。</div>
+            </section>
+
+            <section id="app">
+                <h2>六、实际应用场景</h2>
+                <h3>6.1 Delegate模式</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// ✅ 正确示例</span>
+<span class="keyword">protocol</span> <span class="type">NetworkDelegate</span>: <span class="type">AnyObject</span> {
+    <span class="keyword">func</span> <span class="function">didReceiveData</span>(<span class="keyword">_</span> data: <span class="type">Data</span>)
+}
+
+<span class="keyword">class</span> <span class="type">NetworkManager</span> {
+    <span class="keyword">weak</span> <span class="keyword">var</span> delegate: <span class="type">NetworkDelegate</span>?  <span class="comment">// ⭐weak避免循环引用</span>
+}
+
+<span class="keyword">class</span> <span class="type">ViewController</span>: <span class="type">UIViewController</span>, <span class="type">NetworkDelegate</span> {
+    <span class="keyword">let</span> manager = <span class="type">NetworkManager</span>()
+    
+    <span class="keyword">override</span> <span class="keyword">func</span> <span class="function">viewDidLoad</span>() {
+        <span class="keyword">super</span>.<span class="function">viewDidLoad</span>()
+        manager.delegate = <span class="keyword">self</span>  <span class="comment">// 不会循环引用</span>
+    }
+}</pre></div>
+
+                <h3>6.2 闭包循环引用</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// ❌ 错误：闭包捕获self</span>
+<span class="keyword">class</span> <span class="type">ViewController</span> {
+    <span class="keyword">var</span> onComplete: (() -&gt; <span class="type">Void</span>)?
+    <span class="keyword">func</span> <span class="function">setup</span>() {
+        onComplete = {
+            <span class="function">print</span>(<span class="keyword">self</span>.name)  <span class="comment">// self持有闭包，闭包捕获self → 循环引用</span>
+        }
+    }
+}
+
+<span class="comment">// ✅ 正确：weak self</span>
+<span class="keyword">func</span> <span class="function">setup</span>() {
+    onComplete = { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+        <span class="keyword">guard</span> <span class="keyword">let</span> self = <span class="keyword">self</span> <span class="keyword">else</span> { <span class="keyword">return</span> }
+        <span class="function">print</span>(<span class="keyword">self</span>.name)
+    }
+}</pre></div>
+
+                <h3>6.3 NSTimer循环引用</h3>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="comment">// ❌ 错误：Timer强引用VC</span>
+<span class="keyword">self</span>.timer = [<span class="type">NSTimer</span> <span class="function">scheduledTimerWithTimeInterval</span>:<span class="number">1.0</span>
+                                              <span class="property">target</span>:<span class="keyword">self</span>
+                                            <span class="property">selector</span>:<span class="keyword">@selector</span>(timerFired)
+                                            <span class="property">userInfo</span>:<span class="keyword">nil</span>
+                                             <span class="property">repeats</span>:<span class="keyword">YES</span>];
+
+<span class="comment">// ✅ 解决方案1：iOS 10+ block API</span>
+<span class="keyword">self</span>.timer = [<span class="type">NSTimer</span> <span class="function">scheduledTimerWithTimeInterval</span>:<span class="number">1.0</span> <span class="property">repeats</span>:<span class="keyword">YES</span> <span class="property">block</span>:^{
+    <span class="keyword">__weak</span> <span class="keyword">typeof</span>(<span class="keyword">self</span>) weakSelf = <span class="keyword">self</span>;
+    [weakSelf <span class="function">timerFired</span>];
+}];
+
+<span class="comment">// ✅ 解决方案2：使用NSProxy中间对象</span>
+<span class="keyword">self</span>.timer = [<span class="type">NSTimer</span> <span class="function">scheduledTimerWithTimeInterval</span>:<span class="number">1.0</span>
+                                              <span class="property">target</span>:[<span class="type">WeakProxy</span> <span class="function">proxyWithTarget</span>:<span class="keyword">self</span>]
+                                            <span class="property">selector</span>:<span class="keyword">@selector</span>(timerFired)
+                                            <span class="property">userInfo</span>:<span class="keyword">nil</span>
+                                             <span class="property">repeats</span>:<span class="keyword">YES</span>];</pre></div>
+            </section>
+
+            <section id="advanced">
+                <h2>七、高级技巧与最佳实践</h2>
+                <h3>7.1 内存泄漏检测工具</h3>
+                <ul>
+                    <li><strong>Xcode Instruments - Leaks</strong>：检测内存泄漏</li>
+                    <li><strong>Memory Graph Debugger</strong>：可视化引用关系（Cmd+Shift+M）</li>
+                    <li><strong>FBRetainCycleDetector</strong>：Facebook循环引用检测库</li>
+                    <li><strong>MLeaksFinder</strong>：自动检测VC/View泄漏</li>
+                </ul>
+
+                <h3>7.2 性能优化建议</h3>
+                <h4>避免不必要的weak</h4>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// ❌ 不必要的weak（闭包不会被持有）</span>
+<span class="type">DispatchQueue</span>.global().<span class="function">async</span> { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+    <span class="comment">// 这个闭包不会被self持有，无需weak</span>
+}
+
+<span class="comment">// ✅ 正确：闭包被self持有时才用weak</span>
+<span class="keyword">self</span>.handler = { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+    <span class="keyword">self</span>?.<span class="function">doSomething</span>()  <span class="comment">// handler是self的属性，需要weak</span>
+}</pre></div>
+
+                <h4>weak vs unowned选择</h4>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// unowned适用场景：闭包生命周期 &lt; 对象生命周期</span>
+<span class="type">UIView</span>.<span class="function">animate</span>(withDuration: <span class="number">1.0</span>) { [<span class="keyword">unowned</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+    <span class="keyword">self</span>.view.alpha = <span class="number">0.5</span>  <span class="comment">// 动画block一定先于VC释放</span>
+}
+
+<span class="comment">// weak适用场景：不确定生命周期</span>
+networkManager.<span class="function">fetchData</span> { [<span class="keyword">weak</span> <span class="keyword">self</span>] data <span class="keyword">in</span>
+    <span class="keyword">self</span>?.<span class="function">updateUI</span>(data)  <span class="comment">// 网络回调可能在VC释放后</span>
+}</pre></div>
+
+                <h3>7.3 循环引用常见模式</h3>
+                <table>
+                    <tr><th>场景</th><th>循环引用</th><th>解决方案</th></tr>
+                    <tr><td>Delegate</td><td>VC → Manager → VC</td><td>Manager的delegate用weak</td></tr>
+                    <tr><td>Block</td><td>Self → Block → Self</td><td>Block捕获[weak self]</td></tr>
+                    <tr><td>NSTimer</td><td>VC → Timer → VC</td><td>WeakProxy或block API</td></tr>
+                    <tr><td>父子View</td><td>Parent → Child → Parent</td><td>Child的parent用weak</td></tr>
+                </table>
+
+                <h3>7.4 引用计数调试技巧</h3>
+                <div class="code-block" data-lang="LLDB"><pre><span class="comment">// LLDB命令查看引用计数</span>
+(lldb) p/x object
+(lldb) expression -l objc -O -- [object retainCount]
+
+<span class="comment">// CFGetRetainCount (注意ARC优化可能不准)</span>
+NSLog(@<span class="string">"RC: %ld"</span>, CFGetRetainCount((__bridge CFTypeRef)obj));
+
+<span class="comment">// Instruments Allocations: 勾选Record reference counts</span></pre></div>
+
+                <h3>7.5 最佳实践总结</h3>
+                <ul>
+                    <li>✅ Delegate一律用weak</li>
+                    <li>✅ Block捕获self时分析是否需要weak</li>
+                    <li>✅ NSTimer优先用block API或中间对象</li>
+                    <li>✅ 用Memory Graph可视化检查循环引用</li>
+                    <li>✅ 定期使用Instruments Leaks检测</li>
+                    <li>⚠️ 避免滥用weak，理解生命周期</li>
+                    <li>⚠️ unowned需100%确定安全性</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>参考文献</h2>
+                <ul>
+                    <li><a href="https://github.com/opensource-apple/objc4">objc4-781 Apple开源Runtime源码</a></li>
+                    <li><a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MemoryMgmt/Articles/MemoryMgmt.html">Apple官方文档: Advanced Memory Management</a></li>
+                    <li><a href="https://clang.llvm.org/docs/AutomaticReferenceCounting.html">Clang ARC文档</a></li>
+                    <li>《Effective Objective-C 2.0》第29-32条：内存管理</li>
+                    <li>WWDC 2011: Understanding Automatic Reference Counting</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    </script>
+</body>
+</html>

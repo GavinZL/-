@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swift 泛型详解</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+        }
+        h1 {
+            color: #0071e3;
+            border-bottom: 3px solid #0071e3;
+            padding-bottom: 10px;
+            font-size: 2.5em;
+            margin-top: 30px;
+        }
+        h2 {
+            color: #0077ed;
+            margin-top: 40px;
+            font-size: 2em;
+            border-left: 5px solid #0077ed;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #0066cc;
+            margin-top: 30px;
+            font-size: 1.5em;
+        }
+        h4 {
+            color: #333;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        pre {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 15px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: #d4d4d4;
+        }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; font-style: italic; }
+        .function { color: #dcdcaa; }
+        .type { color: #4ec9b0; }
+        .number { color: #b5cea8; }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .tree-structure {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #0071e3;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .tree-node {
+            margin-left: 20px;
+            position: relative;
+            padding-left: 20px;
+        }
+        .tree-node::before {
+            content: "├─";
+            position: absolute;
+            left: 0;
+            color: #0071e3;
+        }
+        .tree-node:last-child::before {
+            content: "└─";
+        }
+        .highlight-box {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9500;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #0071e3;
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .reference {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 40px;
+            border-top: 3px solid #0071e3;
+        }
+        .reference a {
+            color: #0071e3;
+            text-decoration: none;
+        }
+        .reference a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Swift 泛型详解</h1>
+    
+    <div class="info">
+        <strong>📌 文档概述</strong><br>
+        本文档全面讲解 Swift 中的泛型（Generics）机制，从基础概念到高级应用，结合源码分析和实战案例，帮助深入理解 Swift 类型系统的核心特性。
+    </div>
+
+    <h2>一、概念与背景</h2>
+    
+    <h3>1.1 什么是泛型</h3>
+    <p>泛型是一种编程范式，允许我们编写灵活、可重用的函数和类型，这些函数和类型可以与任何类型一起工作，同时保持类型安全。泛型是 Swift 最强大的特性之一，Swift 标准库大量使用了泛型。</p>
+    
+    <div class="highlight-box">
+        <h4>核心价值</h4>
+        <ul>
+            <li><strong>代码复用</strong>：避免重复编写相似的代码</li>
+            <li><strong>类型安全</strong>：编译时确保类型正确，避免运行时错误</li>
+            <li><strong>抽象能力</strong>：提供更高层次的抽象，专注于算法逻辑而非具体类型</li>
+            <li><strong>性能优化</strong>：静态派发，无需运行时类型检查</li>
+        </ul>
+    </div>
+
+    <h3>1.2 泛型的历史背景</h3>
+    <p>泛型编程起源于 C++ 的模板（Templates），后来被 Java、C# 等语言采纳。Swift 的泛型设计借鉴了这些语言的优点，同时结合了协议导向编程的理念，形成了更加强大和优雅的类型系统。</p>
+
+    <pre><code><span class="comment">// 没有泛型的世界：需要为每种类型编写重复代码</span>
+<span class="keyword">func</span> <span class="function">swapTwoInts</span>(_ a: <span class="keyword">inout</span> <span class="type">Int</span>, _ b: <span class="keyword">inout</span> <span class="type">Int</span>) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="keyword">func</span> <span class="function">swapTwoStrings</span>(_ a: <span class="keyword">inout</span> <span class="type">String</span>, _ b: <span class="keyword">inout</span> <span class="type">String</span>) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="comment">// 使用泛型：一次编写，到处使用</span>
+<span class="keyword">func</span> swapTwoValues&lt;T&gt;(_ a: <span class="keyword">inout</span> T, _ b: <span class="keyword">inout</span> T) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}</code></pre>
+
+    <h2>二、核心机制与实现原理</h2>
+
+    <div class="tree-structure">
+        <h3>Swift 泛型知识体系</h3>
+        <div class="tree-node">泛型函数（Generic Functions）</div>
+        <div class="tree-node">泛型类型（Generic Types）
+            <div class="tree-node">泛型类（Generic Classes）</div>
+            <div class="tree-node">泛型结构体（Generic Structures）</div>
+            <div class="tree-node">泛型枚举（Generic Enumerations）</div>
+        </div>
+        <div class="tree-node">类型约束（Type Constraints）
+            <div class="tree-node">类约束（Class Constraints）</div>
+            <div class="tree-node">协议约束（Protocol Constraints）</div>
+            <div class="tree-node">复合约束（Composite Constraints）</div>
+        </div>
+        <div class="tree-node">关联类型（Associated Types）</div>
+        <div class="tree-node">泛型 where 子句（Generic Where Clauses）</div>
+        <div class="tree-node">不透明类型（Opaque Types）- some 关键字</div>
+        <div class="tree-node">逆向泛型（Reverse Generics）- any 关键字</div>
+        <div class="tree-node">参数化协议（Parameterized Protocols）- Swift 5.7+</div>
+    </div>
+
+    <h3>2.1 泛型函数</h3>
+    
+    <h4>2.1.1 基础语法</h4>
+    <pre><code><span class="comment">// 基本泛型函数</span>
+<span class="keyword">func</span> swapTwoValues&lt;T&gt;(_ a: <span class="keyword">inout</span> T, _ b: <span class="keyword">inout</span> T) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">var</span> num1 = <span class="number">10</span>
+<span class="keyword">var</span> num2 = <span class="number">20</span>
+swapTwoValues(&amp;num1, &amp;num2)
+<span class="function">print</span>(<span class="string">"num1: \(num1), num2: \(num2)"</span>) <span class="comment">// num1: 20, num2: 10</span>
+
+<span class="keyword">var</span> str1 = <span class="string">"Hello"</span>
+<span class="keyword">var</span> str2 = <span class="string">"World"</span>
+swapTwoValues(&amp;str1, &amp;str2)
+<span class="function">print</span>(<span class="string">"str1: \(str1), str2: \(str2)"</span>) <span class="comment">// str1: World, str2: Hello</span></code></pre>
+
+    <h4>2.1.2 多类型参数</h4>
+    <pre><code><span class="comment">// 多个类型参数的泛型函数</span>
+<span class="keyword">func</span> zip&lt;T, U&gt;(_ first: T, _ second: U) -&gt; (T, U) {
+    <span class="keyword">return</span> (first, second)
+}
+
+<span class="keyword">let</span> result = zip(<span class="number">42</span>, <span class="string">"Answer"</span>)
+<span class="comment">// result: (Int, String) = (42, "Answer")</span>
+
+<span class="comment">// 更复杂的示例：字典转换</span>
+<span class="keyword">func</span> transformDictionary&lt;Key, Value, TransformedValue&gt;(
+    _ dictionary: [Key: Value],
+    transform: (Value) -&gt; TransformedValue
+) -&gt; [Key: TransformedValue] {
+    <span class="keyword">var</span> result: [Key: TransformedValue] = [:]
+    <span class="keyword">for</span> (key, value) <span class="keyword">in</span> dictionary {
+        result[key] = transform(value)
+    }
+    <span class="keyword">return</span> result
+}
+
+<span class="keyword">let</span> scores = [<span class="string">"Alice"</span>: <span class="number">85</span>, <span class="string">"Bob"</span>: <span class="number">92</span>, <span class="string">"Charlie"</span>: <span class="number">78</span>]
+<span class="keyword">let</span> grades = transformDictionary(scores) { score <span class="keyword">in</span>
+    score &gt;= <span class="number">90</span> ? <span class="string">"A"</span> : score &gt;= <span class="number">80</span> ? <span class="string">"B"</span> : <span class="string">"C"</span>
+}
+<span class="comment">// grades: ["Alice": "B", "Bob": "A", "Charlie": "C"]</span></code></pre>
+
+    <h3>2.2 泛型类型</h3>
+
+    <h4>2.2.1 泛型结构体</h4>
+    <pre><code><span class="comment">// 经典示例：栈数据结构</span>
+<span class="keyword">struct</span> <span class="type">Stack</span>&lt;Element&gt; {
+    <span class="keyword">private</span> <span class="keyword">var</span> items: [Element] = []
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">push</span>(_ item: Element) {
+        items.append(item)
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">pop</span>() -&gt; Element? {
+        <span class="keyword">return</span> items.isEmpty ? <span class="keyword">nil</span> : items.removeLast()
+    }
+    
+    <span class="keyword">func</span> <span class="function">peek</span>() -&gt; Element? {
+        <span class="keyword">return</span> items.last
+    }
+    
+    <span class="keyword">var</span> isEmpty: <span class="type">Bool</span> {
+        <span class="keyword">return</span> items.isEmpty
+    }
+    
+    <span class="keyword">var</span> count: <span class="type">Int</span> {
+        <span class="keyword">return</span> items.count
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">var</span> intStack = Stack&lt;<span class="type">Int</span>&gt;()
+intStack.push(<span class="number">1</span>)
+intStack.push(<span class="number">2</span>)
+intStack.push(<span class="number">3</span>)
+<span class="function">print</span>(intStack.pop()) <span class="comment">// Optional(3)</span>
+
+<span class="keyword">var</span> stringStack = Stack&lt;<span class="type">String</span>&gt;()
+stringStack.push(<span class="string">"Swift"</span>)
+stringStack.push(<span class="string">"Generics"</span>)
+<span class="function">print</span>(stringStack.peek()) <span class="comment">// Optional("Generics")</span></code></pre>
+
+    <h4>2.2.2 泛型类</h4>
+    <pre><code><span class="comment">// 泛型链表节点</span>
+<span class="keyword">class</span> <span class="type">LinkedListNode</span>&lt;T&gt; {
+    <span class="keyword">var</span> value: T
+    <span class="keyword">var</span> next: LinkedListNode&lt;T&gt;?
+    
+    <span class="keyword">init</span>(value: T) {
+        <span class="keyword">self</span>.value = value
+    }
+}
+
+<span class="comment">// 泛型链表</span>
+<span class="keyword">class</span> <span class="type">LinkedList</span>&lt;T&gt; {
+    <span class="keyword">private</span> <span class="keyword">var</span> head: LinkedListNode&lt;T&gt;?
+    <span class="keyword">private</span> <span class="keyword">var</span> tail: LinkedListNode&lt;T&gt;?
+    <span class="keyword">private</span>(set) <span class="keyword">var</span> count: <span class="type">Int</span> = <span class="number">0</span>
+    
+    <span class="keyword">var</span> isEmpty: <span class="type">Bool</span> {
+        <span class="keyword">return</span> head == <span class="keyword">nil</span>
+    }
+    
+    <span class="keyword">func</span> <span class="function">append</span>(_ value: T) {
+        <span class="keyword">let</span> newNode = LinkedListNode(value: value)
+        
+        <span class="keyword">if</span> <span class="keyword">let</span> tail = tail {
+            tail.next = newNode
+            <span class="keyword">self</span>.tail = newNode
+        } <span class="keyword">else</span> {
+            head = newNode
+            tail = newNode
+        }
+        
+        count += <span class="number">1</span>
+    }
+    
+    <span class="keyword">func</span> <span class="function">removeFirst</span>() -&gt; T? {
+        <span class="keyword">guard</span> <span class="keyword">let</span> first = head <span class="keyword">else</span> { <span class="keyword">return</span> <span class="keyword">nil</span> }
+        
+        head = first.next
+        <span class="keyword">if</span> head == <span class="keyword">nil</span> {
+            tail = <span class="keyword">nil</span>
+        }
+        
+        count -= <span class="number">1</span>
+        <span class="keyword">return</span> first.value
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> list = LinkedList&lt;<span class="type">String</span>&gt;()
+list.append(<span class="string">"First"</span>)
+list.append(<span class="string">"Second"</span>)
+list.append(<span class="string">"Third"</span>)
+<span class="function">print</span>(list.removeFirst()) <span class="comment">// Optional("First")</span></code></pre>
+
+    <h4>2.2.3 泛型枚举</h4>
+    <pre><code><span class="comment">// Swift 标准库中的 Optional 就是泛型枚举</span>
+<span class="keyword">enum</span> <span class="type">Optional</span>&lt;Wrapped&gt; {
+    <span class="keyword">case</span> none
+    <span class="keyword">case</span> some(Wrapped)
+}
+
+<span class="comment">// 自定义泛型枚举：Result 类型</span>
+<span class="keyword">enum</span> <span class="type">Result</span>&lt;Success, Failure: <span class="type">Error</span>&gt; {
+    <span class="keyword">case</span> success(Success)
+    <span class="keyword">case</span> failure(Failure)
+    
+    <span class="keyword">func</span> <span class="function">map</span>&lt;U&gt;(_ transform: (Success) -&gt; U) -&gt; Result&lt;U, Failure&gt; {
+        <span class="keyword">switch</span> <span class="keyword">self</span> {
+        <span class="keyword">case</span> .success(<span class="keyword">let</span> value):
+            <span class="keyword">return</span> .success(transform(value))
+        <span class="keyword">case</span> .failure(<span class="keyword">let</span> error):
+            <span class="keyword">return</span> .failure(error)
+        }
+    }
+}
+
+<span class="comment">// 更复杂的示例：二叉树</span>
+<span class="keyword">indirect enum</span> <span class="type">BinaryTree</span>&lt;T&gt; {
+    <span class="keyword">case</span> empty
+    <span class="keyword">case</span> node(left: BinaryTree&lt;T&gt;, value: T, right: BinaryTree&lt;T&gt;)
+    
+    <span class="keyword">func</span> <span class="function">map</span>&lt;U&gt;(_ transform: (T) -&gt; U) -&gt; BinaryTree&lt;U&gt; {
+        <span class="keyword">switch</span> <span class="keyword">self</span> {
+        <span class="keyword">case</span> .empty:
+            <span class="keyword">return</span> .empty
+        <span class="keyword">case</span> .node(<span class="keyword">let</span> left, <span class="keyword">let</span> value, <span class="keyword">let</span> right):
+            <span class="keyword">return</span> .node(
+                left: left.map(transform),
+                value: transform(value),
+                right: right.map(transform)
+            )
+        }
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> tree: BinaryTree&lt;<span class="type">Int</span>&gt; = .node(
+    left: .node(left: .empty, value: <span class="number">1</span>, right: .empty),
+    value: <span class="number">2</span>,
+    right: .node(left: .empty, value: <span class="number">3</span>, right: .empty)
+)
+
+<span class="keyword">let</span> stringTree = tree.map { <span class="string">"Number \($0)"</span> }</code></pre>
+
+    <h3>2.3 类型约束（Type Constraints）</h3>
+
+    <h4>2.3.1 协议约束</h4>
+    <pre><code><span class="comment">// 要求泛型类型遵循 Equatable 协议</span>
+<span class="keyword">func</span> findIndex&lt;T: <span class="type">Equatable</span>&gt;(of valueToFind: T, in array: [T]) -&gt; <span class="type">Int</span>? {
+    <span class="keyword">for</span> (index, value) <span class="keyword">in</span> array.enumerated() {
+        <span class="keyword">if</span> value == valueToFind {
+            <span class="keyword">return</span> index
+        }
+    }
+    <span class="keyword">return</span> <span class="keyword">nil</span>
+}
+
+<span class="keyword">let</span> strings = [<span class="string">"apple"</span>, <span class="string">"banana"</span>, <span class="string">"cherry"</span>]
+<span class="keyword">if</span> <span class="keyword">let</span> index = findIndex(of: <span class="string">"banana"</span>, in: strings) {
+    <span class="function">print</span>(<span class="string">"Found at index \(index)"</span>) <span class="comment">// Found at index 1</span>
+}
+
+<span class="comment">// 多个协议约束</span>
+<span class="keyword">func</span> sortedKeys&lt;T: <span class="type">Hashable</span> &amp; <span class="type">Comparable</span>, U&gt;(_ dictionary: [T: U]) -&gt; [T] {
+    <span class="keyword">return</span> dictionary.keys.sorted()
+}
+
+<span class="keyword">let</span> ages = [<span class="string">"Alice"</span>: <span class="number">25</span>, <span class="string">"Bob"</span>: <span class="number">30</span>, <span class="string">"Charlie"</span>: <span class="number">22</span>]
+<span class="keyword">let</span> sorted = sortedKeys(ages)
+<span class="comment">// sorted: ["Alice", "Bob", "Charlie"]</span></code></pre>
+
+    <h4>2.3.2 类约束</h4>
+    <pre><code><span class="comment">// 要求泛型类型是某个类或其子类</span>
+<span class="keyword">class</span> <span class="type">Animal</span> {
+    <span class="keyword">var</span> name: <span class="type">String</span>
+    <span class="keyword">init</span>(name: <span class="type">String</span>) {
+        <span class="keyword">self</span>.name = name
+    }
+}
+
+<span class="keyword">class</span> <span class="type">Dog</span>: <span class="type">Animal</span> {
+    <span class="keyword">func</span> <span class="function">bark</span>() {
+        <span class="function">print</span>(<span class="string">"Woof!"</span>)
+    }
+}
+
+<span class="comment">// T 必须是 Animal 或其子类</span>
+<span class="keyword">func</span> makeSound&lt;T: <span class="type">Animal</span>&gt;(animal: T) {
+    <span class="function">print</span>(<span class="string">"\(animal.name) makes a sound"</span>)
+}
+
+<span class="keyword">let</span> dog = Dog(name: <span class="string">"Buddy"</span>)
+makeSound(animal: dog) <span class="comment">// Buddy makes a sound</span></code></pre>
+
+    <h3>2.4 关联类型（Associated Types）</h3>
+    
+    <p>关联类型是协议中的泛型占位符，允许协议定义时不指定具体类型，由遵循协议的类型来确定。</p>
+
+    <pre><code><span class="comment">// 定义包含关联类型的协议</span>
+<span class="keyword">protocol</span> <span class="type">Container</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Item</span>
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">append</span>(_ item: Item)
+    <span class="keyword">var</span> count: <span class="type">Int</span> { <span class="keyword">get</span> }
+    <span class="keyword">subscript</span>(i: <span class="type">Int</span>) -&gt; Item { <span class="keyword">get</span> }
+}
+
+<span class="comment">// 实现协议</span>
+<span class="keyword">struct</span> <span class="type">IntStack</span>: <span class="type">Container</span> {
+    <span class="keyword">private</span> <span class="keyword">var</span> items: [<span class="type">Int</span>] = []
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">push</span>(_ item: <span class="type">Int</span>) {
+        items.append(item)
+    }
+    
+    <span class="comment">// Container 协议实现</span>
+    <span class="keyword">typealias</span> <span class="type">Item</span> = <span class="type">Int</span>
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">append</span>(_ item: <span class="type">Int</span>) {
+        push(item)
+    }
+    
+    <span class="keyword">var</span> count: <span class="type">Int</span> {
+        <span class="keyword">return</span> items.count
+    }
+    
+    <span class="keyword">subscript</span>(i: <span class="type">Int</span>) -&gt; <span class="type">Int</span> {
+        <span class="keyword">return</span> items[i]
+    }
+}
+
+<span class="comment">// 泛型类型实现协议</span>
+<span class="keyword">struct</span> <span class="type">GenericStack</span>&lt;Element&gt;: <span class="type">Container</span> {
+    <span class="keyword">private</span> <span class="keyword">var</span> items: [Element] = []
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">append</span>(_ item: Element) {
+        items.append(item)
+    }
+    
+    <span class="keyword">var</span> count: <span class="type">Int</span> {
+        <span class="keyword">return</span> items.count
+    }
+    
+    <span class="keyword">subscript</span>(i: <span class="type">Int</span>) -&gt; Element {
+        <span class="keyword">return</span> items[i]
+    }
+}</code></pre>
+
+    <h4>2.4.1 关联类型约束</h4>
+    <pre><code><span class="comment">// 关联类型可以有约束</span>
+<span class="keyword">protocol</span> <span class="type">SortableContainer</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Item</span>: <span class="type">Comparable</span>
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">append</span>(_ item: Item)
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">sort</span>()
+    <span class="keyword">var</span> items: [Item] { <span class="keyword">get</span> }
+}
+
+<span class="keyword">struct</span> <span class="type">SortableStack</span>&lt;T: <span class="type">Comparable</span>&gt;: <span class="type">SortableContainer</span> {
+    <span class="keyword">private</span>(set) <span class="keyword">var</span> items: [T] = []
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">append</span>(_ item: T) {
+        items.append(item)
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">sort</span>() {
+        items.sort()
+    }
+}
+
+<span class="keyword">var</span> numbers = SortableStack&lt;<span class="type">Int</span>&gt;()
+numbers.append(<span class="number">5</span>)
+numbers.append(<span class="number">2</span>)
+numbers.append(<span class="number">8</span>)
+numbers.sort()
+<span class="function">print</span>(numbers.items) <span class="comment">// [2, 5, 8]</span></code></pre>
+
+    <h3>2.5 泛型 where 子句</h3>
+    
+    <p>where 子句为关联类型定义约束，也可以要求特定类型参数之间的关系。</p>
+
+    <pre><code><span class="comment">// 要求两个容器的元素类型相同且可比较</span>
+<span class="keyword">func</span> allItemsMatch&lt;C1: <span class="type">Container</span>, C2: <span class="type">Container</span>&gt;(
+    _ container1: C1,
+    _ container2: C2
+) -&gt; <span class="type">Bool</span> <span class="keyword">where</span> C1.Item == C2.Item, C1.Item: <span class="type">Equatable</span> {
+    <span class="keyword">if</span> container1.count != container2.count {
+        <span class="keyword">return</span> <span class="keyword">false</span>
+    }
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..&lt;container1.count {
+        <span class="keyword">if</span> container1[i] != container2[i] {
+            <span class="keyword">return</span> <span class="keyword">false</span>
+        }
+    }
+    
+    <span class="keyword">return</span> <span class="keyword">true</span>
+}
+
+<span class="comment">// 扩展中使用 where 子句</span>
+<span class="keyword">extension</span> <span class="type">Array</span> <span class="keyword">where</span> Element: <span class="type">Numeric</span> {
+    <span class="keyword">func</span> <span class="function">sum</span>() -&gt; Element {
+        <span class="keyword">return</span> reduce(<span class="number">0</span>, +)
+    }
+    
+    <span class="keyword">func</span> <span class="function">average</span>() -&gt; <span class="type">Double</span> <span class="keyword">where</span> Element == <span class="type">Int</span> {
+        <span class="keyword">guard</span> !isEmpty <span class="keyword">else</span> { <span class="keyword">return</span> <span class="number">0</span> }
+        <span class="keyword">return</span> <span class="type">Double</span>(sum()) / <span class="type">Double</span>(count)
+    }
+}
+
+<span class="keyword">let</span> numbers = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]
+<span class="function">print</span>(numbers.sum()) <span class="comment">// 15</span>
+<span class="function">print</span>(numbers.average()) <span class="comment">// 3.0</span>
+
+<span class="comment">// 更复杂的 where 子句示例</span>
+<span class="keyword">extension</span> <span class="type">Container</span> <span class="keyword">where</span> Item: <span class="type">Equatable</span> {
+    <span class="keyword">func</span> <span class="function">contains</span>(_ item: Item) -&gt; <span class="type">Bool</span> {
+        <span class="keyword">for</span> i <span class="keyword">in</span> <span class="number">0</span>..&lt;count {
+            <span class="keyword">if</span> <span class="keyword">self</span>[i] == item {
+                <span class="keyword">return</span> <span class="keyword">true</span>
+            }
+        }
+        <span class="keyword">return</span> <span class="keyword">false</span>
+    }
+}</code></pre>
+
+    <h3>2.6 不透明类型（Opaque Types）- some 关键字</h3>
+    
+    <p>Swift 5.1 引入的 <code>some</code> 关键字，用于隐藏具体类型，只暴露协议接口。</p>
+
+    <pre><code><span class="comment">// 返回不透明类型</span>
+<span class="keyword">protocol</span> <span class="type">Shape</span> {
+    <span class="keyword">func</span> <span class="function">draw</span>() -&gt; <span class="type">String</span>
+}
+
+<span class="keyword">struct</span> <span class="type">Circle</span>: <span class="type">Shape</span> {
+    <span class="keyword">var</span> radius: <span class="type">Double</span>
+    
+    <span class="keyword">func</span> <span class="function">draw</span>() -&gt; <span class="type">String</span> {
+        <span class="keyword">return</span> <span class="string">"Circle with radius \(radius)"</span>
+    }
+}
+
+<span class="keyword">struct</span> <span class="type">Rectangle</span>: <span class="type">Shape</span> {
+    <span class="keyword">var</span> width: <span class="type">Double</span>
+    <span class="keyword">var</span> height: <span class="type">Double</span>
+    
+    <span class="keyword">func</span> <span class="function">draw</span>() -&gt; <span class="type">String</span> {
+        <span class="keyword">return</span> <span class="string">"Rectangle \(width)x\(height)"</span>
+    }
+}
+
+<span class="comment">// 使用 some 返回不透明类型</span>
+<span class="keyword">func</span> <span class="function">makeShape</span>() -&gt; <span class="keyword">some</span> <span class="type">Shape</span> {
+    <span class="keyword">return</span> Circle(radius: <span class="number">5.0</span>)
+}
+
+<span class="keyword">let</span> shape = makeShape()
+<span class="function">print</span>(shape.draw()) <span class="comment">// Circle with radius 5.0</span>
+
+<span class="comment">// SwiftUI 中的典型应用</span>
+<span class="keyword">protocol</span> <span class="type">View</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Body</span>: <span class="type">View</span>
+    <span class="keyword">var</span> body: Body { <span class="keyword">get</span> }
+}
+
+<span class="keyword">struct</span> <span class="type">ContentView</span>: <span class="type">View</span> {
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="comment">// 具体类型被隐藏</span>
+        Text(<span class="string">"Hello, World!"</span>)
+    }
+}</code></pre>
+
+    <div class="note">
+        <strong>💡 some vs any（Swift 5.7+）</strong><br>
+        <ul>
+            <li><code>some Protocol</code>：不透明类型，编译器知道具体类型，类型固定，性能好</li>
+            <li><code>any Protocol</code>：存在类型，可以存储不同的遵循协议的类型，更灵活但有性能开销</li>
+        </ul>
+    </div>
+
+    <pre><code><span class="comment">// some: 类型固定</span>
+<span class="keyword">func</span> <span class="function">makeSomeShape</span>() -&gt; <span class="keyword">some</span> <span class="type">Shape</span> {
+    <span class="keyword">return</span> Circle(radius: <span class="number">5.0</span>)
+    <span class="comment">// 始终返回相同类型</span>
+}
+
+<span class="comment">// any: 类型可变</span>
+<span class="keyword">func</span> <span class="function">makeAnyShape</span>(isCircle: <span class="type">Bool</span>) -&gt; <span class="keyword">any</span> <span class="type">Shape</span> {
+    <span class="keyword">if</span> isCircle {
+        <span class="keyword">return</span> Circle(radius: <span class="number">5.0</span>)
+    } <span class="keyword">else</span> {
+        <span class="keyword">return</span> Rectangle(width: <span class="number">10</span>, height: <span class="number">20</span>)
+    }
+}
+
+<span class="comment">// any 可以存储不同类型</span>
+<span class="keyword">var</span> shapes: [<span class="keyword">any</span> <span class="type">Shape</span>] = []
+shapes.append(Circle(radius: <span class="number">3.0</span>))
+shapes.append(Rectangle(width: <span class="number">5</span>, height: <span class="number">10</span>))</code></pre>
+
+    <h3>2.7 泛型的底层实现原理</h3>
+
+    <h4>2.7.1 特化（Specialization）</h4>
+    <p>Swift 编译器会对泛型代码进行特化优化，为每个具体类型生成专门的代码，避免运行时类型检查。</p>
+
+    <pre><code><span class="comment">// 源代码</span>
+<span class="keyword">func</span> swap&lt;T&gt;(_ a: <span class="keyword">inout</span> T, _ b: <span class="keyword">inout</span> T) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="comment">// 编译器生成的特化版本（概念示例）</span>
+<span class="comment">// 对于 Int</span>
+<span class="keyword">func</span> swap_Int(_ a: <span class="keyword">inout</span> <span class="type">Int</span>, _ b: <span class="keyword">inout</span> <span class="type">Int</span>) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="comment">// 对于 String</span>
+<span class="keyword">func</span> swap_String(_ a: <span class="keyword">inout</span> <span class="type">String</span>, _ b: <span class="keyword">inout</span> <span class="type">String</span>) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}</code></pre>
+
+    <h4>2.7.2 见证表（Witness Table）</h4>
+    <p>当泛型有协议约束时，Swift 使用见证表来实现动态派发。</p>
+
+    <pre><code><span class="comment">// 协议见证表示例</span>
+<span class="keyword">protocol</span> <span class="type">Drawable</span> {
+    <span class="keyword">func</span> <span class="function">draw</span>()
+}
+
+<span class="keyword">struct</span> <span class="type">Point</span>: <span class="type">Drawable</span> {
+    <span class="keyword">var</span> x: <span class="type">Double</span>
+    <span class="keyword">var</span> y: <span class="type">Double</span>
+    
+    <span class="keyword">func</span> <span class="function">draw</span>() {
+        <span class="function">print</span>(<span class="string">"Point at (\(x), \(y))"</span>)
+    }
+}
+
+<span class="comment">// 见证表结构（概念）</span>
+<span class="comment">// Point_Drawable_WitnessTable:</span>
+<span class="comment">//   - draw: Point.draw</span>
+<span class="comment">//   - type metadata: Point</span>
+
+<span class="keyword">func</span> render&lt;T: <span class="type">Drawable</span>&gt;(_ item: T) {
+    item.draw() <span class="comment">// 通过见证表查找实际方法</span>
+}</code></pre>
+
+    <h4>2.7.3 类型元数据（Type Metadata）</h4>
+    <pre><code><span class="comment">// Swift 在运行时维护类型元数据</span>
+<span class="keyword">struct</span> <span class="type">Pair</span>&lt;T, U&gt; {
+    <span class="keyword">var</span> first: T
+    <span class="keyword">var</span> second: U
+}
+
+<span class="comment">// 类型元数据包含：</span>
+<span class="comment">// 1. 类型的大小</span>
+<span class="comment">// 2. 对齐要求</span>
+<span class="comment">// 3. 值的复制/销毁函数</span>
+<span class="comment">// 4. 类型名称等调试信息</span>
+
+<span class="keyword">let</span> pair1 = Pair(first: <span class="number">10</span>, second: <span class="string">"Hello"</span>)
+<span class="comment">// Pair&lt;Int, String&gt; 的元数据被创建</span>
+
+<span class="keyword">let</span> pair2 = Pair(first: <span class="number">3.14</span>, second: <span class="keyword">true</span>)
+<span class="comment">// Pair&lt;Double, Bool&gt; 的元数据被创建</span></code></pre>
+
+    <h2>三、应用场景</h2>
+
+    <h3>3.1 集合类型</h3>
+    <pre><code><span class="comment">// Swift 标准库中的集合都是泛型</span>
+<span class="keyword">let</span> array: [<span class="type">Int</span>] = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]
+<span class="keyword">let</span> dictionary: [<span class="type">String</span>: <span class="type">Int</span>] = [<span class="string">"one"</span>: <span class="number">1</span>, <span class="string">"two"</span>: <span class="number">2</span>]
+<span class="keyword">let</span> set: Set&lt;<span class="type">String</span>&gt; = [<span class="string">"apple"</span>, <span class="string">"banana"</span>]
+
+<span class="comment">// 自定义泛型集合：优先队列</span>
+<span class="keyword">struct</span> <span class="type">PriorityQueue</span>&lt;Element: <span class="type">Comparable</span>&gt; {
+    <span class="keyword">private</span> <span class="keyword">var</span> heap: [Element] = []
+    
+    <span class="keyword">var</span> isEmpty: <span class="type">Bool</span> {
+        <span class="keyword">return</span> heap.isEmpty
+    }
+    
+    <span class="keyword">var</span> peek: Element? {
+        <span class="keyword">return</span> heap.first
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">enqueue</span>(_ element: Element) {
+        heap.append(element)
+        siftUp(from: heap.count - <span class="number">1</span>)
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">dequeue</span>() -&gt; Element? {
+        <span class="keyword">guard</span> !heap.isEmpty <span class="keyword">else</span> { <span class="keyword">return</span> <span class="keyword">nil</span> }
+        
+        <span class="keyword">if</span> heap.count == <span class="number">1</span> {
+            <span class="keyword">return</span> heap.removeLast()
+        }
+        
+        <span class="keyword">let</span> value = heap[<span class="number">0</span>]
+        heap[<span class="number">0</span>] = heap.removeLast()
+        siftDown(from: <span class="number">0</span>)
+        <span class="keyword">return</span> value
+    }
+    
+    <span class="keyword">private</span> <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">siftUp</span>(from index: <span class="type">Int</span>) {
+        <span class="keyword">var</span> child = index
+        <span class="keyword">var</span> parent = (child - <span class="number">1</span>) / <span class="number">2</span>
+        
+        <span class="keyword">while</span> child &gt; <span class="number">0</span> &amp;&amp; heap[child] &gt; heap[parent] {
+            heap.swapAt(child, parent)
+            child = parent
+            parent = (child - <span class="number">1</span>) / <span class="number">2</span>
+        }
+    }
+    
+    <span class="keyword">private</span> <span class="keyword">mutating</span> <span class="keyword">func</span> <span class="function">siftDown</span>(from index: <span class="type">Int</span>) {
+        <span class="keyword">var</span> parent = index
+        
+        <span class="keyword">while</span> <span class="keyword">true</span> {
+            <span class="keyword">let</span> left = <span class="number">2</span> * parent + <span class="number">1</span>
+            <span class="keyword">let</span> right = <span class="number">2</span> * parent + <span class="number">2</span>
+            <span class="keyword">var</span> candidate = parent
+            
+            <span class="keyword">if</span> left &lt; heap.count &amp;&amp; heap[left] &gt; heap[candidate] {
+                candidate = left
+            }
+            
+            <span class="keyword">if</span> right &lt; heap.count &amp;&amp; heap[right] &gt; heap[candidate] {
+                candidate = right
+            }
+            
+            <span class="keyword">if</span> candidate == parent {
+                <span class="keyword">return</span>
+            }
+            
+            heap.swapAt(parent, candidate)
+            parent = candidate
+        }
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">var</span> pq = PriorityQueue&lt;<span class="type">Int</span>&gt;()
+pq.enqueue(<span class="number">5</span>)
+pq.enqueue(<span class="number">10</span>)
+pq.enqueue(<span class="number">3</span>)
+pq.enqueue(<span class="number">8</span>)
+
+<span class="keyword">while</span> <span class="keyword">let</span> max = pq.dequeue() {
+    <span class="function">print</span>(max) <span class="comment">// 10, 8, 5, 3</span>
+}</code></pre>
+
+    <h3>3.2 函数式编程</h3>
+    <pre><code><span class="comment">// map, flatMap, filter 等都是泛型方法</span>
+<span class="keyword">extension</span> <span class="type">Array</span> {
+    <span class="keyword">func</span> customMap&lt;T&gt;(_ transform: (Element) -&gt; T) -&gt; [T] {
+        <span class="keyword">var</span> result: [T] = []
+        <span class="keyword">for</span> element <span class="keyword">in</span> <span class="keyword">self</span> {
+            result.append(transform(element))
+        }
+        <span class="keyword">return</span> result
+    }
+    
+    <span class="keyword">func</span> customFilter(_ predicate: (Element) -&gt; <span class="type">Bool</span>) -&gt; [Element] {
+        <span class="keyword">var</span> result: [Element] = []
+        <span class="keyword">for</span> element <span class="keyword">in</span> <span class="keyword">self</span> {
+            <span class="keyword">if</span> predicate(element) {
+                result.append(element)
+            }
+        }
+        <span class="keyword">return</span> result
+    }
+    
+    <span class="keyword">func</span> customReduce&lt;Result&gt;(
+        _ initialResult: Result,
+        _ nextPartialResult: (Result, Element) -&gt; Result
+    ) -&gt; Result {
+        <span class="keyword">var</span> result = initialResult
+        <span class="keyword">for</span> element <span class="keyword">in</span> <span class="keyword">self</span> {
+            result = nextPartialResult(result, element)
+        }
+        <span class="keyword">return</span> result
+    }
+}
+
+<span class="comment">// 链式调用示例</span>
+<span class="keyword">let</span> numbers = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>]
+<span class="keyword">let</span> result = numbers
+    .customFilter { $0 % <span class="number">2</span> == <span class="number">0</span> }
+    .customMap { $0 * $0 }
+    .customReduce(<span class="number">0</span>, +)
+
+<span class="function">print</span>(result) <span class="comment">// 56 (4 + 16 + 36)</span></code></pre>
+
+    <h3>3.3 网络层抽象</h3>
+    <pre><code><span class="comment">// 泛型网络请求</span>
+<span class="keyword">protocol</span> <span class="type">Endpoint</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Response</span>: <span class="type">Decodable</span>
+    
+    <span class="keyword">var</span> path: <span class="type">String</span> { <span class="keyword">get</span> }
+    <span class="keyword">var</span> method: <span class="type">HTTPMethod</span> { <span class="keyword">get</span> }
+}
+
+<span class="keyword">enum</span> <span class="type">HTTPMethod</span>: <span class="type">String</span> {
+    <span class="keyword">case</span> get = <span class="string">"GET"</span>
+    <span class="keyword">case</span> post = <span class="string">"POST"</span>
+}
+
+<span class="keyword">enum</span> <span class="type">NetworkError</span>: <span class="type">Error</span> {
+    <span class="keyword">case</span> invalidURL
+    <span class="keyword">case</span> noData
+    <span class="keyword">case</span> decodingError
+}
+
+<span class="keyword">class</span> <span class="type">NetworkService</span> {
+    <span class="keyword">func</span> request&lt;E: <span class="type">Endpoint</span>&gt;(
+        _ endpoint: E,
+        completion: <span class="keyword">@escaping</span> (<span class="type">Result</span>&lt;E.Response, NetworkError&gt;) -&gt; <span class="type">Void</span>
+    ) {
+        <span class="comment">// 网络请求实现</span>
+        <span class="comment">// ...</span>
+    }
+    
+    <span class="comment">// async/await 版本</span>
+    <span class="keyword">func</span> request&lt;E: <span class="type">Endpoint</span>&gt;(_ endpoint: E) <span class="keyword">async</span> <span class="keyword">throws</span> -&gt; E.Response {
+        <span class="comment">// 网络请求实现</span>
+        <span class="comment">// ...</span>
+        <span class="keyword">fatalError</span>()
+    }
+}
+
+<span class="comment">// 具体 API 定义</span>
+<span class="keyword">struct</span> <span class="type">User</span>: <span class="type">Codable</span> {
+    <span class="keyword">let</span> id: <span class="type">Int</span>
+    <span class="keyword">let</span> name: <span class="type">String</span>
+    <span class="keyword">let</span> email: <span class="type">String</span>
+}
+
+<span class="keyword">struct</span> <span class="type">GetUserEndpoint</span>: <span class="type">Endpoint</span> {
+    <span class="keyword">typealias</span> <span class="type">Response</span> = <span class="type">User</span>
+    
+    <span class="keyword">let</span> userId: <span class="type">Int</span>
+    
+    <span class="keyword">var</span> path: <span class="type">String</span> {
+        <span class="keyword">return</span> <span class="string">"/users/\(userId)"</span>
+    }
+    
+    <span class="keyword">var</span> method: <span class="type">HTTPMethod</span> {
+        <span class="keyword">return</span> .get
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> service = NetworkService()
+<span class="keyword">let</span> endpoint = GetUserEndpoint(userId: <span class="number">123</span>)
+
+<span class="comment">// Async/Await</span>
+<span class="keyword">Task</span> {
+    <span class="keyword">do</span> {
+        <span class="keyword">let</span> user = <span class="keyword">try</span> <span class="keyword">await</span> service.request(endpoint)
+        <span class="function">print</span>(user.name)
+    } <span class="keyword">catch</span> {
+        <span class="function">print</span>(<span class="string">"Error: \(error)"</span>)
+    }
+}</code></pre>
+
+    <h3>3.4 数据持久化</h3>
+    <pre><code><span class="comment">// 泛型存储协议</span>
+<span class="keyword">protocol</span> <span class="type">StorageService</span> {
+    <span class="keyword">func</span> save&lt;T: <span class="type">Encodable</span>&gt;(_ value: T, forKey key: <span class="type">String</span>) <span class="keyword">throws</span>
+    <span class="keyword">func</span> load&lt;T: <span class="type">Decodable</span>&gt;(forKey key: <span class="type">String</span>) <span class="keyword">throws</span> -&gt; T?
+    <span class="keyword">func</span> remove(forKey key: <span class="type">String</span>)
+}
+
+<span class="comment">// UserDefaults 实现</span>
+<span class="keyword">class</span> <span class="type">UserDefaultsStorage</span>: <span class="type">StorageService</span> {
+    <span class="keyword">private</span> <span class="keyword">let</span> userDefaults: <span class="type">UserDefaults</span>
+    
+    <span class="keyword">init</span>(userDefaults: <span class="type">UserDefaults</span> = .standard) {
+        <span class="keyword">self</span>.userDefaults = userDefaults
+    }
+    
+    <span class="keyword">func</span> save&lt;T: <span class="type">Encodable</span>&gt;(_ value: T, forKey key: <span class="type">String</span>) <span class="keyword">throws</span> {
+        <span class="keyword">let</span> data = <span class="keyword">try</span> <span class="type">JSONEncoder</span>().encode(value)
+        userDefaults.set(data, forKey: key)
+    }
+    
+    <span class="keyword">func</span> load&lt;T: <span class="type">Decodable</span>&gt;(forKey key: <span class="type">String</span>) <span class="keyword">throws</span> -&gt; T? {
+        <span class="keyword">guard</span> <span class="keyword">let</span> data = userDefaults.data(forKey: key) <span class="keyword">else</span> {
+            <span class="keyword">return</span> <span class="keyword">nil</span>
+        }
+        <span class="keyword">return</span> <span class="keyword">try</span> <span class="type">JSONDecoder</span>().decode(T.<span class="keyword">self</span>, from: data)
+    }
+    
+    <span class="keyword">func</span> remove(forKey key: <span class="type">String</span>) {
+        userDefaults.removeObject(forKey: key)
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">struct</span> <span class="type">Settings</span>: <span class="type">Codable</span> {
+    <span class="keyword">var</span> theme: <span class="type">String</span>
+    <span class="keyword">var</span> fontSize: <span class="type">Int</span>
+}
+
+<span class="keyword">let</span> storage = UserDefaultsStorage()
+<span class="keyword">let</span> settings = Settings(theme: <span class="string">"dark"</span>, fontSize: <span class="number">14</span>)
+
+<span class="keyword">try</span>? storage.save(settings, forKey: <span class="string">"app_settings"</span>)
+<span class="keyword">let</span> loaded: Settings? = <span class="keyword">try</span>? storage.load(forKey: <span class="string">"app_settings"</span>)</code></pre>
+
+    <h3>3.5 状态管理</h3>
+    <pre><code><span class="comment">// 泛型状态管理</span>
+<span class="keyword">class</span> <span class="type">Observable</span>&lt;T&gt; {
+    <span class="keyword">typealias</span> <span class="type">Observer</span> = (T) -&gt; <span class="type">Void</span>
+    
+    <span class="keyword">private</span> <span class="keyword">var</span> observers: [<span class="type">Observer</span>] = []
+    
+    <span class="keyword">var</span> value: T {
+        <span class="keyword">didSet</span> {
+            notifyObservers()
+        }
+    }
+    
+    <span class="keyword">init</span>(_ value: T) {
+        <span class="keyword">self</span>.value = value
+    }
+    
+    <span class="keyword">func</span> <span class="function">observe</span>(_ observer: <span class="keyword">@escaping</span> <span class="type">Observer</span>) {
+        observers.append(observer)
+        observer(value)
+    }
+    
+    <span class="keyword">private</span> <span class="keyword">func</span> <span class="function">notifyObservers</span>() {
+        observers.forEach { $0(value) }
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> counter = Observable(<span class="number">0</span>)
+
+counter.observe { value <span class="keyword">in</span>
+    <span class="function">print</span>(<span class="string">"Counter changed to: \(value)"</span>)
+}
+
+counter.value = <span class="number">10</span> <span class="comment">// Counter changed to: 10</span>
+counter.value = <span class="number">20</span> <span class="comment">// Counter changed to: 20</span></code></pre>
+
+    <h2>四、高级技巧</h2>
+
+    <h3>4.1 类型擦除（Type Erasure）</h3>
+    
+    <p>当需要存储不同泛型参数的同一协议类型时，使用类型擦除技术。</p>
+
+    <pre><code><span class="comment">// 问题：不能直接创建协议数组</span>
+<span class="keyword">protocol</span> <span class="type">Vehicle</span> {
+    <span class="keyword">associatedtype</span> <span class="type">FuelType</span>
+    <span class="keyword">func</span> <span class="function">refuel</span>(with fuel: FuelType)
+}
+
+<span class="comment">// var vehicles: [Vehicle] = [] // ❌ 编译错误</span>
+
+<span class="comment">// 解决方案：类型擦除</span>
+<span class="keyword">class</span> <span class="type">AnyVehicle</span>&lt;FuelType&gt;: <span class="type">Vehicle</span> {
+    <span class="keyword">private</span> <span class="keyword">let</span> _refuel: (FuelType) -&gt; <span class="type">Void</span>
+    
+    <span class="keyword">init</span>&lt;V: <span class="type">Vehicle</span>&gt;(_ vehicle: V) <span class="keyword">where</span> V.FuelType == FuelType {
+        _refuel = vehicle.refuel
+    }
+    
+    <span class="keyword">func</span> <span class="function">refuel</span>(with fuel: FuelType) {
+        _refuel(fuel)
+    }
+}
+
+<span class="comment">// 具体实现</span>
+<span class="keyword">struct</span> <span class="type">Car</span>: <span class="type">Vehicle</span> {
+    <span class="keyword">func</span> <span class="function">refuel</span>(with fuel: <span class="type">String</span>) {
+        <span class="function">print</span>(<span class="string">"Refueling car with \(fuel)"</span>)
+    }
+}
+
+<span class="keyword">struct</span> <span class="type">ElectricCar</span>: <span class="type">Vehicle</span> {
+    <span class="keyword">func</span> <span class="function">refuel</span>(with fuel: <span class="type">Int</span>) {
+        <span class="function">print</span>(<span class="string">"Charging electric car with \(fuel) kWh"</span>)
+    }
+}
+
+<span class="comment">// 现在可以创建数组</span>
+<span class="keyword">let</span> gasolineVehicles: [AnyVehicle&lt;<span class="type">String</span>&gt;] = [
+    AnyVehicle(Car())
+]
+
+<span class="comment">// Swift 标准库中的类型擦除示例</span>
+<span class="keyword">let</span> anySequence = AnySequence([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>])
+<span class="keyword">let</span> anyCollection = AnyCollection([<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>])</code></pre>
+
+    <h3>4.2 泛型递归约束</h3>
+    <pre><code><span class="comment">// 自引用协议</span>
+<span class="keyword">protocol</span> <span class="type">Copyable</span> {
+    <span class="keyword">func</span> <span class="function">copy</span>() -&gt; <span class="type">Self</span>
+}
+
+<span class="keyword">class</span> <span class="type">Node</span>&lt;T&gt;: <span class="type">Copyable</span> {
+    <span class="keyword">var</span> value: T
+    <span class="keyword">var</span> next: Node&lt;T&gt;?
+    
+    <span class="keyword">init</span>(value: T) {
+        <span class="keyword">self</span>.value = value
+    }
+    
+    <span class="keyword">func</span> <span class="function">copy</span>() -&gt; <span class="type">Self</span> {
+        <span class="keyword">let</span> newNode = Node(value: value)
+        newNode.next = next?.copy()
+        <span class="keyword">return</span> newNode <span class="keyword">as</span>! <span class="type">Self</span>
+    }
+}
+
+<span class="comment">// 递归泛型约束</span>
+<span class="keyword">protocol</span> <span class="type">TreeNode</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Value</span>
+    <span class="keyword">associatedtype</span> <span class="type">Child</span>: <span class="type">TreeNode</span> <span class="keyword">where</span> Child.Value == Value
+    
+    <span class="keyword">var</span> value: Value { <span class="keyword">get</span> }
+    <span class="keyword">var</span> children: [Child] { <span class="keyword">get</span> }
+}</code></pre>
+
+    <h3>4.3 幻影类型（Phantom Types）</h3>
+    <pre><code><span class="comment">// 使用泛型参数来编码额外的类型信息，但不实际存储该类型的值</span>
+<span class="keyword">struct</span> <span class="type">Validated</span>&lt;T&gt; { }
+
+<span class="keyword">enum</span> <span class="type">Valid</span> { }
+<span class="keyword">enum</span> <span class="type">Invalid</span> { }
+
+<span class="keyword">struct</span> <span class="type">Email</span>&lt;State = Validated&lt;<span class="type">Invalid</span>&gt;&gt; {
+    <span class="keyword">let</span> value: <span class="type">String</span>
+    
+    <span class="keyword">init</span>(_ value: <span class="type">String</span>) {
+        <span class="keyword">self</span>.value = value
+    }
+}
+
+<span class="keyword">extension</span> <span class="type">Email</span> <span class="keyword">where</span> State == Validated&lt;<span class="type">Invalid</span>&gt; {
+    <span class="keyword">func</span> <span class="function">validate</span>() -&gt; Email&lt;Validated&lt;<span class="type">Valid</span>&gt;&gt;? {
+        <span class="keyword">guard</span> value.contains(<span class="string">"@"</span>) <span class="keyword">else</span> { <span class="keyword">return</span> <span class="keyword">nil</span> }
+        <span class="keyword">return</span> Email&lt;Validated&lt;<span class="type">Valid</span>&gt;&gt;(value)
+    }
+}
+
+<span class="keyword">extension</span> <span class="type">Email</span> <span class="keyword">where</span> State == Validated&lt;<span class="type">Valid</span>&gt; {
+    <span class="keyword">func</span> <span class="function">send</span>(message: <span class="type">String</span>) {
+        <span class="function">print</span>(<span class="string">"Sending '\(message)' to \(value)"</span>)
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> email = Email(<span class="string">"user@example.com"</span>)
+<span class="comment">// email.send(message: "Hello") // ❌ 编译错误：未验证的邮箱不能发送</span>
+
+<span class="keyword">if</span> <span class="keyword">let</span> validEmail = email.validate() {
+    validEmail.send(message: <span class="string">"Hello"</span>) <span class="comment">// ✅ OK</span>
+}</code></pre>
+
+    <h3>4.4 条件遵循（Conditional Conformance）</h3>
+    <pre><code><span class="comment">// 当泛型参数满足特定条件时，类型才遵循协议</span>
+<span class="keyword">extension</span> <span class="type">Array</span>: <span class="type">Equatable</span> <span class="keyword">where</span> Element: <span class="type">Equatable</span> {
+    <span class="comment">// Array 在元素遵循 Equatable 时自动遵循 Equatable</span>
+}
+
+<span class="keyword">extension</span> <span class="type">Optional</span>: <span class="type">Equatable</span> <span class="keyword">where</span> Wrapped: <span class="type">Equatable</span> {
+    <span class="comment">// Optional 在包装类型遵循 Equatable 时自动遵循 Equatable</span>
+}
+
+<span class="comment">// 自定义示例</span>
+<span class="keyword">struct</span> <span class="type">Pair</span>&lt;T, U&gt; {
+    <span class="keyword">let</span> first: T
+    <span class="keyword">let</span> second: U
+}
+
+<span class="keyword">extension</span> <span class="type">Pair</span>: <span class="type">Equatable</span> <span class="keyword">where</span> T: <span class="type">Equatable</span>, U: <span class="type">Equatable</span> {
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: Pair, rhs: Pair) -&gt; <span class="type">Bool</span> {
+        <span class="keyword">return</span> lhs.first == rhs.first &amp;&amp; lhs.second == rhs.second
+    }
+}
+
+<span class="keyword">extension</span> <span class="type">Pair</span>: <span class="type">Comparable</span> <span class="keyword">where</span> T: <span class="type">Comparable</span>, U: <span class="type">Comparable</span> {
+    <span class="keyword">static</span> <span class="keyword">func</span> &lt; (lhs: Pair, rhs: Pair) -&gt; <span class="type">Bool</span> {
+        <span class="keyword">if</span> lhs.first != rhs.first {
+            <span class="keyword">return</span> lhs.first &lt; rhs.first
+        }
+        <span class="keyword">return</span> lhs.second &lt; rhs.second
+    }
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> pair1 = Pair(first: <span class="number">1</span>, second: <span class="string">"a"</span>)
+<span class="keyword">let</span> pair2 = Pair(first: <span class="number">1</span>, second: <span class="string">"b"</span>)
+<span class="function">print</span>(pair1 &lt; pair2) <span class="comment">// true</span></code></pre>
+
+    <h3>4.5 高阶泛型（Higher-Kinded Types 的模拟）</h3>
+    <pre><code><span class="comment">// Swift 不直接支持高阶类型，但可以通过协议模拟</span>
+<span class="keyword">protocol</span> <span class="type">Functor</span> {
+    <span class="keyword">associatedtype</span> <span class="type">A</span>
+    <span class="keyword">associatedtype</span> <span class="type">FB</span>: <span class="type">Functor</span>
+    
+    <span class="keyword">func</span> map&lt;B&gt;(_ transform: (A) -&gt; B) -&gt; FB
+}
+
+<span class="keyword">protocol</span> <span class="type">Monad</span>: <span class="type">Functor</span> {
+    <span class="keyword">associatedtype</span> <span class="type">MB</span>: <span class="type">Monad</span>
+    
+    <span class="keyword">static</span> <span class="keyword">func</span> pure(_ value: A) -&gt; <span class="type">Self</span>
+    <span class="keyword">func</span> flatMap&lt;B&gt;(_ transform: (A) -&gt; MB) -&gt; MB
+}
+
+<span class="comment">// Optional 实现 Monad（概念示例）</span>
+<span class="keyword">extension</span> <span class="type">Optional</span> {
+    <span class="keyword">static</span> <span class="keyword">func</span> pure(_ value: Wrapped) -&gt; <span class="type">Optional</span>&lt;Wrapped&gt; {
+        <span class="keyword">return</span> .some(value)
+    }
+}</code></pre>
+
+    <h3>4.6 泛型性能优化</h3>
+    
+    <div class="highlight-box">
+        <h4>性能最佳实践</h4>
+        <ul>
+            <li><strong>使用值类型</strong>：struct 和 enum 配合泛型性能更好</li>
+            <li><strong>避免装箱</strong>：使用 <code>some</code> 而不是 <code>any</code></li>
+            <li><strong>编译器优化</strong>：使用 <code>@inlinable</code> 和 <code>@_specialize</code></li>
+            <li><strong>减少协议约束</strong>：过多约束会增加编译时间</li>
+        </ul>
+    </div>
+
+    <pre><code><span class="comment">// 使用 @inlinable 允许跨模块优化</span>
+<span class="keyword">@inlinable</span>
+<span class="keyword">public</span> <span class="keyword">func</span> swap&lt;T&gt;(_ a: <span class="keyword">inout</span> T, _ b: <span class="keyword">inout</span> T) {
+    <span class="keyword">let</span> temp = a
+    a = b
+    b = temp
+}
+
+<span class="comment">// 使用 @_specialize 为特定类型生成优化代码</span>
+<span class="keyword">@_specialize</span>(<span class="keyword">where</span> T == <span class="type">Int</span>)
+<span class="keyword">@_specialize</span>(<span class="keyword">where</span> T == <span class="type">String</span>)
+<span class="keyword">func</span> process&lt;T: <span class="type">Equatable</span>&gt;(_ items: [T]) -&gt; [T] {
+    <span class="comment">// 处理逻辑</span>
+    <span class="keyword">return</span> items
+}
+
+<span class="comment">// 使用 some 避免存在类型的性能开销</span>
+<span class="keyword">func</span> <span class="function">makeCollection</span>() -&gt; <span class="keyword">some</span> <span class="type">Collection</span>&lt;<span class="type">Int</span>&gt; {
+    <span class="keyword">return</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>] <span class="comment">// 具体类型被隐藏但编译器知道</span>
+}
+
+<span class="comment">// 而不是使用 any（有运行时开销）</span>
+<span class="keyword">func</span> <span class="function">makeAnyCollection</span>() -&gt; <span class="keyword">any</span> <span class="type">Collection</span>&lt;<span class="type">Int</span>&gt; {
+    <span class="keyword">return</span> [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>] <span class="comment">// 使用存在容器，有性能开销</span>
+}</code></pre>
+
+    <h2>五、常见问题与最佳实践</h2>
+
+    <h3>5.1 常见问题</h3>
+
+    <div class="warning">
+        <strong>⚠️ 问题1：Protocol can only be used as a generic constraint</strong><br>
+        当协议包含关联类型或 Self 要求时，不能直接作为类型使用。
+    </div>
+
+    <pre><code><span class="comment">// ❌ 错误</span>
+<span class="keyword">protocol</span> <span class="type">Container</span> {
+    <span class="keyword">associatedtype</span> <span class="type">Item</span>
+}
+
+<span class="comment">// var container: Container // ❌ 编译错误</span>
+
+<span class="comment">// ✅ 解决方案 1：使用泛型</span>
+<span class="keyword">func</span> process&lt;C: <span class="type">Container</span>&gt;(container: C) {
+    <span class="comment">// ...</span>
+}
+
+<span class="comment">// ✅ 解决方案 2：使用 any</span>
+<span class="keyword">var</span> container: <span class="keyword">any</span> <span class="type">Container</span>
+
+<span class="comment">// ✅ 解决方案 3：类型擦除</span>
+<span class="keyword">struct</span> <span class="type">AnyContainer</span>&lt;Item&gt;: <span class="type">Container</span> {
+    <span class="comment">// ...</span>
+}</code></pre>
+
+    <div class="warning">
+        <strong>⚠️ 问题2：Cannot convert return expression of type</strong><br>
+        泛型函数返回类型不匹配。
+    </div>
+
+    <pre><code><span class="comment">// ❌ 错误</span>
+<span class="keyword">func</span> makeArray&lt;T&gt;() -&gt; [T] {
+    <span class="keyword">return</span> [] <span class="comment">// T 没有被推断</span>
+}
+
+<span class="comment">// ✅ 解决方案：提供类型信息</span>
+<span class="keyword">func</span> makeArray&lt;T&gt;(of type: T.<span class="keyword">Type</span>) -&gt; [T] {
+    <span class="keyword">return</span> []
+}
+
+<span class="keyword">let</span> ints = makeArray(of: <span class="type">Int</span>.<span class="keyword">self</span>)
+
+<span class="comment">// 或者通过参数推断</span>
+<span class="keyword">func</span> makeArray&lt;T&gt;(containing element: T) -&gt; [T] {
+    <span class="keyword">return</span> [element]
+}</code></pre>
+
+    <h3>5.2 最佳实践</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>场景</th>
+                <th>建议</th>
+                <th>原因</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>返回类型</td>
+                <td>优先使用 <code>some Protocol</code></td>
+                <td>更好的性能和类型推断</td>
+            </tr>
+            <tr>
+                <td>存储属性</td>
+                <td>使用具体泛型类型或 <code>any Protocol</code></td>
+                <td><code>some</code> 不能用于存储属性</td>
+            </tr>
+            <tr>
+                <td>集合元素</td>
+                <td>使用 <code>any Protocol</code> 或类型擦除</td>
+                <td>允许存储不同具体类型</td>
+            </tr>
+            <tr>
+                <td>性能关键代码</td>
+                <td>使用值类型 + 泛型</td>
+                <td>编译器优化更好</td>
+            </tr>
+            <tr>
+                <td>公共 API</td>
+                <td>使用 <code>@inlinable</code></td>
+                <td>允许跨模块优化</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>5.3 设计原则</h3>
+
+    <div class="info">
+        <strong>📐 SOLID 原则在泛型中的应用</strong>
+        <ol>
+            <li><strong>单一职责</strong>：每个泛型类型应该有清晰的单一用途</li>
+            <li><strong>开闭原则</strong>：通过泛型和协议扩展，对扩展开放，对修改关闭</li>
+            <li><strong>里氏替换</strong>：泛型约束确保类型替换的安全性</li>
+            <li><strong>接口隔离</strong>：使用多个小协议而不是大而全的协议</li>
+            <li><strong>依赖倒置</strong>：依赖抽象（协议），而不是具体类型</li>
+        </ol>
+    </div>
+
+    <pre><code><span class="comment">// 好的设计：小而专注的协议</span>
+<span class="keyword">protocol</span> <span class="type">Readable</span> {
+    <span class="keyword">func</span> <span class="function">read</span>() -&gt; <span class="type">String</span>
+}
+
+<span class="keyword">protocol</span> <span class="type">Writable</span> {
+    <span class="keyword">func</span> <span class="function">write</span>(_ content: <span class="type">String</span>)
+}
+
+<span class="comment">// 组合使用</span>
+<span class="keyword">func</span> copyContent&lt;Source: <span class="type">Readable</span>, Destination: <span class="type">Writable</span>&gt;(
+    from source: Source,
+    to destination: Destination
+) {
+    <span class="keyword">let</span> content = source.read()
+    destination.write(content)
+}
+
+<span class="comment">// 而不是：</span>
+<span class="keyword">protocol</span> <span class="type">FileSystem</span> {
+    <span class="keyword">func</span> <span class="function">read</span>() -&gt; <span class="type">String</span>
+    <span class="keyword">func</span> <span class="function">write</span>(_ content: <span class="type">String</span>)
+    <span class="keyword">func</span> <span class="function">delete</span>()
+    <span class="keyword">func</span> <span class="function">rename</span>(_ newName: <span class="type">String</span>)
+    <span class="comment">// 太多职责</span>
+}</code></pre>
+
+    <h2>六、Swift 泛型的演进</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>版本</th>
+                <th>特性</th>
+                <th>说明</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Swift 1.0</td>
+                <td>基础泛型</td>
+                <td>泛型函数、类型、协议</td>
+            </tr>
+            <tr>
+                <td>Swift 2.0</td>
+                <td>协议扩展</td>
+                <td>泛型 where 子句增强</td>
+            </tr>
+            <tr>
+                <td>Swift 3.0</td>
+                <td>关联类型约束</td>
+                <td>更强大的关联类型系统</td>
+            </tr>
+            <tr>
+                <td>Swift 4.0</td>
+                <td>条件遵循</td>
+                <td>Conditional Conformance</td>
+            </tr>
+            <tr>
+                <td>Swift 4.1</td>
+                <td>递归协议约束</td>
+                <td>Recursive Protocol Constraints</td>
+            </tr>
+            <tr>
+                <td>Swift 5.1</td>
+                <td>不透明类型（some）</td>
+                <td>Opaque Result Types</td>
+            </tr>
+            <tr>
+                <td>Swift 5.6</td>
+                <td>存在类型改进</td>
+                <td>更好的 any 支持</td>
+            </tr>
+            <tr>
+                <td>Swift 5.7</td>
+                <td>参数化协议</td>
+                <td>主类型（Primary Associated Types）</td>
+            </tr>
+            <tr>
+                <td>Swift 6.0</td>
+                <td>泛型宏</td>
+                <td>编译时泛型代码生成</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>6.1 Swift 5.7+ 参数化协议</h3>
+    <pre><code><span class="comment">// Swift 5.7 引入主关联类型</span>
+<span class="keyword">protocol</span> <span class="type">Collection</span>&lt;Element&gt; {
+    <span class="keyword">associatedtype</span> <span class="type">Element</span>
+    <span class="comment">// ...</span>
+}
+
+<span class="comment">// 现在可以这样写：</span>
+<span class="keyword">func</span> process(_ collections: <span class="keyword">any</span> <span class="type">Collection</span>&lt;<span class="type">Int</span>&gt;) {
+    <span class="comment">// ...</span>
+}
+
+<span class="comment">// 而不是：</span>
+<span class="keyword">func</span> process&lt;C: <span class="type">Collection</span>&gt;(_ collection: C) <span class="keyword">where</span> C.Element == <span class="type">Int</span> {
+    <span class="comment">// ...</span>
+}</code></pre>
+
+    <div class="reference">
+        <h2>参考文献</h2>
+        <ol>
+            <li><a href="https://docs.swift.org/swift-book/LanguageGuide/Generics.html" target="_blank">Swift 官方文档 - Generics</a></li>
+            <li><a href="https://github.com/apple/swift-evolution" target="_blank">Swift Evolution - 泛型相关提案</a></li>
+            <li><a href="https://developer.apple.com/videos/play/wwdc2022/110352/" target="_blank">WWDC 2022 - Embrace Swift generics</a></li>
+            <li><a href="https://www.swiftbysundell.com/articles/different-flavors-of-type-erasure-in-swift/" target="_blank">John Sundell - Type Erasure in Swift</a></li>
+            <li><a href="https://github.com/apple/swift/blob/main/docs/Generics.rst" target="_blank">Swift 编译器文档 - Generics Implementation</a></li>
+            <li>Advanced Swift by Chris Eidhof, Ole Begemann, and Airspeed Velocity</li>
+            <li><a href="https://www.pointfree.co/collections/protocol-witnesses" target="_blank">Point-Free - Protocol Witnesses</a></li>
+        </ol>
+    </div>
+
+</body>
+</html>

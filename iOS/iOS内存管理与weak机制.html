@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深入理解 iOS 内存管理与 weak 弱引用机制</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "PingFang SC", sans-serif; line-height: 1.8; color: #1e293b; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3); overflow: hidden; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 80px 60px; text-align: center; }
+        header h1 { font-size: 3.5em; margin-bottom: 20px; font-weight: 700; }
+        nav { background: #1e293b; position: sticky; top: 0; z-index: 1000; }
+        nav ul { list-style: none; display: flex; justify-content: center; flex-wrap: wrap; }
+        nav a { display: block; color: white; padding: 20px 30px; text-decoration: none; transition: all 0.3s; }
+        nav a:hover { background: #3b82f6; }
+        main { padding: 60px; }
+        section { margin-bottom: 80px; }
+        h2 { color: #3b82f6; font-size: 2.8em; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 4px solid #3b82f6; }
+        h3 { color: #8b5cf6; font-size: 2.2em; margin: 40px 0 20px; }
+        h4 { font-size: 1.8em; margin: 30px 0 15px; }
+        .code-block { background: #282c34; color: #abb2bf; padding: 25px; border-radius: 12px; margin: 25px 0; overflow-x: auto; }
+        .code-title { background: #21252b; color: #61afef; padding: 10px 20px; border-radius: 8px; margin: -25px -25px 20px; }
+        .info-box, .warning-box, .success-box { padding: 25px; margin: 25px 0; border-radius: 12px; border-left: 5px solid; }
+        .info-box { background: #dbeafe; border-left-color: #3b82f6; }
+        .warning-box { background: #fef3c7; border-left-color: #f59e0b; }
+        .success-box { background: #d1fae5; border-left-color: #10b981; }
+        table { width: 100%; border-collapse: collapse; margin: 25px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        th, td { padding: 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #3b82f6; color: white; }
+        tr:nth-child(even) { background: #f1f5f9; }
+        .diagram { background: white; border: 3px solid #e2e8f0; padding: 30px; margin: 25px 0; border-radius: 12px; font-family: monospace; }
+        footer { background: #1e293b; color: white; text-align: center; padding: 40px; }
+        pre { font-family: 'SF Mono', monospace; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 iOS 内存管理与 weak 弱引用</h1>
+            <p>从引用计数到 SideTable，深入理解 iOS 内存管理核心机制</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#concept">概念背景</a></li>
+                <li><a href="#mechanism">核心机制</a></li>
+                <li><a href="#weak">weak原理</a></li>
+                <li><a href="#application">应用场景</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <section id="concept">
+                <h2>📚 一、概念与背景</h2>
+                
+                <h3>1.1 引用类型对比</h3>
+                <table>
+                    <tr><th>引用类型</th><th>关键字</th><th>引用计数</th><th>对象释放后</th><th>使用场景</th></tr>
+                    <tr><td>强引用</td><td>strong</td><td>+1</td><td>野指针</td><td>默认持有</td></tr>
+                    <tr><td>弱引用</td><td>weak</td><td>不变</td><td>自动nil</td><td>打破循环引用</td></tr>
+                    <tr><td>无主引用</td><td>unowned</td><td>不变</td><td>野指针</td><td>确保对象存在</td></tr>
+                    <tr><td>拷贝引用</td><td>copy</td><td>+1(新对象)</td><td>不影响</td><td>NSString/block</td></tr>
+                </table>
+
+                <h3>1.2 内存管理演进</h3>
+                <div class="info-box">
+                    <strong>MRC时代</strong>：手动 retain/release，容易出错<br>
+                    <strong>ARC时代</strong>：编译器自动插入内存管理代码<br>
+                    <strong>Swift时代</strong>：值类型栈内存，引用类型ARC管理
+                </div>
+            </section>
+
+            <section id="mechanism">
+                <h2>⚙️ 二、核心机制</h2>
+
+                <h3>2.1 引用计数存储位置</h3>
+                <div class="success-box">
+                    <strong>1. isa指针中（小对象）</strong><br>
+                    extra_rc字段：19位(ARM64)或8位(x86_64)<br>
+                    优点：速度快，无额外内存<br><br>
+                    <strong>2. SideTable中（大对象）</strong><br>
+                    RefcountMap全局哈希表<br>
+                    has_sidetable_rc标记溢出
+                </div>
+
+                <h3>2.2 SideTable数据结构</h3>
+                <div class="code-block">
+                    <div class="code-title">objc4源码</div>
+                    <pre>struct SideTable {
+    spinlock_t slock;           // 自旋锁
+    RefcountMap refcnts;        // 引用计数表
+    weak_table_t weak_table;    // 弱引用表
+};</pre>
+                </div>
+
+                <h3>2.3 dealloc流程</h3>
+                <div class="diagram">
+                    <pre>对象引用计数归零
+    ↓
+dealloc
+    ↓
+1. 调用C++析构函数
+2. 移除关联对象
+3. 清理弱引用表 ⭐
+4. 清理引用计数表
+    ↓
+释放内存free()</pre>
+                </div>
+            </section>
+
+            <section id="weak">
+                <h2>🔗 三、weak弱引用原理</h2>
+
+                <h3>3.1 weak_table_t结构</h3>
+                <div class="code-block">
+                    <div class="code-title">objc4源码</div>
+                    <pre>struct weak_table_t {
+    weak_entry_t *weak_entries;  // 弱引用条目数组
+    size_t num_entries;          // 条目数量
+    uintptr_t mask;              // 哈希表掩码
+};
+
+struct weak_entry_t {
+    DisguisedPtr<objc_object> referent;  // 被弱引用的对象
+    union {
+        weak_referrer_t inline_referrers[4];  // 内联数组
+        struct {
+            weak_referrer_t *referrers;  // 动态数组
+            uintptr_t num_refs;
+        };
+    };
+};</pre>
+                </div>
+
+                <h3>3.2 weak注册流程</h3>
+                <div class="code-block">
+                    <div class="code-title">__weak赋值时</div>
+                    <pre>id objc_initWeak(id *location, id newObj) {
+    *location = nil;
+    return objc_storeWeak(location, newObj);
+}
+
+id objc_storeWeak(id *location, id newObj) {
+    // 1. 获取SideTable
+    SideTable *newTable = &SideTables()[newObj];
+    
+    // 2. 加锁
+    newTable->lock();
+    
+    // 3. 在weak_table中查找或创建weak_entry
+    weak_entry_t *entry = weak_entry_for_referent(&newTable->weak_table, newObj);
+    
+    if (!entry) {
+        // 创建新条目
+        weak_entry_t new_entry(newObj, location);
+        weak_grow_maybe(&newTable->weak_table);
+        weak_entry_insert(&newTable->weak_table, &new_entry);
+    } else {
+        // 添加到现有条目
+        append_referrer(entry, location);
+    }
+    
+    // 4. 标记对象被弱引用
+    newObj->setWeaklyReferenced_nolock();
+    
+    // 5. 解锁并返回
+    newTable->unlock();
+    *location = newObj;
+    return newObj;
+}</pre>
+                </div>
+
+                <h3>3.3 weak清理流程</h3>
+                <div class="code-block">
+                    <div class="code-title">对象dealloc时</div>
+                    <pre>void weak_clear_no_lock(weak_table_t *weak_table, id referent) {
+    // 1. 查找对象的weak_entry
+    weak_entry_t *entry = weak_entry_for_referent(weak_table, referent);
+    if (!entry) return;
+    
+    // 2. 遍历所有弱引用指针，置为nil
+    weak_referrer_t *referrers;
+    size_t count;
+    
+    if (entry->out_of_line()) {
+        referrers = entry->referrers;
+        count = entry->num_refs;
+    } else {
+        referrers = entry->inline_referrers;
+        count = WEAK_INLINE_COUNT;
+    }
+    
+    for (size_t i = 0; i < count; ++i) {
+        id *referrer = referrers[i];
+        if (referrer) {
+            *referrer = nil;  // ⭐ 置为nil
+        }
+    }
+    
+    // 3. 移除weak_entry
+    weak_entry_remove(weak_table, entry);
+}</pre>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ weak工作原理总结</strong><br>
+                    1. <strong>注册阶段</strong>：weak指针赋值时，在weak_table中注册<br>
+                    2. <strong>存储结构</strong>：对象地址→weak指针地址数组的映射<br>
+                    3. <strong>自动置nil</strong>：对象dealloc时遍历数组，将所有weak指针置nil<br>
+                    4. <strong>线程安全</strong>：通过SideTable的spinlock保证<br>
+                    5. <strong>性能优化</strong>：小于4个弱引用用内联数组，大于4个用动态数组
+                </div>
+
+                <h3>3.4 weak vs unowned</h3>
+                <table>
+                    <tr><th>特性</th><th>weak</th><th>unowned</th></tr>
+                    <tr><td>对象释放后</td><td>自动置nil</td><td>不处理(野指针)</td></tr>
+                    <tr><td>可选类型</td><td>必须是Optional</td><td>可以非Optional</td></tr>
+                    <tr><td>性能</td><td>较慢(需要查表)</td><td>快(无额外操作)</td></tr>
+                    <tr><td>安全性</td><td>安全</td><td>不安全(可能崩溃)</td></tr>
+                    <tr><td>使用场景</td><td>对象可能被释放</td><td>确保对象存在</td></tr>
+                </table>
+            </section>
+
+            <section id="application">
+                <h2>🎯 四、应用场景</h2>
+
+                <h3>4.1 打破循环引用</h3>
+                <div class="code-block">
+                    <div class="code-title">Delegate模式</div>
+                    <pre>@interface ViewController : UIViewController
+@property (nonatomic, weak) id<MyDelegate> delegate;  // weak避免循环引用
+@end</pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-title">Block循环引用</div>
+                    <pre>__weak typeof(self) weakSelf = self;
+self.block = ^{
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+    if (strongSelf) {
+        [strongSelf doSomething];
+    }
+};</pre>
+                </div>
+
+                <h3>4.2 NSTimer循环引用</h3>
+                <div class="code-block">
+                    <div class="code-title">解决方案</div>
+                    <pre>// 方案1：使用weakProxy
+@interface WeakProxy : NSProxy
+@property (nonatomic, weak) id target;
+@end
+
+WeakProxy *proxy = [WeakProxy alloc];
+proxy.target = self;
+self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                              target:proxy
+                                            selector:@selector(timerFired)
+                                            userInfo:nil
+                                             repeats:YES];
+
+// 方案2：iOS 10+ block方式
+self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer *timer) {
+    [self timerFired];
+}];</pre>
+                </div>
+
+                <h3>4.3 内存泄漏检测</h3>
+                <div class="success-box">
+                    <strong>工具推荐</strong><br>
+                    1. <strong>Xcode Instruments - Leaks</strong>：检测内存泄漏<br>
+                    2. <strong>Xcode Instruments - Allocations</strong>：分析内存分配<br>
+                    3. <strong>MLeaksFinder</strong>：微信开源的自动检测工具<br>
+                    4. <strong>FBRetainCycleDetector</strong>：Facebook循环引用检测
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>📖 深入理解 iOS 内存管理与 weak 弱引用机制</p>
+            <p style="margin-top: 10px; opacity: 0.8;">© 2024 | 基于 objc4-781 源码分析</p>
+        </footer>
+    </div>
+
+    <script>
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>

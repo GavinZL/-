@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swift协议（Protocol）详解</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #007AFF;
+        }
+        
+        h2 {
+            color: #007AFF;
+            font-size: 1.8em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-left: 10px;
+            border-left: 4px solid #007AFF;
+        }
+        
+        h3 {
+            color: #333;
+            font-size: 1.4em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-left: 8px;
+            border-left: 3px solid #5AC8FA;
+        }
+        
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+        
+        pre {
+            background-color: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        code {
+            font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+            background-color: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        
+        .tree {
+            margin: 20px 0;
+            padding-left: 0;
+        }
+        
+        .tree ul {
+            list-style: none;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        .tree li {
+            margin: 8px 0;
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .tree li:before {
+            content: "├─";
+            position: absolute;
+            left: 0;
+            color: #007AFF;
+        }
+        
+        .tree li:last-child:before {
+            content: "└─";
+        }
+        
+        .tree > ul > li {
+            font-weight: 600;
+            color: #007AFF;
+        }
+        
+        .tree ul ul li {
+            font-weight: normal;
+            color: #333;
+        }
+        
+        .note {
+            background-color: #e7f3ff;
+            border-left: 4px solid #007AFF;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .important {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .reference {
+            background-color: #f8f9fa;
+            padding: 20px;
+            margin-top: 40px;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .reference h3 {
+            margin-top: 0;
+            border-left: none;
+            color: #495057;
+        }
+        
+        .reference ol {
+            padding-left: 20px;
+        }
+        
+        .reference li {
+            margin: 10px 0;
+        }
+        
+        .reference a {
+            color: #007AFF;
+            text-decoration: none;
+        }
+        
+        .reference a:hover {
+            text-decoration: underline;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        table th, table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        table th {
+            background-color: #007AFF;
+            color: white;
+            font-weight: 600;
+        }
+        
+        table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .keyword {
+            color: #AF00DB;
+            font-weight: 600;
+        }
+        
+        .string {
+            color: #C41A16;
+        }
+        
+        .comment {
+            color: #007400;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Swift协议（Protocol）详解</h1>
+        
+        <h2>一、概念与背景</h2>
+        
+        <h3>1.1 协议的定义</h3>
+        <p>
+            协议（Protocol）是Swift语言中一种核心的类型抽象机制，用于定义方法、属性和其他要求的蓝图。
+            协议本身不提供实现，而是描述了一组功能规范，任何满足这些规范的类型都可以采纳（adopt）该协议。
+        </p>
+        
+        <div class="note">
+            <strong>核心特点：</strong>
+            <ul>
+                <li>协议是一等公民类型（First-class Type）</li>
+                <li>支持面向协议编程（Protocol-Oriented Programming, POP）</li>
+                <li>可以被类、结构体、枚举遵循</li>
+                <li>支持协议组合、继承和扩展</li>
+            </ul>
+        </div>
+        
+        <pre><code><span class="comment">// 基础协议定义</span>
+<span class="keyword">protocol</span> Drawable {
+    <span class="keyword">var</span> color: String { <span class="keyword">get</span> <span class="keyword">set</span> }
+    <span class="keyword">var</span> lineWidth: Double { <span class="keyword">get</span> }
+    
+    <span class="keyword">func</span> draw()
+    <span class="keyword">mutating</span> <span class="keyword">func</span> fill()
+}
+
+<span class="comment">// 结构体遵循协议</span>
+<span class="keyword">struct</span> Circle: Drawable {
+    <span class="keyword">var</span> color: String
+    <span class="keyword">let</span> lineWidth: Double = 2.0
+    
+    <span class="keyword">func</span> draw() {
+        print(<span class="string">"Drawing circle with color: \(color)"</span>)
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> fill() {
+        print(<span class="string">"Filling circle"</span>)
+    }
+}</code></pre>
+        
+        <h3>1.2 协议在Swift中的地位</h3>
+        <p>
+            与Objective-C的protocol不同，Swift的协议是面向协议编程范式的核心。Swift标准库中大量使用协议，
+            如<code>Equatable</code>、<code>Hashable</code>、<code>Codable</code>等，形成了一个强大的协议体系。
+        </p>
+        
+        <div class="tree">
+            <ul>
+                <li>Swift协议的演进历程
+                    <ul>
+                        <li>Swift 1.x - 基础协议支持</li>
+                        <li>Swift 2.0 - 引入协议扩展（Protocol Extension）</li>
+                        <li>Swift 3.0 - 标准库全面采用POP设计</li>
+                        <li>Swift 4.0 - Codable协议体系</li>
+                        <li>Swift 5.1 - Opaque Types (some关键字)</li>
+                        <li>Swift 5.7 - Primary Associated Types</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <h2>二、核心机制与实现原理</h2>
+        
+        <h3>2.1 协议的底层实现</h3>
+        
+        <h4>2.1.1 Witness Table（见证表）</h4>
+        <p>
+            Swift使用Witness Table来实现协议的动态派发。每个遵循协议的类型都会生成一个Protocol Witness Table (PWT)，
+            存储该类型对协议要求的具体实现。
+        </p>
+        
+        <pre><code><span class="comment">// 协议定义</span>
+<span class="keyword">protocol</span> Animal {
+    <span class="keyword">func</span> makeSound()
+}
+
+<span class="keyword">struct</span> Dog: Animal {
+    <span class="keyword">func</span> makeSound() {
+        print(<span class="string">"Woof!"</span>)
+    }
+}
+
+<span class="comment">// 底层会生成类似以下的Witness Table结构：</span>
+<span class="comment">// Dog's Protocol Witness Table for Animal:</span>
+<span class="comment">// - makeSound: Dog.makeSound</span>
+
+<span class="keyword">let</span> animal: Animal = Dog()
+animal.makeSound()  <span class="comment">// 通过PWT动态派发</span></code></pre>
+        
+        <h4>2.1.2 存在式容器（Existential Container）</h4>
+        <p>
+            当使用协议作为类型时，Swift会创建一个存在式容器来存储值。容器结构如下：
+        </p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>字段</th>
+                    <th>大小</th>
+                    <th>说明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Value Buffer</td>
+                    <td>3 words</td>
+                    <td>存储小值或大值的指针</td>
+                </tr>
+                <tr>
+                    <td>Value Witness Table (VWT)</td>
+                    <td>1 word</td>
+                    <td>值的生命周期管理（copy、destroy等）</td>
+                </tr>
+                <tr>
+                    <td>Protocol Witness Table (PWT)</td>
+                    <td>1+ words</td>
+                    <td>协议方法的实现指针</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <pre><code><span class="comment">// 存在式容器示例</span>
+<span class="keyword">protocol</span> Printable {
+    <span class="keyword">func</span> printDescription()
+}
+
+<span class="keyword">struct</span> SmallData: Printable {
+    <span class="keyword">let</span> value: Int  <span class="comment">// 1 word，小值，存储在ValueBuffer中</span>
+    
+    <span class="keyword">func</span> printDescription() {
+        print(<span class="string">"Small: \(value)"</span>)
+    }
+}
+
+<span class="keyword">struct</span> LargeData: Printable {
+    <span class="keyword">let</span> values: [Int] = Array(repeating: 0, count: 100)  <span class="comment">// 大值，堆分配</span>
+    
+    <span class="keyword">func</span> printDescription() {
+        print(<span class="string">"Large data"</span>)
+    }
+}
+
+<span class="keyword">let</span> p1: Printable = SmallData(value: 42)     <span class="comment">// 栈上分配</span>
+<span class="keyword">let</span> p2: Printable = LargeData()              <span class="comment">// 堆上分配，ValueBuffer存指针</span></code></pre>
+        
+        <div class="warning">
+            <strong>性能注意：</strong>存在式容器会带来额外的内存开销和间接性能损耗。对于性能敏感的场景，
+            应优先使用泛型约束而非协议类型。
+        </div>
+        
+        <h3>2.2 协议的内存布局</h3>
+        
+        <pre><code><span class="keyword">import</span> Foundation
+
+<span class="keyword">protocol</span> MyProtocol {
+    <span class="keyword">func</span> foo()
+}
+
+<span class="keyword">struct</span> MyStruct: MyProtocol {
+    <span class="keyword">let</span> a: Int
+    <span class="keyword">let</span> b: Int
+    
+    <span class="keyword">func</span> foo() {
+        print(<span class="string">"MyStruct.foo"</span>)
+    }
+}
+
+<span class="comment">// 直接类型的内存</span>
+<span class="keyword">let</span> direct = MyStruct(a: 1, b: 2)
+print(MemoryLayout.size(ofValue: direct))        <span class="comment">// 16 bytes (2 * 8)</span>
+
+<span class="comment">// 协议类型的内存（存在式容器）</span>
+<span class="keyword">let</span> protocol: MyProtocol = MyStruct(a: 1, b: 2)
+print(MemoryLayout.size(ofValue: protocol))      <span class="comment">// 40 bytes (5 words)</span>
+print(MemoryLayout.stride(ofValue: protocol))    <span class="comment">// 40 bytes</span>
+print(MemoryLayout.alignment(ofValue: protocol)) <span class="comment">// 8 bytes</span></code></pre>
+        
+        <h3>2.3 协议的分派机制</h3>
+        
+        <div class="tree">
+            <ul>
+                <li>协议方法分派机制
+                    <ul>
+                        <li>协议要求的方法
+                            <ul>
+                                <li>通过Protocol Witness Table进行动态分派</li>
+                                <li>运行时查表确定具体实现</li>
+                            </ul>
+                        </li>
+                        <li>协议扩展中的方法
+                            <ul>
+                                <li>默认实现 - 静态分派</li>
+                                <li>如果类型提供了自己的实现，使用类型的实现</li>
+                                <li>否则使用扩展中的默认实现</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <pre><code><span class="keyword">protocol</span> Vehicle {
+    <span class="keyword">func</span> start()  <span class="comment">// 协议要求 - 动态分派</span>
+}
+
+<span class="keyword">extension</span> Vehicle {
+    <span class="keyword">func</span> start() {
+        print(<span class="string">"Default start"</span>)
+    }
+    
+    <span class="keyword">func</span> stop() {  <span class="comment">// 扩展方法 - 静态分派</span>
+        print(<span class="string">"Default stop"</span>)
+    }
+}
+
+<span class="keyword">struct</span> Car: Vehicle {
+    <span class="keyword">func</span> start() {
+        print(<span class="string">"Car start"</span>)
+    }
+    
+    <span class="keyword">func</span> stop() {
+        print(<span class="string">"Car stop"</span>)
+    }
+}
+
+<span class="keyword">let</span> car: Vehicle = Car()
+car.start()  <span class="comment">// 输出: "Car start" (动态分派)</span>
+car.stop()   <span class="comment">// 输出: "Default stop" (静态分派，因为stop不是协议要求)</span>
+
+<span class="keyword">let</span> carDirect = Car()
+carDirect.stop()  <span class="comment">// 输出: "Car stop" (直接调用)</span></code></pre>
+        
+        <h2>三、协议的类型体系</h2>
+        
+        <h3>3.1 基础协议类型</h3>
+        
+        <h4>3.1.1 属性要求</h4>
+        <pre><code><span class="keyword">protocol</span> Named {
+    <span class="keyword">var</span> name: String { <span class="keyword">get</span> }           <span class="comment">// 只读属性</span>
+    <span class="keyword">var</span> fullName: String { <span class="keyword">get</span> <span class="keyword">set</span> }  <span class="comment">// 读写属性</span>
+    <span class="keyword">static</span> <span class="keyword">var</span> defaultName: String { <span class="keyword">get</span> }  <span class="comment">// 类型属性</span>
+}
+
+<span class="keyword">struct</span> Person: Named {
+    <span class="keyword">let</span> name: String              <span class="comment">// let满足get要求</span>
+    <span class="keyword">var</span> fullName: String          <span class="comment">// var满足get set要求</span>
+    <span class="keyword">static</span> <span class="keyword">let</span> defaultName = <span class="string">"Unknown"</span>
+}</code></pre>
+        
+        <h4>3.1.2 方法要求</h4>
+        <pre><code><span class="keyword">protocol</span> Toggleable {
+    <span class="keyword">mutating</span> <span class="keyword">func</span> toggle()  <span class="comment">// mutating用于值类型的方法</span>
+}
+
+<span class="keyword">enum</span> Switch: Toggleable {
+    <span class="keyword">case</span> on, off
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> toggle() {
+        <span class="keyword">switch</span> <span class="keyword">self</span> {
+        <span class="keyword">case</span> .on:
+            <span class="keyword">self</span> = .off
+        <span class="keyword">case</span> .off:
+            <span class="keyword">self</span> = .on
+        }
+    }
+}</code></pre>
+        
+        <h4>3.1.3 构造器要求</h4>
+        <pre><code><span class="keyword">protocol</span> Initializable {
+    <span class="keyword">init</span>(value: Int)
+}
+
+<span class="keyword">class</span> BaseClass: Initializable {
+    <span class="keyword">required</span> <span class="keyword">init</span>(value: Int) {  <span class="comment">// 类必须使用required</span>
+        print(<span class="string">"BaseClass init with \(value)"</span>)
+    }
+}
+
+<span class="keyword">struct</span> ValueType: Initializable {
+    <span class="keyword">init</span>(value: Int) {  <span class="comment">// 结构体不需要required</span>
+        print(<span class="string">"ValueType init with \(value)"</span>)
+    }
+}</code></pre>
+        
+        <h3>3.2 协议组合</h3>
+        <pre><code><span class="keyword">protocol</span> Named {
+    <span class="keyword">var</span> name: String { <span class="keyword">get</span> }
+}
+
+<span class="keyword">protocol</span> Aged {
+    <span class="keyword">var</span> age: Int { <span class="keyword">get</span> }
+}
+
+<span class="comment">// 协议组合使用 & 符号</span>
+<span class="keyword">func</span> celebrate(person: Named & Aged) {
+    print(<span class="string">"\(person.name) is \(person.age) years old"</span>)
+}
+
+<span class="keyword">struct</span> Employee: Named, Aged {
+    <span class="keyword">let</span> name: String
+    <span class="keyword">let</span> age: Int
+}
+
+<span class="keyword">let</span> emp = Employee(name: <span class="string">"Alice"</span>, age: 30)
+celebrate(person: emp)
+
+<span class="comment">// 也可以组合协议和类</span>
+<span class="keyword">class</span> Person {}
+<span class="keyword">func</span> process(entity: Person & Named & Aged) {
+    <span class="comment">// entity既是Person的实例，又遵循Named和Aged协议</span>
+}</code></pre>
+        
+        <h3>3.3 关联类型（Associated Type）</h3>
+        <p>
+            关联类型为协议提供了泛型能力，允许在协议中使用占位类型，在遵循协议时指定具体类型。
+        </p>
+        
+        <pre><code><span class="keyword">protocol</span> Container {
+    <span class="keyword">associatedtype</span> Item
+    
+    <span class="keyword">var</span> count: Int { <span class="keyword">get</span> }
+    <span class="keyword">mutating</span> <span class="keyword">func</span> append(_ item: Item)
+    <span class="keyword">subscript</span>(i: Int) -> Item { <span class="keyword">get</span> }
+}
+
+<span class="keyword">struct</span> IntStack: Container {
+    <span class="comment">// typealias Item = Int  // 可以显式指定，也可以让编译器推断</span>
+    
+    <span class="keyword">private</span> <span class="keyword">var</span> items: [Int] = []
+    
+    <span class="keyword">var</span> count: Int {
+        <span class="keyword">return</span> items.count
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> append(_ item: Int) {
+        items.append(item)
+    }
+    
+    <span class="keyword">subscript</span>(i: Int) -> Int {
+        <span class="keyword">return</span> items[i]
+    }
+}
+
+<span class="comment">// 泛型结构体遵循协议</span>
+<span class="keyword">struct</span> Stack&lt;Element&gt;: Container {
+    <span class="keyword">private</span> <span class="keyword">var</span> items: [Element] = []
+    
+    <span class="keyword">var</span> count: Int {
+        <span class="keyword">return</span> items.count
+    }
+    
+    <span class="keyword">mutating</span> <span class="keyword">func</span> append(_ item: Element) {
+        items.append(item)
+    }
+    
+    <span class="keyword">subscript</span>(i: Int) -> Element {
+        <span class="keyword">return</span> items[i]
+    }
+}</code></pre>
+        
+        <h4>3.3.1 关联类型约束</h4>
+        <pre><code><span class="keyword">protocol</span> SuffixableContainer: Container {
+    <span class="keyword">associatedtype</span> Suffix: Container <span class="keyword">where</span> Suffix.Item == Item
+    
+    <span class="keyword">func</span> suffix(_ size: Int) -> Suffix
+}
+
+<span class="keyword">extension</span> Stack: SuffixableContainer {
+    <span class="keyword">func</span> suffix(_ size: Int) -> Stack&lt;Element&gt; {
+        <span class="keyword">var</span> result = Stack&lt;Element&gt;()
+        <span class="keyword">let</span> start = max(0, count - size)
+        <span class="keyword">for</span> i <span class="keyword">in</span> start..&lt;count {
+            result.append(<span class="keyword">self</span>[i])
+        }
+        <span class="keyword">return</span> result
+    }
+}</code></pre>
+        
+        <h3>3.4 泛型约束与协议</h3>
+        <pre><code><span class="comment">// 使用where子句进行约束</span>
+<span class="keyword">func</span> allItemsMatch&lt;C1: Container, C2: Container&gt;(
+    _ container1: C1,
+    _ container2: C2
+) -> Bool
+<span class="keyword">where</span> C1.Item == C2.Item, C1.Item: Equatable {
+    
+    <span class="keyword">if</span> container1.count != container2.count {
+        <span class="keyword">return</span> false
+    }
+    
+    <span class="keyword">for</span> i <span class="keyword">in</span> 0..&lt;container1.count {
+        <span class="keyword">if</span> container1[i] != container2[i] {
+            <span class="keyword">return</span> false
+        }
+    }
+    
+    <span class="keyword">return</span> true
+}
+
+<span class="comment">// Swift 5.1+ 可以使用更简洁的some语法</span>
+<span class="keyword">func</span> makeIntStack() -> <span class="keyword">some</span> Container {
+    <span class="keyword">return</span> Stack&lt;Int&gt;()
+}</code></pre>
+        
+        <h2>四、应用场景</h2>
+        
+        <h3>4.1 依赖注入与解耦</h3>
+        <pre><code><span class="comment">// 定义协议抽象</span>
+<span class="keyword">protocol</span> DataService {
+    <span class="keyword">func</span> fetchData() -> [String]
+}
+
+<span class="keyword">protocol</span> Logger {
+    <span class="keyword">func</span> log(_ message: String)
+}
+
+<span class="comment">// 具体实现</span>
+<span class="keyword">class</span> APIDataService: DataService {
+    <span class="keyword">func</span> fetchData() -> [String] {
+        <span class="keyword">return</span> [<span class="string">"API Data 1"</span>, <span class="string">"API Data 2"</span>]
+    }
+}
+
+<span class="keyword">class</span> MockDataService: DataService {
+    <span class="keyword">func</span> fetchData() -> [String] {
+        <span class="keyword">return</span> [<span class="string">"Mock Data 1"</span>, <span class="string">"Mock Data 2"</span>]
+    }
+}
+
+<span class="keyword">class</span> ConsoleLogger: Logger {
+    <span class="keyword">func</span> log(_ message: String) {
+        print(<span class="string">"[LOG] \(message)"</span>)
+    }
+}
+
+<span class="comment">// 业务层依赖协议而非具体实现</span>
+<span class="keyword">class</span> ViewModel {
+    <span class="keyword">private</span> <span class="keyword">let</span> dataService: DataService
+    <span class="keyword">private</span> <span class="keyword">let</span> logger: Logger
+    
+    <span class="keyword">init</span>(dataService: DataService, logger: Logger) {
+        <span class="keyword">self</span>.dataService = dataService
+        <span class="keyword">self</span>.logger = logger
+    }
+    
+    <span class="keyword">func</span> loadData() {
+        logger.log(<span class="string">"Loading data..."</span>)
+        <span class="keyword">let</span> data = dataService.fetchData()
+        logger.log(<span class="string">"Loaded \(data.count) items"</span>)
+    }
+}
+
+<span class="comment">// 灵活注入不同实现</span>
+<span class="keyword">let</span> productionVM = ViewModel(
+    dataService: APIDataService(),
+    logger: ConsoleLogger()
+)
+
+<span class="keyword">let</span> testVM = ViewModel(
+    dataService: MockDataService(),
+    logger: ConsoleLogger()
+)</code></pre>
+        
+        <h3>4.2 策略模式</h3>
+        <pre><code><span class="keyword">protocol</span> SortStrategy {
+    <span class="keyword">func</span> sort&lt;T: Comparable&gt;(_ array: [T]) -> [T]
+}
+
+<span class="keyword">struct</span> QuickSortStrategy: SortStrategy {
+    <span class="keyword">func</span> sort&lt;T: Comparable&gt;(_ array: [T]) -> [T] {
+        <span class="comment">// Quick sort implementation</span>
+        <span class="keyword">return</span> array.sorted()
+    }
+}
+
+<span class="keyword">struct</span> MergeSortStrategy: SortStrategy {
+    <span class="keyword">func</span> sort&lt;T: Comparable&gt;(_ array: [T]) -> [T] {
+        <span class="comment">// Merge sort implementation</span>
+        <span class="keyword">return</span> array.sorted()
+    }
+}
+
+<span class="keyword">class</span> DataSorter {
+    <span class="keyword">private</span> <span class="keyword">var</span> strategy: SortStrategy
+    
+    <span class="keyword">init</span>(strategy: SortStrategy) {
+        <span class="keyword">self</span>.strategy = strategy
+    }
+    
+    <span class="keyword">func</span> setStrategy(_ strategy: SortStrategy) {
+        <span class="keyword">self</span>.strategy = strategy
+    }
+    
+    <span class="keyword">func</span> performSort&lt;T: Comparable&gt;(_ array: [T]) -> [T] {
+        <span class="keyword">return</span> strategy.sort(array)
+    }
+}
+
+<span class="keyword">let</span> sorter = DataSorter(strategy: QuickSortStrategy())
+<span class="keyword">let</span> result1 = sorter.performSort([5, 2, 8, 1, 9])
+
+sorter.setStrategy(MergeSortStrategy())
+<span class="keyword">let</span> result2 = sorter.performSort([5, 2, 8, 1, 9])</code></pre>
+        
+        <h3>4.3 面向协议的网络层设计</h3>
+        <pre><code><span class="keyword">import</span> Foundation
+
+<span class="comment">// 网络请求协议</span>
+<span class="keyword">protocol</span> NetworkRequest {
+    <span class="keyword">associatedtype</span> Response
+    
+    <span class="keyword">var</span> url: URL { <span class="keyword">get</span> }
+    <span class="keyword">var</span> method: String { <span class="keyword">get</span> }
+    <span class="keyword">var</span> headers: [String: String]? { <span class="keyword">get</span> }
+    
+    <span class="keyword">func</span> decode(_ data: Data) <span class="keyword">throws</span> -> Response
+}
+
+<span class="comment">// 网络客户端协议</span>
+<span class="keyword">protocol</span> NetworkClient {
+    <span class="keyword">func</span> execute&lt;R: NetworkRequest&gt;(_ request: R) <span class="keyword">async</span> <span class="keyword">throws</span> -> R.Response
+}
+
+<span class="comment">// 具体请求实现</span>
+<span class="keyword">struct</span> UserRequest: NetworkRequest {
+    <span class="keyword">typealias</span> Response = User
+    
+    <span class="keyword">let</span> userId: String
+    
+    <span class="keyword">var</span> url: URL {
+        URL(string: <span class="string">"https://api.example.com/users/\(userId)"</span>)!
+    }
+    
+    <span class="keyword">var</span> method: String { <span class="string">"GET"</span> }
+    <span class="keyword">var</span> headers: [String: String]? { [<span class="string">"Accept"</span>: <span class="string">"application/json"</span>] }
+    
+    <span class="keyword">func</span> decode(_ data: Data) <span class="keyword">throws</span> -> User {
+        <span class="keyword">return</span> <span class="keyword">try</span> JSONDecoder().decode(User.<span class="keyword">self</span>, from: data)
+    }
+}
+
+<span class="keyword">struct</span> User: Codable {
+    <span class="keyword">let</span> id: String
+    <span class="keyword">let</span> name: String
+}
+
+<span class="comment">// 真实网络客户端</span>
+<span class="keyword">class</span> URLSessionNetworkClient: NetworkClient {
+    <span class="keyword">func</span> execute&lt;R: NetworkRequest&gt;(_ request: R) <span class="keyword">async</span> <span class="keyword">throws</span> -> R.Response {
+        <span class="keyword">var</span> urlRequest = URLRequest(url: request.url)
+        urlRequest.httpMethod = request.method
+        urlRequest.allHTTPHeaderFields = request.headers
+        
+        <span class="keyword">let</span> (data, _) = <span class="keyword">try</span> <span class="keyword">await</span> URLSession.shared.data(for: urlRequest)
+        <span class="keyword">return</span> <span class="keyword">try</span> request.decode(data)
+    }
+}
+
+<span class="comment">// 模拟网络客户端（用于测试）</span>
+<span class="keyword">class</span> MockNetworkClient: NetworkClient {
+    <span class="keyword">var</span> mockData: Data?
+    
+    <span class="keyword">func</span> execute&lt;R: NetworkRequest&gt;(_ request: R) <span class="keyword">async</span> <span class="keyword">throws</span> -> R.Response {
+        <span class="keyword">guard</span> <span class="keyword">let</span> data = mockData <span class="keyword">else</span> {
+            <span class="keyword">throw</span> NSError(domain: <span class="string">"Mock"</span>, code: -1)
+        }
+        <span class="keyword">return</span> <span class="keyword">try</span> request.decode(data)
+    }
+}</code></pre>
+        
+        <h3>4.4 委托模式（Delegation）</h3>
+        <pre><code><span class="keyword">protocol</span> DataSourceDelegate: AnyObject {
+    <span class="keyword">func</span> dataDidUpdate(_ newData: [String])
+    <span class="keyword">func</span> dataUpdateDidFail(<span class="keyword">with</span> error: Error)
+}
+
+<span class="keyword">class</span> DataSource {
+    <span class="keyword">weak</span> <span class="keyword">var</span> delegate: DataSourceDelegate?
+    
+    <span class="keyword">func</span> fetchData() {
+        <span class="comment">// 模拟异步数据获取</span>
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+            <span class="keyword">let</span> data = [<span class="string">"Item 1"</span>, <span class="string">"Item 2"</span>, <span class="string">"Item 3"</span>]
+            DispatchQueue.main.async {
+                <span class="keyword">self</span>?.delegate?.dataDidUpdate(data)
+            }
+        }
+    }
+}
+
+<span class="keyword">class</span> ViewController: DataSourceDelegate {
+    <span class="keyword">let</span> dataSource = DataSource()
+    
+    <span class="keyword">init</span>() {
+        dataSource.delegate = <span class="keyword">self</span>
+    }
+    
+    <span class="keyword">func</span> dataDidUpdate(_ newData: [String]) {
+        print(<span class="string">"Received new data: \(newData)"</span>)
+    }
+    
+    <span class="keyword">func</span> dataUpdateDidFail(<span class="keyword">with</span> error: Error) {
+        print(<span class="string">"Failed to update data: \(error)"</span>)
+    }
+}</code></pre>
+        
+        <h2>五、高级技巧</h2>
+        
+        <h3>5.1 协议扩展（Protocol Extension）</h3>
+        <p>
+            协议扩展是Swift面向协议编程的核心特性，允许为协议提供默认实现，实现代码复用。
+        </p>
+        
+        <pre><code><span class="keyword">protocol</span> Describable {
+    <span class="keyword">var</span> description: String { <span class="keyword">get</span> }
+}
+
+<span class="comment">// 为协议提供默认实现</span>
+<span class="keyword">extension</span> Describable {
+    <span class="keyword">var</span> detailedDescription: String {
+        <span class="keyword">return</span> <span class="string">"Object: \(description)"</span>
+    }
+    
+    <span class="keyword">func</span> printDescription() {
+        print(detailedDescription)
+    }
+}
+
+<span class="keyword">struct</span> Book: Describable {
+    <span class="keyword">let</span> title: String
+    
+    <span class="keyword">var</span> description: String {
+        <span class="keyword">return</span> title
+    }
+}
+
+<span class="keyword">let</span> book = Book(title: <span class="string">"Swift Programming"</span>)
+book.printDescription()  <span class="comment">// 使用协议扩展的默认实现</span></code></pre>
+        
+        <h3>5.2 条件扩展</h3>
+        <pre><code><span class="comment">// 为遵循特定协议的集合添加方法</span>
+<span class="keyword">extension</span> Collection <span class="keyword">where</span> Element: Equatable {
+    <span class="keyword">func</span> allEqual() -> Bool {
+        <span class="keyword">guard</span> <span class="keyword">let</span> first = <span class="keyword">self</span>.first <span class="keyword">else</span> { <span class="keyword">return</span> true }
+        <span class="keyword">return</span> !<span class="keyword">self</span>.contains { $0 != first }
+    }
+}
+
+<span class="keyword">let</span> numbers = [1, 1, 1, 1]
+print(numbers.allEqual())  <span class="comment">// true</span>
+
+<span class="keyword">let</span> mixed = [1, 2, 1, 1]
+print(mixed.allEqual())    <span class="comment">// false</span>
+
+<span class="comment">// 为数值类型的集合添加求和方法</span>
+<span class="keyword">extension</span> Collection <span class="keyword">where</span> Element: Numeric {
+    <span class="keyword">func</span> sum() -> Element {
+        <span class="keyword">return</span> <span class="keyword">self</span>.reduce(0, +)
+    }
+}
+
+<span class="keyword">let</span> values = [1.5, 2.5, 3.5]
+print(values.sum())  <span class="comment">// 7.5</span></code></pre>
+        
+        <h3>5.3 Self要求与类型约束</h3>
+        <pre><code><span class="keyword">protocol</span> Copyable {
+    <span class="keyword">func</span> copy() -> Self
+}
+
+<span class="keyword">extension</span> Copyable {
+    <span class="keyword">func</span> makeCopies(_ count: Int) -> [Self] {
+        <span class="keyword">return</span> (0..&lt;count).map { _ <span class="keyword">in</span> <span class="keyword">self</span>.copy() }
+    }
+}
+
+<span class="keyword">struct</span> Document: Copyable {
+    <span class="keyword">var</span> content: String
+    
+    <span class="keyword">func</span> copy() -> Document {
+        <span class="keyword">return</span> Document(content: content)
+    }
+}
+
+<span class="keyword">let</span> doc = Document(content: <span class="string">"Hello"</span>)
+<span class="keyword">let</span> copies = doc.makeCopies(3)  <span class="comment">// 返回[Document]类型</span></code></pre>
+        
+        <h3>5.4 协议继承</h3>
+        <pre><code><span class="keyword">protocol</span> Identifiable {
+    <span class="keyword">var</span> id: String { <span class="keyword">get</span> }
+}
+
+<span class="keyword">protocol</span> Persistable: Identifiable {
+    <span class="keyword">func</span> save()
+    <span class="keyword">func</span> delete()
+}
+
+<span class="keyword">protocol</span> Syncable: Persistable {
+    <span class="keyword">func</span> sync()
+}
+
+<span class="comment">// 遵循Syncable自动需要实现Persistable和Identifiable的要求</span>
+<span class="keyword">struct</span> Note: Syncable {
+    <span class="keyword">let</span> id: String
+    <span class="keyword">var</span> content: String
+    
+    <span class="keyword">func</span> save() {
+        print(<span class="string">"Saving note \(id)"</span>)
+    }
+    
+    <span class="keyword">func</span> delete() {
+        print(<span class="string">"Deleting note \(id)"</span>)
+    }
+    
+    <span class="keyword">func</span> sync() {
+        print(<span class="string">"Syncing note \(id)"</span>)
+    }
+}</code></pre>
+        
+        <h3>5.5 专用协议（Class-Only Protocol）</h3>
+        <pre><code><span class="comment">// 使用AnyObject限制只有类可以遵循</span>
+<span class="keyword">protocol</span> Reusable: AnyObject {
+    <span class="keyword">static</span> <span class="keyword">var</span> reuseIdentifier: String { <span class="keyword">get</span> }
+}
+
+<span class="keyword">extension</span> Reusable {
+    <span class="keyword">static</span> <span class="keyword">var</span> reuseIdentifier: String {
+        <span class="keyword">return</span> String(describing: <span class="keyword">self</span>)
+    }
+}
+
+<span class="keyword">class</span> TableViewCell: Reusable {
+    <span class="comment">// 自动获得reuseIdentifier</span>
+}
+
+<span class="comment">// struct不能遵循AnyObject协议</span>
+<span class="comment">// struct Cell: Reusable {}  // 编译错误</span></code></pre>
+        
+        <h3>5.6 协议组合高级用法</h3>
+        <pre><code><span class="keyword">protocol</span> Drawable {
+    <span class="keyword">func</span> draw()
+}
+
+<span class="keyword">protocol</span> Transformable {
+    <span class="keyword">func</span> transform()
+}
+
+<span class="keyword">protocol</span> Animatable {
+    <span class="keyword">func</span> animate()
+}
+
+<span class="comment">// 类型别名简化复杂的协议组合</span>
+<span class="keyword">typealias</span> FullyFeatured = Drawable & Transformable & Animatable
+
+<span class="keyword">func</span> render(_ object: FullyFeatured) {
+    object.draw()
+    object.transform()
+    object.animate()
+}
+
+<span class="keyword">struct</span> Shape: FullyFeatured {
+    <span class="keyword">func</span> draw() { print(<span class="string">"Drawing"</span>) }
+    <span class="keyword">func</span> transform() { print(<span class="string">"Transforming"</span>) }
+    <span class="keyword">func</span> animate() { print(<span class="string">"Animating"</span>) }
+}
+
+<span class="keyword">let</span> shape = Shape()
+render(shape)</code></pre>
+        
+        <h3>5.7 使用@objc协议与可选要求</h3>
+        <pre><code><span class="keyword">import</span> Foundation
+
+<span class="comment">// @objc协议支持可选方法，但只能用于类</span>
+<span class="keyword">@objc</span> <span class="keyword">protocol</span> OptionalMethodsProtocol {
+    <span class="keyword">func</span> requiredMethod()
+    <span class="keyword">@objc</span> <span class="keyword">optional</span> <span class="keyword">func</span> optionalMethod()
+    <span class="keyword">@objc</span> <span class="keyword">optional</span> <span class="keyword">var</span> optionalProperty: String { <span class="keyword">get</span> }
+}
+
+<span class="keyword">class</span> MyClass: NSObject, OptionalMethodsProtocol {
+    <span class="keyword">func</span> requiredMethod() {
+        print(<span class="string">"Required"</span>)
+    }
+    
+    <span class="comment">// 可以选择不实现optional方法</span>
+}
+
+<span class="keyword">let</span> obj: OptionalMethodsProtocol = MyClass()
+obj.requiredMethod()
+obj.optionalMethod?()  <span class="comment">// 使用可选链调用</span></code></pre>
+        
+        <div class="important">
+            <strong>注意：</strong>@objc协议有一些限制：
+            <ul>
+                <li>只能被类遵循，不支持结构体和枚举</li>
+                <li>不能使用关联类型</li>
+                <li>会失去一些Swift特性</li>
+                <li>更推荐使用协议扩展提供默认实现来替代可选方法</li>
+            </ul>
+        </div>
+        
+        <h3>5.8 不透明类型（Opaque Types）</h3>
+        <pre><code><span class="keyword">protocol</span> Shape {
+    <span class="keyword">func</span> area() -> Double
+}
+
+<span class="keyword">struct</span> Circle: Shape {
+    <span class="keyword">let</span> radius: Double
+    
+    <span class="keyword">func</span> area() -> Double {
+        <span class="keyword">return</span> .pi * radius * radius
+    }
+}
+
+<span class="keyword">struct</span> Square: Shape {
+    <span class="keyword">let</span> side: Double
+    
+    <span class="keyword">func</span> area() -> Double {
+        <span class="keyword">return</span> side * side
+    }
+}
+
+<span class="comment">// 使用some关键字返回不透明类型</span>
+<span class="keyword">func</span> makeShape() -> <span class="keyword">some</span> Shape {
+    <span class="keyword">return</span> Circle(radius: 5.0)
+    <span class="comment">// 编译器知道具体类型，但对调用者隐藏</span>
+    <span class="comment">// 返回类型必须一致，不能有时返回Circle有时返回Square</span>
+}
+
+<span class="keyword">let</span> shape = makeShape()
+print(shape.area())
+
+<span class="comment">// SwiftUI中的典型应用</span>
+<span class="keyword">struct</span> ContentView {
+    <span class="keyword">var</span> body: <span class="keyword">some</span> View {  <span class="comment">// 不透明类型</span>
+        Text(<span class="string">"Hello"</span>)
+    }
+}
+
+<span class="comment">// 对比：协议类型（存在式类型）vs 不透明类型</span>
+<span class="keyword">func</span> makeShapeProtocol() -> Shape {  <span class="comment">// 协议类型，有性能开销</span>
+    <span class="keyword">return</span> Circle(radius: 5.0)
+}
+
+<span class="keyword">func</span> makeShapeOpaque() -> <span class="keyword">some</span> Shape {  <span class="comment">// 不透明类型，无性能开销</span>
+    <span class="keyword">return</span> Circle(radius: 5.0)
+}</code></pre>
+        
+        <h2>六、最佳实践与性能优化</h2>
+        
+        <h3>6.1 协议设计原则</h3>
+        <div class="tree">
+            <ul>
+                <li>协议设计最佳实践
+                    <ul>
+                        <li>单一职责原则
+                            <ul>
+                                <li>每个协议应该只描述一个功能或概念</li>
+                                <li>避免过大的协议（接口隔离原则）</li>
+                            </ul>
+                        </li>
+                        <li>优先使用协议组合而非继承
+                            <ul>
+                                <li>使用&组合多个小协议</li>
+                                <li>提高灵活性和复用性</li>
+                            </ul>
+                        </li>
+                        <li>合理使用关联类型
+                            <ul>
+                                <li>需要泛型能力时使用关联类型</li>
+                                <li>注意关联类型会使协议不能作为类型使用</li>
+                            </ul>
+                        </li>
+                        <li>提供默认实现
+                            <ul>
+                                <li>使用协议扩展提供合理的默认行为</li>
+                                <li>减少重复代码</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <h3>6.2 性能对比分析</h3>
+        <pre><code><span class="keyword">import</span> Foundation
+
+<span class="keyword">protocol</span> Calculator {
+    <span class="keyword">func</span> calculate() -> Int
+}
+
+<span class="keyword">struct</span> SimpleCalculator: Calculator {
+    <span class="keyword">let</span> value: Int
+    
+    <span class="keyword">func</span> calculate() -> Int {
+        <span class="keyword">return</span> value * 2
+    }
+}
+
+<span class="comment">// 方式1: 直接类型（最快）</span>
+<span class="keyword">func</span> test1() {
+    <span class="keyword">let</span> calc = SimpleCalculator(value: 10)
+    <span class="keyword">var</span> sum = 0
+    <span class="keyword">for</span> _ <span class="keyword">in</span> 0..&lt;1_000_000 {
+        sum += calc.calculate()  <span class="comment">// 静态派发</span>
+    }
+}
+
+<span class="comment">// 方式2: 泛型约束（快，编译器可以优化）</span>
+<span class="keyword">func</span> test2&lt;T: Calculator&gt;(_ calc: T) {
+    <span class="keyword">var</span> sum = 0
+    <span class="keyword">for</span> _ <span class="keyword">in</span> 0..&lt;1_000_000 {
+        sum += calc.calculate()  <span class="comment">// 可能内联或静态派发</span>
+    }
+}
+
+<span class="comment">// 方式3: 协议类型（慢，存在式容器开销）</span>
+<span class="keyword">func</span> test3(_ calc: Calculator) {
+    <span class="keyword">var</span> sum = 0
+    <span class="keyword">for</span> _ <span class="keyword">in</span> 0..&lt;1_000_000 {
+        sum += calc.calculate()  <span class="comment">// 通过PWT动态派发</span>
+    }
+}
+
+<span class="comment">// 性能建议：test1 > test2 > test3</span></code></pre>
+        
+        <h3>6.3 常见陷阱与解决方案</h3>
+        
+        <h4>陷阱1: 协议扩展的静态派发陷阱</h4>
+        <pre><code><span class="keyword">protocol</span> Animal {
+    <span class="keyword">func</span> makeSound()
+}
+
+<span class="keyword">extension</span> Animal {
+    <span class="keyword">func</span> makeSound() {
+        print(<span class="string">"Some generic sound"</span>)
+    }
+    
+    <span class="keyword">func</span> sleep() {  <span class="comment">// 注意：这不是协议要求</span>
+        print(<span class="string">"Sleeping..."</span>)
+    }
+}
+
+<span class="keyword">struct</span> Dog: Animal {
+    <span class="keyword">func</span> makeSound() {
+        print(<span class="string">"Woof!"</span>)
+    }
+    
+    <span class="keyword">func</span> sleep() {
+        print(<span class="string">"Dog sleeping..."</span>)
+    }
+}
+
+<span class="keyword">let</span> dog = Dog()
+dog.makeSound()  <span class="comment">// "Woof!" - 直接调用</span>
+dog.sleep()      <span class="comment">// "Dog sleeping..." - 直接调用</span>
+
+<span class="keyword">let</span> animal: Animal = Dog()
+animal.makeSound()  <span class="comment">// "Woof!" - 动态派发（协议要求）</span>
+animal.sleep()      <span class="comment">// "Sleeping..." - 静态派发（非协议要求）❗️</span>
+
+<span class="comment">// 解决方案：将sleep也加入协议要求</span>
+<span class="keyword">protocol</span> AnimalFixed {
+    <span class="keyword">func</span> makeSound()
+    <span class="keyword">func</span> sleep()  <span class="comment">// 作为协议要求</span>
+}</code></pre>
+        
+        <h4>陷阱2: Self或关联类型导致协议不能作为类型</h4>
+        <pre><code><span class="keyword">protocol</span> Equatable {
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: Self, rhs: Self) -> Bool  <span class="comment">// 使用了Self</span>
+}
+
+<span class="comment">// 错误：不能将Equatable作为类型使用</span>
+<span class="comment">// let value: Equatable = 5  // 编译错误</span>
+
+<span class="comment">// 解决方案1: 使用泛型</span>
+<span class="keyword">func</span> compare&lt;T: Equatable&gt;(_ a: T, _ b: T) -> Bool {
+    <span class="keyword">return</span> a == b
+}
+
+<span class="comment">// 解决方案2: 使用any关键字（Swift 5.7+）</span>
+<span class="keyword">let</span> anyEquatable: <span class="keyword">any</span> Equatable = 5
+
+<span class="comment">// 解决方案3: 类型擦除</span>
+<span class="keyword">struct</span> AnyEquatable: Equatable {
+    <span class="keyword">private</span> <span class="keyword">let</span> _isEqual: (Any) -> Bool
+    <span class="keyword">private</span> <span class="keyword">let</span> _base: Any
+    
+    <span class="keyword">init</span>&lt;T: Equatable&gt;(_ base: T) {
+        <span class="keyword">self</span>._base = base
+        <span class="keyword">self</span>._isEqual = { other <span class="keyword">in</span>
+            <span class="keyword">guard</span> <span class="keyword">let</span> o = other <span class="keyword">as</span>? T <span class="keyword">else</span> { <span class="keyword">return</span> false }
+            <span class="keyword">return</span> base == o
+        }
+    }
+    
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: AnyEquatable, rhs: AnyEquatable) -> Bool {
+        <span class="keyword">return</span> lhs._isEqual(rhs._base)
+    }
+}</code></pre>
+        
+        <h3>6.4 性能优化建议</h3>
+        
+        <div class="tree">
+            <ul>
+                <li>协议性能优化策略
+                    <ul>
+                        <li>优先使用泛型而非协议类型
+                            <ul>
+                                <li>泛型允许编译器进行特化优化</li>
+                                <li>避免存在式容器的开销</li>
+                            </ul>
+                        </li>
+                        <li>使用final关键字
+                            <ul>
+                                <li>防止子类化，允许静态派发</li>
+                                <li>编译器可以进行内联优化</li>
+                            </ul>
+                        </li>
+                        <li>使用@inlinable标注
+                            <ul>
+                                <li>允许跨模块内联</li>
+                                <li>适用于小型、高频调用的方法</li>
+                            </ul>
+                        </li>
+                        <li>考虑使用some返回类型
+                            <ul>
+                                <li>避免存在式容器</li>
+                                <li>保持类型信息</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        
+        <h2>七、标准库协议深度解析</h2>
+        
+        <h3>7.1 Equatable协议</h3>
+        <pre><code><span class="comment">// Swift标准库定义</span>
+<span class="keyword">protocol</span> Equatable {
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: Self, rhs: Self) -> Bool
+}
+
+<span class="comment">// 编译器自动合成实现（Swift 4.1+）</span>
+<span class="keyword">struct</span> Point: Equatable {
+    <span class="keyword">let</span> x: Int
+    <span class="keyword">let</span> y: Int
+    <span class="comment">// 编译器自动生成 == 实现</span>
+}
+
+<span class="keyword">let</span> p1 = Point(x: 1, y: 2)
+<span class="keyword">let</span> p2 = Point(x: 1, y: 2)
+print(p1 == p2)  <span class="comment">// true</span>
+
+<span class="comment">// 自定义实现</span>
+<span class="keyword">struct</span> CustomPoint: Equatable {
+    <span class="keyword">let</span> x: Double
+    <span class="keyword">let</span> y: Double
+    
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: CustomPoint, rhs: CustomPoint) -> Bool {
+        <span class="keyword">return</span> abs(lhs.x - rhs.x) &lt; 0.001 && abs(lhs.y - rhs.y) &lt; 0.001
+    }
+}</code></pre>
+        
+        <h3>7.2 Hashable协议</h3>
+        <pre><code><span class="keyword">protocol</span> Hashable: Equatable {
+    <span class="keyword">func</span> hash(into hasher: <span class="keyword">inout</span> Hasher)
+}
+
+<span class="comment">// 编译器自动合成</span>
+<span class="keyword">struct</span> User: Hashable {
+    <span class="keyword">let</span> id: String
+    <span class="keyword">let</span> name: String
+}
+
+<span class="keyword">var</span> users: Set&lt;User&gt; = []
+users.insert(User(id: <span class="string">"1"</span>, name: <span class="string">"Alice"</span>))
+
+<span class="comment">// 自定义哈希实现</span>
+<span class="keyword">struct</span> CustomUser: Hashable {
+    <span class="keyword">let</span> id: String
+    <span class="keyword">let</span> name: String
+    
+    <span class="keyword">func</span> hash(into hasher: <span class="keyword">inout</span> Hasher) {
+        hasher.combine(id)  <span class="comment">// 只使用id计算哈希</span>
+    }
+    
+    <span class="keyword">static</span> <span class="keyword">func</span> == (lhs: CustomUser, rhs: CustomUser) -> Bool {
+        <span class="keyword">return</span> lhs.id == rhs.id
+    }
+}</code></pre>
+        
+        <h3>7.3 Codable协议</h3>
+        <pre><code><span class="comment">// Codable = Encodable + Decodable</span>
+<span class="keyword">typealias</span> Codable = Encodable & Decodable
+
+<span class="keyword">struct</span> Product: Codable {
+    <span class="keyword">let</span> id: Int
+    <span class="keyword">let</span> name: String
+    <span class="keyword">let</span> price: Double
+    
+    <span class="comment">// 编译器自动生成编码/解码实现</span>
+}
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">let</span> product = Product(id: 1, name: <span class="string">"iPhone"</span>, price: 999.0)
+
+<span class="comment">// 编码为JSON</span>
+<span class="keyword">let</span> encoder = JSONEncoder()
+<span class="keyword">let</span> jsonData = <span class="keyword">try</span> encoder.encode(product)
+
+<span class="comment">// 从JSON解码</span>
+<span class="keyword">let</span> decoder = JSONDecoder()
+<span class="keyword">let</span> decodedProduct = <span class="keyword">try</span> decoder.decode(Product.<span class="keyword">self</span>, from: jsonData)
+
+<span class="comment">// 自定义CodingKeys</span>
+<span class="keyword">struct</span> CustomProduct: Codable {
+    <span class="keyword">let</span> id: Int
+    <span class="keyword">let</span> productName: String
+    <span class="keyword">let</span> price: Double
+    
+    <span class="keyword">enum</span> CodingKeys: String, CodingKey {
+        <span class="keyword">case</span> id
+        <span class="keyword">case</span> productName = <span class="string">"name"</span>  <span class="comment">// JSON中的字段名</span>
+        <span class="keyword">case</span> price
+    }
+}</code></pre>
+        
+        <h3>7.4 Comparable协议</h3>
+        <pre><code><span class="keyword">protocol</span> Comparable: Equatable {
+    <span class="keyword">static</span> <span class="keyword">func</span> &lt; (lhs: Self, rhs: Self) -> Bool
+    <span class="comment">// 其他比较运算符由标准库提供默认实现</span>
+}
+
+<span class="keyword">struct</span> Version: Comparable {
+    <span class="keyword">let</span> major: Int
+    <span class="keyword">let</span> minor: Int
+    <span class="keyword">let</span> patch: Int
+    
+    <span class="keyword">static</span> <span class="keyword">func</span> &lt; (lhs: Version, rhs: Version) -> Bool {
+        <span class="keyword">if</span> lhs.major != rhs.major {
+            <span class="keyword">return</span> lhs.major &lt; rhs.major
+        }
+        <span class="keyword">if</span> lhs.minor != rhs.minor {
+            <span class="keyword">return</span> lhs.minor &lt; rhs.minor
+        }
+        <span class="keyword">return</span> lhs.patch &lt; rhs.patch
+    }
+}
+
+<span class="keyword">let</span> v1 = Version(major: 1, minor: 0, patch: 0)
+<span class="keyword">let</span> v2 = Version(major: 1, minor: 2, patch: 0)
+
+print(v1 &lt; v2)   <span class="comment">// true</span>
+print(v1 &lt;= v2)  <span class="comment">// true（标准库提供）</span>
+print(v1 &gt; v2)   <span class="comment">// false（标准库提供）</span>
+print(v1 &gt;= v2)  <span class="comment">// false（标准库提供）</span>
+
+<span class="comment">// 用于排序</span>
+<span class="keyword">let</span> versions = [v2, v1, Version(major: 2, minor: 0, patch: 0)]
+<span class="keyword">let</span> sorted = versions.sorted()  <span class="comment">// 升序排列</span></code></pre>
+        
+        <h3>7.5 Collection协议家族</h3>
+        <pre><code><span class="comment">// 简化的Collection协议定义</span>
+<span class="keyword">protocol</span> Collection: Sequence {
+    <span class="keyword">associatedtype</span> Index: Comparable
+    <span class="keyword">associatedtype</span> Element
+    
+    <span class="keyword">var</span> startIndex: Index { <span class="keyword">get</span> }
+    <span class="keyword">var</span> endIndex: Index { <span class="keyword">get</span> }
+    
+    <span class="keyword">func</span> index(after i: Index) -> Index
+    <span class="keyword">subscript</span>(position: Index) -> Element { <span class="keyword">get</span> }
+}
+
+<span class="comment">// 自定义集合示例</span>
+<span class="keyword">struct</span> FibonacciSequence: Collection {
+    <span class="keyword">let</span> count: Int
+    
+    <span class="keyword">var</span> startIndex: Int { 0 }
+    <span class="keyword">var</span> endIndex: Int { count }
+    
+    <span class="keyword">func</span> index(after i: Int) -> Int {
+        <span class="keyword">return</span> i + 1
+    }
+    
+    <span class="keyword">subscript</span>(position: Int) -> Int {
+        <span class="keyword">if</span> position == 0 || position == 1 {
+            <span class="keyword">return</span> position
+        }
+        
+        <span class="keyword">var</span> a = 0, b = 1
+        <span class="keyword">for</span> _ <span class="keyword">in</span> 2...position {
+            <span class="keyword">let</span> temp = a + b
+            a = b
+            b = temp
+        }
+        <span class="keyword">return</span> b
+    }
+}
+
+<span class="keyword">let</span> fib = FibonacciSequence(count: 10)
+<span class="keyword">for</span> number <span class="keyword">in</span> fib {
+    print(number, terminator: <span class="string">" "</span>)  <span class="comment">// 0 1 1 2 3 5 8 13 21 34</span>
+}</code></pre>
+        
+        <div class="reference">
+            <h3>参考文档</h3>
+            <ol>
+                <li>
+                    <a href="https://docs.swift.org/swift-book/LanguageGuide/Protocols.html" target="_blank">
+                        Swift官方文档 - Protocols
+                    </a>
+                </li>
+                <li>
+                    <a href="https://developer.apple.com/videos/play/wwdc2015/408/" target="_blank">
+                        WWDC 2015 - Protocol-Oriented Programming in Swift
+                    </a>
+                </li>
+                <li>
+                    <a href="https://github.com/apple/swift/blob/main/docs/Generics.rst" target="_blank">
+                        Swift Generics Manifesto
+                    </a>
+                </li>
+                <li>
+                    <a href="https://developer.apple.com/documentation/swift/adopting-common-protocols" target="_blank">
+                        Adopting Common Protocols
+                    </a>
+                </li>
+                <li>
+                    <a href="https://github.com/apple/swift/blob/main/docs/ABI/TypeLayout.rst" target="_blank">
+                        Swift ABI - Type Layout
+                    </a>
+                </li>
+                <li>
+                    Mike Ash - "Friday Q&A: Swift Type Metadata"
+                </li>
+                <li>
+                    <a href="https://developer.apple.com/videos/play/wwdc2016/416/" target="_blank">
+                        WWDC 2016 - Understanding Swift Performance
+                    </a>
+                </li>
+                <li>
+                    Ray Wenderlich - "Protocol-Oriented Programming Tutorial in Swift"
+                </li>
+            </ol>
+        </div>
+        
+    </div>
+</body>
+</html>
