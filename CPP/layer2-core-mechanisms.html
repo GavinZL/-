@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>第二层：核心机制 - C++ 模板知识体系</title>
+    <link rel="stylesheet" href="common-styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>⚙️ 第二层：核心机制与实现原理</h1>
+            <p class="subtitle">深入模板的编译器实现 · 理解模板如何工作</p>
+            <p class="subtitle">
+                <a href="layer1-concepts.html" style="color: white;">← 上一章</a> | 
+                <a href="index.html" style="color: white;">首页</a> | 
+                <a href="layer3-applications.html" style="color: white;">下一章 →</a>
+            </p>
+        </div>
+    </header>
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 本章目录</h2>
+            <ul class="toc">
+                <li><a href="#overview">章节概述</a></li>
+                <li><a href="#function">2.1 函数模板机制</a></li>
+                <li><a href="#class">2.2 类模板机制</a></li>
+                <li><a href="#instantiation">2.3 模板实例化</a></li>
+                <li><a href="#parameters">2.4 模板参数系统</a></li>
+                <li><a href="#specialization">2.5 模板特化</a></li>
+            </ul>
+        </aside>
+        <main>
+            <section id="overview">
+                <h2>📖 章节概述</h2>
+                <p>本层深入模板编译器实现，掌握函数模板、类模板、实例化、参数系统、特化机制等核心内容。</p>
+                <ul>
+                    <li>✅ 函数模板的参数推导和重载决议</li>
+                    <li>✅ 类模板的延迟实例化原理</li>
+                    <li>✅ 模板实例化的两阶段编译</li>
+                    <li>✅ 四种模板参数类型详解</li>
+                    <li>✅ 特化机制的匹配规则</li>
+                </ul>
+            </section>
+            <section id="function">
+                <h2>🔧 2.1 函数模板机制</h2>
+                <h3>基础语法</h3>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+T <span class="function">max</span>(<span class="keyword">const</span> T& a, <span class="keyword">const</span> T& b) {
+    <span class="keyword">return</span> (a > b) ? a : b;
+}
+
+<span class="comment">// 使用：编译器自动推导类型</span>
+<span class="keyword">int</span> i = <span class="function">max</span>(<span class="number">3</span>, <span class="number">7</span>);  <span class="comment">// max&lt;int&gt;</span></code></pre>
+                
+                <h3>参数推导规则</h3>
+                <table>
+                    <thead><tr><th>参数形式</th><th>推导规则</th><th>示例</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>T</code></td><td>忽略顶层const</td><td><code>const int& → int</code></td></tr>
+                        <tr><td><code>T&</code></td><td>保留const</td><td><code>const int& → const int</code></td></tr>
+                        <tr><td><code>T&&</code></td><td>万能引用</td><td>左值→T&，右值→T</td></tr>
+                    </tbody>
+                </table>
+                
+                <div class="info-box tip">
+                    <strong>💡 完美转发</strong>
+                    使用<code>T&&</code>和<code>std::forward&lt;T&gt;</code>实现完美转发，保持参数的值类别。
+                </div>
+            </section>
+            <section id="class">
+                <h2>📦 2.2 类模板机制</h2>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">Stack</span> {
+    std::vector&lt;T&gt; elements;
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">push</span>(<span class="keyword">const</span> T& elem) { 
+        elements.push_back(elem); 
+    }
+    T <span class="function">top</span>() <span class="keyword">const</span> { 
+        <span class="keyword">return</span> elements.back(); 
+    }
+};
+
+Stack&lt;<span class="keyword">int</span>&gt; s;  <span class="comment">// 实例化Stack&lt;int&gt;</span></code></pre>
+                
+                <h3>延迟实例化</h3>
+                <p>类模板的成员函数只有在被调用时才会实例化，这允许某些成员对某些类型无效。</p>
+                
+                <h3>成员函数模板</h3>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">Container</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> U&gt;
+    Container& <span class="keyword">operator</span>=(<span class="keyword">const</span> Container&lt;U&gt;& other) {
+        <span class="comment">// 泛型赋值</span>
+        <span class="keyword">return</span> *<span class="keyword">this</span>;
+    }
+};</code></pre>
+            </section>
+            <section id="instantiation">
+                <h2>🔄 2.3 模板实例化过程</h2>
+                <h3>两阶段编译</h3>
+                <table>
+                    <thead><tr><th>阶段</th><th>检查内容</th><th>时机</th></tr></thead>
+                    <tbody>
+                        <tr><td>第一阶段</td><td>模板语法、非依赖名称</td><td>模板定义时</td></tr>
+                        <tr><td>第二阶段</td><td>依赖名称、类型匹配</td><td>模板实例化时</td></tr>
+                    </tbody>
+                </table>
+                
+                <h3>显式实例化</h3>
+                <pre><code><span class="comment">// 显式实例化声明（抑制隐式实例化）</span>
+<span class="keyword">extern</span> <span class="keyword">template</span> <span class="keyword">class</span> Stack&lt;<span class="keyword">int</span>&gt;;
+
+<span class="comment">// 显式实例化定义（强制实例化所有成员）</span>
+<span class="keyword">template</span> <span class="keyword">class</span> Stack&lt;<span class="keyword">int</span>&gt;;</code></pre>
+            </section>
+            <section id="parameters">
+                <h2>🎛️ 2.4 模板参数系统</h2>
+                <table>
+                    <thead><tr><th>类型</th><th>语法</th><th>示例</th></tr></thead>
+                    <tbody>
+                        <tr><td>类型参数</td><td><code>typename T</code></td><td>任意类型</td></tr>
+                        <tr><td>非类型参数</td><td><code>int N</code></td><td><code>Array&lt;int, 10&gt;</code></td></tr>
+                        <tr><td>模板模板参数</td><td><code>template&lt;typename&gt; class C</code></td><td>模板作为参数</td></tr>
+                        <tr><td>参数包</td><td><code>typename... Args</code></td><td>可变参数模板</td></tr>
+                    </tbody>
+                </table>
+                
+                <pre><code><span class="comment">// 非类型模板参数</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">size_t</span> N&gt;
+<span class="keyword">class</span> <span class="type">Array</span> {
+    T data[N];
+<span class="keyword">public</span>:
+    <span class="keyword">size_t</span> <span class="function">size</span>() { <span class="keyword">return</span> N; }
+};
+
+<span class="comment">// 变参模板</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span>... Args&gt;
+<span class="keyword">void</span> <span class="function">print</span>(Args... args) {
+    (std::cout &lt;&lt; ... &lt;&lt; args);
+}</code></pre>
+            </section>
+            <section id="specialization">
+                <h2>🎯 2.5 模板特化机制</h2>
+                <pre><code><span class="comment">// 主模板</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> U&gt;
+<span class="keyword">class</span> <span class="type">MyClass</span> { <span class="comment">/* 通用实现 */</span> };
+
+<span class="comment">// 全特化</span>
+<span class="keyword">template</span>&lt;&gt;
+<span class="keyword">class</span> MyClass&lt;<span class="keyword">int</span>, <span class="keyword">double</span>&gt; { <span class="comment">/* int-double特化 */</span> };
+
+<span class="comment">// 偏特化（指针类型）</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> MyClass&lt;T*, T*&gt; { <span class="comment">/* 指针特化 */</span> };</code></pre>
+                
+                <h3>匹配优先级</h3>
+                <ol>
+                    <li>全特化（最高优先级）</li>
+                    <li>偏特化（次优先级，选最特化的）</li>
+                    <li>主模板（默认）</li>
+                </ol>
+            </section>
+            <section>
+                <h2>📚 本章小结</h2>
+                <p>您已掌握模板的核心机制，包括函数模板、类模板、实例化过程、参数系统和特化机制。</p>
+                <div class="info-box note">
+                    <strong>📖 下一步</strong>
+                    进入<a href="layer3-applications.html">第三层：应用场景</a>，学习STL容器、算法和设计模式的模板应用！
+                </div>
+            </section>
+        </main>
+    </div>
+    <button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('backToTop').classList.toggle('show', window.scrollY > 300);
+        });
+    </script>
+</body>
+</html>
