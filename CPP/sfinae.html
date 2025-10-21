@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ SFINAE深度解析 - 从原理到实战</title>
+    <link rel="stylesheet" href="common-styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>C++ SFINAE深度解析</h1>
+            <p class="subtitle">Substitution Failure Is Not An Error · 掌握C++模板元编程的核心技术</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p>SFINAE（Substitution Failure Is Not An Error）是C++模板元编程中最重要的特性之一。它允许编译器在模板参数替换失败时，不将其视为错误，而是从候选函数集中移除该模板。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">SFINAE的诞生背景</div>
+                        <div class="tree-item">核心概念：替换失败</div>
+                        <div class="tree-item">SFINAE vs 编译错误</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制</div>
+                    <div class="tree-node">
+                        <div class="tree-item">替换过程详解</div>
+                        <div class="tree-item">SFINAE友好的上下文</div>
+                        <div class="tree-item">硬错误 vs 软错误</div>
+                        <div class="tree-item">常见SFINAE模式</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">enable_if实现</div>
+                        <div class="tree-item">成员函数检测</div>
+                        <div class="tree-item">类型特性检测</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧</div>
+                    <div class="tree-node">
+                        <div class="tree-item">void_t技巧</div>
+                        <div class="tree-item">detection idiom</div>
+                        <div class="tree-item">C++17/20替代方案</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第一层 -->
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="history">1.1 SFINAE的诞生背景</h3>
+                <pre><code><span class="comment">// 如果没有SFINAE，这段代码会编译失败</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">void</span> <span class="function">process</span>(T value, <span class="keyword">typename</span> T::value_type* = <span class="keyword">nullptr</span>) {
+    <span class="comment">// 处理有value_type的类型</span>
+}
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">void</span> <span class="function">process</span>(T value, ...) {
+    <span class="comment">// 处理其他类型</span>
+}
+
+<span class="function">process</span>(<span class="number">42</span>);  <span class="comment">// int没有value_type，SFINAE选择第二个版本</span></code></pre>
+
+                <div class="info-box note">
+                    <strong>📌 核心原则</strong>
+                    当模板参数替换导致无效类型或表达式时，编译器不报错，而是将该模板从候选集中移除。
+                </div>
+
+                <h3 id="vs-error">1.2 SFINAE vs 编译错误</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>类型</th>
+                            <th>发生位置</th>
+                            <th>结果</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>软错误</strong></td>
+                            <td>函数签名（返回类型、参数类型）</td>
+                            <td>触发SFINAE，选择其他重载</td>
+                        </tr>
+                        <tr>
+                            <td><strong>硬错误</strong></td>
+                            <td>函数体内、类定义内</td>
+                            <td>编译失败</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 第二层 -->
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制与实现原理</h2>
+                
+                <h3 id="contexts">2.1 SFINAE友好的上下文</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>上下文</th>
+                            <th>SFINAE友好</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>函数返回类型</td>
+                            <td>✅</td>
+                            <td><code>typename T::type func()</code></td>
+                        </tr>
+                        <tr>
+                            <td>函数参数类型</td>
+                            <td>✅</td>
+                            <td><code>void func(typename T::type)</code></td>
+                        </tr>
+                        <tr>
+                            <td>模板参数</td>
+                            <td>✅</td>
+                            <td><code>template&lt;typename = typename T::type&gt;</code></td>
+                        </tr>
+                        <tr>
+                            <td>decltype表达式</td>
+                            <td>✅</td>
+                            <td><code>decltype(t.func())</code></td>
+                        </tr>
+                        <tr>
+                            <td>函数体内</td>
+                            <td>❌</td>
+                            <td><code>{ typename T::type x; }</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="patterns">2.2 常见SFINAE模式</h3>
+                <pre><code><span class="comment">// 模式1：返回类型SFINAE</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">typename</span> T::value_type <span class="function">get_value</span>(T t);
+
+<span class="comment">// 模式2：额外模板参数SFINAE</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">typename</span> T::iterator&gt;
+<span class="keyword">void</span> <span class="function">process</span>(T t);
+
+<span class="comment">// 模式3：decltype SFINAE</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">auto</span> <span class="function">call_begin</span>(T& t) -&gt; <span class="keyword">decltype</span>(t.<span class="function">begin</span>());</code></pre>
+            </section>
+
+            <!-- 第三层 -->
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="enable-if">3.1 enable_if实现原理</h3>
+                <pre><code><span class="comment">// enable_if的简化实现</span>
+<span class="keyword">template</span>&lt;<span class="keyword">bool</span> B, <span class="keyword">typename</span> T = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">enable_if</span> {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">enable_if</span>&lt;<span class="keyword">true</span>, T&gt; { <span class="keyword">using</span> type = T; };
+
+<span class="comment">// 使用</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T,
+         <span class="keyword">typename</span> = std::<span class="type">enable_if_t</span>&lt;std::is_integral_v&lt;T&gt;&gt;&gt;
+<span class="keyword">void</span> <span class="function">process</span>(T value) {}</code></pre>
+
+                <h3 id="member-detection">3.2 检测成员函数存在性</h3>
+                <pre><code><span class="comment">// C++17 void_t方法</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span>&lt;T, std::<span class="type">void_t</span>&lt;<span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">begin</span>())&gt;&gt;
+    : std::true_type {};
+
+<span class="keyword">static_assert</span>(has_begin&lt;std::vector&lt;<span class="keyword">int</span>&gt;&gt;::value);</code></pre>
+            </section>
+
+            <!-- 第四层 -->
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧与最佳实践</h2>
+                
+                <h3 id="void-t">4.1 void_t技巧</h3>
+                <pre><code><span class="comment">// void_t定义</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span>... Ts&gt;
+<span class="keyword">using</span> void_t = <span class="keyword">void</span>;
+
+<span class="comment">// 应用：检测任意表达式</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">is_printable</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">is_printable</span>&lt;T, std::<span class="type">void_t</span>&lt;
+    <span class="keyword">decltype</span>(std::cout &lt;&lt; std::<span class="function">declval</span>&lt;T&gt;())
+&gt;&gt; : std::true_type {};</code></pre>
+
+                <h3 id="modern">4.2 现代C++替代方案</h3>
+                <pre><code><span class="comment">// C++17: if constexpr</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">auto</span> <span class="function">process</span>(T value) {
+    <span class="keyword">if constexpr</span> (std::is_integral_v&lt;T&gt;) {
+        <span class="keyword">return</span> value * <span class="number">2</span>;
+    } <span class="keyword\">else</span> {
+        <span class="keyword">return</span> value;
+    }
+}
+
+<span class="comment">// C++20: Concepts</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">concept</span> Integral = std::is_integral_v&lt;T&gt;;
+
+<span class="keyword">template</span>&lt;Integral T&gt;
+<span class="keyword">void</span> <span class="function">process</span>(T value) {}</code></pre>
+
+                <h3 id="best-practices">4.3 最佳实践</h3>
+                <div class="info-box tip">
+                    <strong>💡 推荐做法</strong>
+                    <ul>
+                        <li>C++17优先使用<code>if constexpr</code></li>
+                        <li>C++20优先使用Concepts</li>
+                        <li>使用<code>void_t</code>简化成员检测</li>
+                        <li>避免在函数体内使用SFINAE</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                <ul>
+                    <li><a href="https://en.cppreference.com/w/cpp/language/sfinae">cppreference - SFINAE</a></li>
+                    <li><strong>C++ Templates: The Complete Guide</strong> - David Vandevoorde</li>
+                    <li><strong>Effective Modern C++</strong> - Scott Meyers</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        function generateTOC() {
+            const toc = document.getElementById('toc');
+            const headings = document.querySelectorAll('main h2, main h3');
+            headings.forEach((heading, index) => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                if (!heading.id) heading.id = 'heading-' + index;
+                a.href = '#' + heading.id;
+                a.textContent = heading.textContent;
+                if (heading.tagName === 'H3') li.className = 'toc-level-2';
+                li.appendChild(a);
+                toc.appendChild(li);
+            });
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            backToTop.classList.toggle('show', window.scrollY > 300);
+        });
+
+        document.addEventListener('DOMContentLoaded', generateTOC);
+    </script>
+</body>
+</html>

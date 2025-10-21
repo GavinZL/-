@@ -6,12 +6,20 @@
 
 ```
 CPP/
-├── index.html                    # 主索引页（导航页）
-├── common-styles.css            # 公共样式文件
-├── layer1-concepts.html         # 第一层：概念与背景
-├── layer2-core-mechanisms.html  # 第二层：核心机制
-├── layer3-applications.html     # 第三层：应用场景
-└── layer4-advanced.html         # 第四层：高级技巧
+├── index.html                                      # 主索引页（导航页）
+├── common-styles.css                              # 公共样式文件
+├── cpp-template-knowledge.html                    # 模板知识体系总览
+├── layer1-concepts.html                           # 第一层：概念与背景
+├── layer2-core-mechanisms.html                    # 第二层：核心机制
+├── layer3-applications.html                       # 第三层：应用场景
+├── layer4-advanced.html                           # 第四层：高级技巧
+├── variadic-templates.html                        # 专题：变参模板深度解析 ⭐️
+├── rvalue-reference-and-perfect-forwarding.html  # 专题：右值引用与完美转发 ⭐️
+├── type-traits.html                               # 专题：类型萃取深度解析 ⭐️
+├── sfinae.html                                    # 专题：SFINAE深度解析 ⭐️
+├── understanding-void-t.html                      # 专题：void_t深度解析 ⭐️
+├── template-compilation-process.html              # 专题：C++模板编译过程深度解析 ⭐️
+└── modern-utility-types.html                      # 专题：现代工具类型深度解析 ⭐️
 ```
 
 ## 🎯 知识体系结构
@@ -25,6 +33,7 @@ CPP/
 ### 第二层：核心机制
 - ✅ 函数模板机制
 - ✅ 类模板机制
+- ✅ 模板编译过程（⭐️ [独立专题文章](template-compilation-process.html)）
 - ✅ 模板实例化过程
 - ✅ 模板参数系统
 - ✅ 模板特化机制
@@ -33,14 +42,17 @@ CPP/
 - ✅ STL容器设计
 - ✅ STL算法抽象
 - ✅ 智能指针实现
+- ✅ 现代工具类型（⭐️ [独立专题文章](modern-utility-types.html)）
 - ✅ 设计模式应用
 
 ### 第四层：高级技巧
 - ✅ 模板元编程（TMP）
-- ✅ SFINAE技术
-- ✅ 变参模板
+- ✅ SFINAE（⭐️ [独立专题文章](sfinae.html)）
+- ✅ void_t（⭐️ [独立专题文章](understanding-void-t.html)）
+- ✅ 变参模板（⭐️ [独立专题文章](variadic-templates.html)）
+- ✅ 右值引用与完美转发（⭐️ [独立专题文章](rvalue-reference-and-perfect-forwarding.html)）
+- ✅ 类型萃取（⭐️ [独立专题文章](type-traits.html)）
 - ✅ C++20 Concepts
-- ✅ 完美转发
 
 ## 🚀 快速开始
 
@@ -109,6 +121,15 @@ CPP/
 
 ## 📝 更新日志
 
+- **2025-10-21**：新增七篇专题文章
+  - **void_t深度解析专题**：揭秘C++17最优雅的SFINAE工具，从原理到应用的完整指南
+  - **现代工具类型专题**：深度解析std::variant、std::optional、std::any、std::function的原理与应用
+  - **模板编译过程专题**：揭秘编译器如何处理模板代码，从词法分析到代码生成的完整流程
+  - **SFINAE专题**：深入讲解"替换失败不是错误"这一核心模板元编程技术
+  - **变参模板专题**：完整覆盖C++11到C++20的变参模板技术
+  - **右值引用与完美转发专题**：深入讲解移动语义、万能引用和完美转发机制
+  - **类型萃取专题**：系统讲解<type_traits>库的查询、变换与SFINAE应用
+  
 - **2025-10-19**：创建完整的四层知识体系文档
   - 主索引页导航
   - 第一层：概念与背景
