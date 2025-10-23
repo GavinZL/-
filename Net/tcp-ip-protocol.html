@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP/IP 协议栈深度解析</title>
+    <link rel="stylesheet" href="../CPP/common-styles.css">
+</head>
+<body>
+    <!-- <header>
+        <div class="header-content">
+            <h1>🌐 TCP/IP 协议栈深度解析</h1>
+            <p class="subtitle">从底层原理到应用实践 · 全面掌握网络协议核心技术</p>
+        </div>
+    </header> -->
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p>TCP/IP协议栈是互联网的基石，本文将从四个层次深入剖析TCP/IP协议族的核心原理、实现机制和应用实践。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">TCP/IP协议栈的诞生与演进</div>
+                        <div class="tree-item">OSI七层模型 vs TCP/IP四层模型</div>
+                        <div class="tree-item">协议分层思想与设计原则</div>
+                        <div class="tree-item">核心协议概览</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制与实现原理</div>
+                    <div class="tree-node">
+                        <div class="tree-item">链路层：以太网、ARP</div>
+                        <div class="tree-item">网络层：IP协议、路由、ICMP</div>
+                        <div class="tree-item">传输层：TCP可靠传输、UDP简单传输</div>
+                        <div class="tree-item">应用层：HTTP/HTTPS、DNS</div>
+                        <div class="tree-item">Linux内核协议栈实现</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">TCP连接管理（三次握手/四次挥手）</div>
+                        <div class="tree-item">流量控制与拥塞控制</div>
+                        <div class="tree-item">NAT与端口转发</div>
+                        <div class="tree-item">高性能网络编程</div>
+                        <div class="tree-item">网络抓包与分析</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧与优化</div>
+                    <div class="tree-node">
+                        <div class="tree-item">TCP性能优化</div>
+                        <div class="tree-item">零拷贝技术</div>
+                        <div class="tree-item">TCP Fast Open</div>
+                        <div class="tree-item">QUIC协议</div>
+                        <div class="tree-item">网络故障诊断</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第一层 -->
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="history">1.1 TCP/IP协议栈的诞生与演进</h3>
+                <div class="info-box note">
+                    <strong>📌 重要历史节点</strong>
+                    <ul>
+                        <li><strong>1969年</strong>：ARPANET诞生</li>
+                        <li><strong>1974年</strong>：TCP论文发表</li>
+                        <li><strong>1981年</strong>：IPv4规范（RFC 791）</li>
+                        <li><strong>1983年</strong>：ARPANET采用TCP/IP</li>
+                        <li><strong>1998年</strong>：IPv6规范（RFC 2460）</li>
+                        <li><strong>2015年</strong>：HTTP/2标准化</li>
+                        <li><strong>2022年</strong>：HTTP/3正式标准化</li>
+                    </ul>
+                </div>
+
+                <h3 id="models">1.2 OSI vs TCP/IP模型</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TCP/IP层</th>
+                            <th>OSI层</th>
+                            <th>主要协议</th>
+                            <th>功能</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="3">应用层</td>
+                            <td>应用层</td>
+                            <td rowspan="3">HTTP, DNS, FTP, SMTP</td>
+                            <td rowspan="3">为应用提供服务</td>
+                        </tr>
+                        <tr><td>表示层</td></tr>
+                        <tr><td>会话层</td></tr>
+                        <tr>
+                            <td>传输层</td>
+                            <td>传输层</td>
+                            <td>TCP, UDP</td>
+                            <td>端到端通信</td>
+                        </tr>
+                        <tr>
+                            <td>网络层</td>
+                            <td>网络层</td>
+                            <td>IP, ICMP, IGMP</td>
+                            <td>路由与寻址</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2">链路层</td>
+                            <td>数据链路层</td>
+                            <td rowspan="2">Ethernet, ARP</td>
+                            <td rowspan="2">物理传输</td>
+                        </tr>
+                        <tr><td>物理层</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 第二层 -->
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制与实现原理</h2>
+                
+                <h3 id="ip">2.1 IP协议详解</h3>
+                <h4>2.1.1 IPv4报文格式</h4>
+                <pre><code><span class="comment">/* IPv4头部结构 (RFC 791) - 20字节固定部分 */</span>
+<span class="keyword">struct</span> <span class="type">iphdr</span> {
+    <span class="type">u8</span> version:<span class="number">4</span>;      <span class="comment">// 版本号(4)</span>
+    <span class="type">u8</span> ihl:<span class="number">4</span>;          <span class="comment">// 首部长度(单位4字节，最小5，最大15)</span>
+    <span class="type">u8</span> tos;              <span class="comment">// 服务类型(DSCP + ECN)</span>
+    <span class="type">u16</span> tot_len;         <span class="comment">// 总长度(含头部和数据，最大65535)</span>
+    <span class="type">u16</span> id;              <span class="comment">// 标识(用于分片重组)</span>
+    <span class="type">u16</span> frag_off;        <span class="comment">// 3bit标志 + 13bit片偏移</span>
+    <span class="type">u8</span> ttl;             <span class="comment">// 生存时间(每经过路由器减1)</span>
+    <span class="type">u8</span> protocol;        <span class="comment">// 上层协议(1=ICMP,6=TCP,17=UDP)</span>
+    <span class="type">u16</span> check;           <span class="comment">// 头部校验和</span>
+    <span class="type">u32</span> saddr;           <span class="comment">// 源IP地址(32位)</span>
+    <span class="type">u32</span> daddr;           <span class="comment">// 目的IP地址(32位)</span>
+};
+
+<span class="comment">/* IP分片标志位 */</span>
+<span class="preprocessor">#define IP_RF 0x8000    </span><span class="comment">// 保留标志</span>
+<span class="preprocessor">#define IP_DF 0x4000    </span><span class="comment">// Don't Fragment</span>
+<span class="preprocessor">#define IP_MF 0x2000    </span><span class="comment">// More Fragments</span>
+<span class="preprocessor">#define IP_OFFSET 0x1FFF</span><span class="comment">// 片偏移掩码</span></code></pre>
+
+                <h4>2.1.2 IP地址与子网划分</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>类别</th>
+                            <th>首字节范围</th>
+                            <th>网络位/主机位</th>
+                            <th>默认子网掩码</th>
+                            <th>用途</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>A类</td>
+                            <td>1-126</td>
+                            <td>8/24</td>
+                            <td>255.0.0.0</td>
+                            <td>大型网络</td>
+                        </tr>
+                        <tr>
+                            <td>B类</td>
+                            <td>128-191</td>
+                            <td>16/16</td>
+                            <td>255.255.0.0</td>
+                            <td>中型网络</td>
+                        </tr>
+                        <tr>
+                            <td>C类</td>
+                            <td>192-223</td>
+                            <td>24/8</td>
+                            <td>255.255.255.0</td>
+                            <td>小型网络</td>
+                        </tr>
+                        <tr>
+                            <td>D类</td>
+                            <td>224-239</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>组播</td>
+                        </tr>
+                        <tr>
+                            <td>E类</td>
+                            <td>240-255</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>保留</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>2.1.3 ICMP协议</h4>
+                <pre><code><span class="comment">/* ICMP报文格式 */</span>
+<span class="keyword">struct</span> <span class="type">icmphdr</span> {
+    <span class="type">u8</span> type;            <span class="comment">// ICMP类型</span>
+    <span class="type">u8</span> code;            <span class="comment">// 代码</span>
+    <span class="type">u16</span> checksum;       <span class="comment">// 校验和</span>
+    <span class="keyword">union</span> {
+        <span class="keyword">struct</span> {
+            <span class="type">u16</span> id;
+            <span class="type">u16</span> sequence;
+        } echo;          <span class="comment">// Echo请求/应答</span>
+        <span class="type">u32</span> gateway;     <span class="comment">// 重定向网关地址</span>
+        <span class="keyword">struct</span> {
+            <span class="type">u16</span> unused;
+            <span class="type">u16</span> mtu;
+        } frag;          <span class="comment">// MTU发现</span>
+    } un;
+};
+
+<span class="comment">/* 常见ICMP类型 */</span>
+<span class="preprocessor">#define ICMP_ECHOREPLY      0  </span><span class="comment">// Echo应答(ping响应)</span>
+<span class="preprocessor">#define ICMP_DEST_UNREACH   3  </span><span class="comment">// 目标不可达</span>
+<span class="preprocessor">#define ICMP_SOURCE_QUENCH  4  </span><span class="comment">// 源抑制</span>
+<span class="preprocessor">#define ICMP_REDIRECT       5  </span><span class="comment">// 重定向</span>
+<span class="preprocessor">#define ICMP_ECHO           8  </span><span class="comment">// Echo请求(ping)</span>
+<span class="preprocessor">#define ICMP_TIME_EXCEEDED  11 </span><span class="comment">// 超时(TTL=0)</span>
+<span class="preprocessor">#define ICMP_PARAMETERPROB  12 </span><span class="comment">// 参数问题</span></code></pre>
+
+                <h3 id="tcp">2.2 TCP协议深度剖析</h3>
+                <h4>2.2.1 TCP报文格式</h4>
+                <pre><code><span class="comment">/* TCP头部结构 (RFC 793) - 20-60字节 */</span>
+<span class="keyword">struct</span> <span class="type">tcphdr</span> {
+    <span class="type">u16</span> source;          <span class="comment">// 源端口(0-65535)</span>
+    <span class="type">u16</span> dest;            <span class="comment">// 目的端口(0-65535)</span>
+    <span class="type">u32</span> seq;             <span class="comment">// 序列号(ISN随机生成)</span>
+    <span class="type">u32</span> ack_seq;         <span class="comment">// 确认号(下一个期望的序列号)</span>
+    <span class="type">u16</span> res1:<span class="number">4</span>;        <span class="comment">// 保留(0)</span>
+    <span class="type">u16</span> doff:<span class="number">4</span>;        <span class="comment">// 数据偏移(单位4字节，最小5)</span>
+    <span class="type">u16</span> fin:<span class="number">1</span>;         <span class="comment">// FIN: 结束连接</span>
+    <span class="type">u16</span> syn:<span class="number">1</span>;         <span class="comment">// SYN: 同步序列号</span>
+    <span class="type">u16</span> rst:<span class="number">1</span>;         <span class="comment">// RST: 重置连接</span>
+    <span class="type">u16</span> psh:<span class="number">1</span>;         <span class="comment">// PSH: 推送数据</span>
+    <span class="type">u16</span> ack:<span class="number">1</span>;         <span class="comment">// ACK: 确认号有效</span>
+    <span class="type">u16</span> urg:<span class="number">1</span>;         <span class="comment">// URG: 紧急指针有效</span>
+    <span class="type">u16</span> ece:<span class="number">1</span>;         <span class="comment">// ECE: ECN回显</span>
+    <span class="type">u16</span> cwr:<span class="number">1</span>;         <span class="comment">// CWR: 拥塞窗口减小</span>
+    <span class="type">u16</span> window;          <span class="comment">// 窗口大小(0-65535，可窗口扩展至1GB)</span>
+    <span class="type">u16</span> check;           <span class="comment">// 校验和(含伪头部)</span>
+    <span class="type">u16</span> urg_ptr;         <span class="comment">// 紧急指针</span>
+};
+
+<span class="comment">/* TCP选项 (最多40字节) */</span>
+<span class="preprocessor">#define TCPOPT_EOL          0  </span><span class="comment">// End of Option List</span>
+<span class="preprocessor">#define TCPOPT_NOP          1  </span><span class="comment">// No Operation</span>
+<span class="preprocessor">#define TCPOPT_MAXSEG       2  </span><span class="comment">// MSS(Maximum Segment Size)</span>
+<span class="preprocessor">#define TCPOPT_WINDOW       3  </span><span class="comment">// 窗口扩展因子</span>
+<span class="preprocessor">#define TCPOPT_SACK_PERM    4  </span><span class="comment">// SACK Permitted</span>
+<span class="preprocessor">#define TCPOPT_SACK         5  </span><span class="comment">// SACK Block</span>
+<span class="preprocessor">#define TCPOPT_TIMESTAMP    8  </span><span class="comment">// 时间戳</span></code></pre>
+
+                <h4>2.2.2 TCP状态机</h4>
+                <pre><code><span class="comment">/* TCP连接状态机 (11个状态) */</span>
+<span class="keyword">enum</span> {
+    TCP_ESTABLISHED = <span class="number">1</span>,  <span class="comment">// 已建立连接</span>
+    TCP_SYN_SENT,         <span class="comment">// 主动打开: 发送SYN，等待匹配的SYN</span>
+    TCP_SYN_RECV,         <span class="comment">// 被动打开: 收到SYN并发送SYN+ACK</span>
+    TCP_FIN_WAIT1,        <span class="comment">// 主动关闭: 发送FIN，等待ACK</span>
+    TCP_FIN_WAIT2,        <span class="comment">// 主动关闭: 收到ACK，等待对方FIN</span>
+    TCP_TIME_WAIT,        <span class="comment">// 2MSL等待状态(MSL=2分钟)</span>
+    TCP_CLOSE,            <span class="comment">// 关闭状态</span>
+    TCP_CLOSE_WAIT,       <span class="comment">// 被动关闭: 收到FIN，等待应用关闭</span>
+    TCP_LAST_ACK,         <span class="comment">// 被动关闭: 发送FIN，等待ACK</span>
+    TCP_LISTEN,           <span class="comment">// 监听状态</span>
+    TCP_CLOSING,          <span class="comment">// 同时关闭: 等待ACK</span>
+};
+
+<span class="comment">/* 状态转换示例 */</span>
+<span class="comment">// 主动打开: CLOSED -> SYN_SENT -> ESTABLISHED</span>
+<span class="comment">// 被动打开: CLOSED -> LISTEN -> SYN_RECV -> ESTABLISHED</span>
+<span class="comment">// 主动关闭: ESTABLISHED -> FIN_WAIT1 -> FIN_WAIT2 -> TIME_WAIT -> CLOSED</span>
+<span class="comment">// 被动关闭: ESTABLISHED -> CLOSE_WAIT -> LAST_ACK -> CLOSED</span></code></pre>
+
+                <h4>2.2.3 TCP可靠传输机制</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>机制</th>
+                            <th>原理</th>
+                            <th>关键字段</th>
+                            <th>作用</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>序列号/确认号</strong></td>
+                            <td>每个字节有序列号</td>
+                            <td>seq, ack_seq</td>
+                            <td>保证顺序交付</td>
+                        </tr>
+                        <tr>
+                            <td><strong>超时重传</strong></td>
+                            <td>未收到ACK则重传</td>
+                            <td>RTO(重传超时)</td>
+                            <td>应对丢包</td>
+                        </tr>
+                        <tr>
+                            <td><strong>快速重传</strong></td>
+                            <td>3个重复ACK立即重传</td>
+                            <td>duplicate ACK</td>
+                            <td>快速恢复</td>
+                        </tr>
+                        <tr>
+                            <td><strong>校验和</strong></td>
+                            <td>检测数据损坏</td>
+                            <td>checksum</td>
+                            <td>保证数据完整</td>
+                        </tr>
+                        <tr>
+                            <td><strong>流量控制</strong></td>
+                            <td>滑动窗口</td>
+                            <td>window</td>
+                            <td>防止接收端溢出</td>
+                        </tr>
+                        <tr>
+                            <td><strong>拥塞控制</strong></td>
+                            <td>动态调整发送速率</td>
+                            <td>cwnd, ssthresh</td>
+                            <td>防止网络拥塞</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>2.2.4 TCP计时器</h4>
+                <pre><code><span class="comment">/* TCP重要计时器 */</span>
+
+<span class="comment">// 1. 重传计时器 (Retransmission Timer)</span>
+<span class="comment">//    RTO计算：Jacobson算法</span>
+RTT = 测量的往返时间
+SRTT = (<span class="number">1</span>-α)*SRTT + α*RTT        <span class="comment">// 平滑RTT (α=1/8)</span>
+RTTVAR = (<span class="number">1</span>-β)*RTTVAR + β*|SRTT-RTT|  <span class="comment">// RTT方差 (β=1/4)</span>
+RTO = SRTT + <span class="number">4</span>*RTTVAR                <span class="comment">// 重传超时</span>
+
+<span class="comment">// 2. 坚持计时器 (Persist Timer)</span>
+<span class="comment">//    用于零窗口探测</span>
+<span class="keyword">if</span> (recv_window == <span class="number">0</span>) {
+    <span class="function">send_window_probe</span>();  <span class="comment">// 发送1字节探测</span>
+}
+
+<span class="comment">// 3. 保活计时器 (Keepalive Timer)</span>
+<span class="comment">//    检测对方是否活着 (默认2小时)</span>
+<span class="keyword">if</span> (idle_time &gt; keepalive_time) {
+    <span class="function">send_keepalive_probe</span>();
+}
+
+<span class="comment">// 4. TIME_WAIT计时器 (2MSL Timer)</span>
+<span class="comment">//    2MSL = 2 * Maximum Segment Lifetime</span>
+<span class="comment">//    Linux中 MSL = 60秒，2MSL = 120秒</span></code></pre>
+
+                <h3 id="udp">2.3 UDP协议</h3>
+                <pre><code><span class="comment">/* UDP头部结构 (RFC 768) - 仅8有8字节 */</span>
+<span class="keyword">struct</span> <span class="type">udphdr</span> {
+    <span class="type">u16</span> source;      <span class="comment">// 源端口</span>
+    <span class="type">u16</span> dest;        <span class="comment">// 目的端口</span>
+    <span class="type">u16</span> len;         <span class="comment">// 长度(含头部，最小8，最大65535)</span>
+    <span class="type">u16</span> check;       <span class="comment">// 校验和(可选)</span>
+};
+
+<span class="comment">/* UDP特点 */</span>
+<span class="comment">// 1. 无连接：不需要建立连接，直接发送</span>
+<span class="comment">// 2. 不可靠：不保证送达，不保证顺序</span>
+<span class="comment">// 3. 面向报文：保持消息边界</span>
+<span class="comment">// 4. 开销小：没有连接管理、流量控制等开销</span>
+
+<span class="comment">/* UDP适用场景 */</span>
+<span class="comment">// - DNS查询(快速响应)</span>
+<span class="comment">// - 流媒体(RTSP/RTP)：容忍丢包</span>
+<span class="comment">// - 在线游戏：低延迟优先</span>
+<span class="comment">// - DHCP/TFTP：简单协议</span></code></pre>
+            </section>
+
+            <!-- 第三层 -->
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="handshake">3.1 TCP三次握手</h3>
+                <pre><code><span class="comment">/* 三次握手过程 */</span>
+<span class="comment">// 第一次握手：客户端发送SYN</span>
+Client -> Server: SYN, seq=x
+
+<span class="comment">// 第二次握手：服务器发送SYN+ACK</span>
+Server -> Client: SYN+ACK, seq=y, ack=x+<span class="number">1</span>
+
+<span class="comment">// 第三次握手：客户端发送ACK</span>
+Client -> Server: ACK, seq=x+<span class="number">1</span>, ack=y+<span class="number">1</span>
+
+<span class="comment">// 连接建立，进入ESTABLISHED状态</span></code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 为什么需要三次握手？</strong>
+                    <ul>
+                        <li>防止已失效的连接请求突然又传送到服务器</li>
+                        <li>确认双方的发送和接收能力</li>
+                        <li>协商初始序列号</li>
+                    </ul>
+                </div>
+
+                <h3 id="wave">3.2 TCP四次挥手</h3>
+                <pre><code><span class="comment">/* 四次挥手过程 */</span>
+<span class="comment">// 第一次挥手：客户端发送FIN</span>
+Client -> Server: FIN, seq=u
+
+<span class="comment">// 第二次挥手：服务器发送ACK</span>
+Server -> Client: ACK, ack=u+<span class="number">1</span>
+
+<span class="comment">// 第三次挥手：服务器发送FIN</span>
+Server -> Client: FIN, seq=w
+
+<span class="comment">// 第四次挥手：客户端发送ACK</span>
+Client -> Server: ACK, ack=w+<span class="number">1</span>
+
+<span class="comment">// 客户端进入TIME_WAIT (2MSL)</span></code></pre>
+
+                <h3 id="flow-control">3.3 流量控制</h3>
+                <p>TCP使用滑动窗口机制实现流量控制</p>
+                <pre><code><span class="comment">/* 发送窗口示例 */</span>
+[已发送已确认][已发送未确认][可发送][不可发送]
+               |← 发送窗口 →|
+               
+<span class="comment">// 接收窗口控制发送速率</span>
+rwnd = 接收方通告的窗口大小
+发送窗口 = min(cwnd, rwnd)</code></pre>
+
+                <h3 id="congestion">3.4 拥塞控制</h3>
+                <h4>3.4.1 拥塞控制算法</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>算法</th>
+                            <th>阶段</th>
+                            <th>特点</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>慢启动</td>
+                            <td>cwnd < ssthresh</td>
+                            <td>指数增长</td>
+                        </tr>
+                        <tr>
+                            <td>拥塞避免</td>
+                            <td>cwnd >= ssthresh</td>
+                            <td>线性增长</td>
+                        </tr>
+                        <tr>
+                            <td>快重传</td>
+                            <td>3个重复ACK</td>
+                            <td>立即重传</td>
+                        </tr>
+                        <tr>
+                            <td>快恢复</td>
+                            <td>快重传后</td>
+                            <td>避免慢启动</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 第四层 -->
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧与优化</h2>
+                
+                <h3 id="tuning">4.1 TCP性能优化</h3>
+                <h4>4.1.1 内核参数调优</h4>
+                <pre><code><span class="comment"># /etc/sysctl.conf 关键参数</span>
+
+<span class="comment"># TCP缓冲区大小</span>
+net.ipv4.tcp_rmem = <span class="number">4096 87380 6291456</span>
+net.ipv4.tcp_wmem = <span class="number">4096 65536 4194304</span>
+
+<span class="comment"># 启用TCP窗口扩展</span>
+net.ipv4.tcp_window_scaling = <span class="number">1</span>
+
+<span class="comment"># TCP时间戳</span>
+net.ipv4.tcp_timestamps = <span class="number">1</span>
+
+<span class="comment"># TCP快速回收TIME_WAIT连接</span>
+net.ipv4.tcp_tw_reuse = <span class="number">1</span>
+
+<span class="comment"># SYN队列长度</span>
+net.ipv4.tcp_max_syn_backlog = <span class="number">8192</span>
+
+<span class="comment"># 连接队列大小</span>
+net.core.somaxconn = <span class="number">1024</span></code></pre>
+
+                <h3 id="zero-copy">4.2 零拷贝技术</h3>
+                <pre><code><span class="comment">/* sendfile系统调用 */</span>
+<span class="preprocessor">#include &lt;sys/sendfile.h&gt;</span>
+
+<span class="keyword">ssize_t</span> <span class="function">sendfile</span>(<span class="keyword">int</span> out_fd, <span class="keyword">int</span> in_fd,
+                   <span class="keyword">off_t</span> *offset, <span class="keyword">size_t</span> count);
+
+<span class="comment">// 示例：高效文件传输</span>
+<span class="keyword">int</span> <span class="function">send_file</span>(<span class="keyword">int</span> sockfd, <span class="keyword">const char</span>* filename) {
+    <span class="keyword">int</span> fd = <span class="function">open</span>(filename, O_RDONLY);
+    <span class="keyword">struct stat</span> st;
+    <span class="function">fstat</span>(fd, &amp;st);
+    
+    <span class="comment">// 直接从文件到socket，避免用户态拷贝</span>
+    <span class="function">sendfile</span>(sockfd, fd, NULL, st.st_size);
+    <span class="function">close</span>(fd);
+}</code></pre>
+
+                <h3 id="tfo">4.3 TCP Fast Open</h3>
+                <pre><code><span class="comment">/* TFO允许在SYN包中携带数据 */</span>
+
+<span class="comment">// 服务端启用TFO</span>
+<span class="keyword">int</span> qlen = <span class="number">5</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_TCP, TCP_FASTOPEN, 
+           &amp;qlen, <span class="keyword">sizeof</span>(qlen));
+
+<span class="comment">// 客户端使用TFO</span>
+<span class="function">sendto</span>(sockfd, data, len, MSG_FASTOPEN,
+       (<span class="keyword">struct sockaddr</span>*)&amp;addr, <span class="keyword">sizeof</span>(addr));</code></pre>
+
+                <h3 id="diagnosis">4.4 网络故障诊断</h3>
+                <h4>4.4.1 常用诊断工具</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>工具</th>
+                            <th>用途</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ping</td>
+                            <td>测试连通性</td>
+                            <td><code>ping -c 4 google.com</code></td>
+                        </tr>
+                        <tr>
+                            <td>traceroute</td>
+                            <td>追踪路由</td>
+                            <td><code>traceroute google.com</code></td>
+                        </tr>
+                        <tr>
+                            <td>netstat</td>
+                            <td>查看连接状态</td>
+                            <td><code>netstat -antp</code></td>
+                        </tr>
+                        <tr>
+                            <td>ss</td>
+                            <td>socket统计</td>
+                            <td><code>ss -s</code></td>
+                        </tr>
+                        <tr>
+                            <td>tcpdump</td>
+                            <td>抓包分析</td>
+                            <td><code>tcpdump -i eth0 port 80</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 参考资料 -->
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                
+                <h3>📖 经典书籍</h3>
+                <ul>
+                    <li><strong>TCP/IP详解 卷1：协议</strong> - W. Richard Stevens</li>
+                    <li><strong>TCP/IP详解 卷2：实现</strong> - Gary R. Wright</li>
+                    <li><strong>UNIX网络编程</strong> - W. Richard Stevens</li>
+                    <li><strong>Linux内核源码剖析：TCP/IP实现</strong></li>
+                </ul>
+
+                <h3>🔗 RFC文档</h3>
+                <ul>
+                    <li><a href="https://tools.ietf.org/html/rfc791" target="_blank">RFC 791 - Internet Protocol (IPv4)</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc793" target="_blank">RFC 793 - Transmission Control Protocol (TCP)</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc768" target="_blank">RFC 768 - User Datagram Protocol (UDP)</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc2616" target="_blank">RFC 2616 - HTTP/1.1</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc9000" target="_blank">RFC 9000 - QUIC</a></li>
+                </ul>
+
+                <h3>🛠️ 在线资源</h3>
+                <ul>
+                    <li><a href="https://www.kernel.org/" target="_blank">Linux Kernel Archives</a></li>
+                    <li><a href="https://www.wireshark.org/" target="_blank">Wireshark</a></li>
+                    <li><a href="https://www.tcpdump.org/" target="_blank">tcpdump</a></li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        // 自动生成目录
+        function generateTOC() {
+            const toc = document.getElementById('toc');
+            const headings = document.querySelectorAll('main h2, main h3');
+            
+            headings.forEach(heading => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.textContent = heading.textContent;
+                a.href = '#' + heading.id;
+                
+                if (heading.tagName === 'H3') {
+                    li.style.paddingLeft = '1rem';
+                    a.style.fontSize = '0.9em';
+                }
+                
+                li.appendChild(a);
+                toc.appendChild(li);
+            });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function highlightCurrentSection() {
+            const sections = document.querySelectorAll('section');
+            const tocLinks = document.querySelectorAll('.toc a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.parentElement.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.parentElement.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            if (window.scrollY > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+            highlightCurrentSection();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTOC();
+        });
+    </script>
+</body>
+</html>

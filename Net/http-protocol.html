@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP 协议深度解析</title>
+    <link rel="stylesheet" href="../CPP/common-styles.css">
+</head>
+<body>
+    <!-- <header>
+        <div class="header-content">
+            <h1>🌐 HTTP 协议深度解析</h1>
+            <p class="subtitle">HyperText Transfer Protocol · Web的基石协议</p>
+        </div>
+    </header> -->
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p>HTTP是互联网应用层协议，承载了全球Web流量，从HTTP/0.9到HTTP/3经历了重大演进。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">HTTP发展历史</div>
+                        <div class="tree-item">版本演进（0.9/1.0/1.1/2/3）</div>
+                        <div class="tree-item">请求-响应模型</div>
+                        <div class="tree-item">URL与URI</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制</div>
+                    <div class="tree-node">
+                        <div class="tree-item">请求方法（GET/POST/PUT等）</div>
+                        <div class="tree-item">状态码体系</div>
+                        <div class="tree-item">Header机制</div>
+                        <div class="tree-item">Cookie与Session</div>
+                        <div class="tree-item">缓存机制</div>
+                        <div class="tree-item">连接管理</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">RESTful API</div>
+                        <div class="tree-item">文件上传下载</div>
+                        <div class="tree-item">WebSocket升级</div>
+                        <div class="tree-item">反向代理</div>
+                        <div class="tree-item">负载均衡</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧</div>
+                    <div class="tree-node">
+                        <div class="tree-item">性能优化</div>
+                        <div class="tree-item">安全防护</div>
+                        <div class="tree-item">HTTP/2特性</div>
+                        <div class="tree-item">HTTP/3与QUIC</div>
+                        <div class="tree-item">调试技巧</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="history">1.1 HTTP发展历史</h3>
+                <div class="info-box note">
+                    <strong>📌 发展时间线</strong>
+                    <ul>
+                        <li><strong>1991年</strong>：HTTP/0.9 - Tim Berners-Lee发明，仅支持GET</li>
+                        <li><strong>1996年</strong>：HTTP/1.0 - RFC 1945，引入Header和POST</li>
+                        <li><strong>1997年</strong>：HTTP/1.1 - RFC 2068，持久连接、管道化</li>
+                        <li><strong>2015年</strong>：HTTP/2 - RFC 7540，二进制分帧、多路复用</li>
+                        <li><strong>2022年</strong>：HTTP/3 - RFC 9114，基于QUIC的传输</li>
+                    </ul>
+                </div>
+
+                <h3 id="versions">1.2 版本演进对比</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>版本</th>
+                            <th>传输协议</th>
+                            <th>连接</th>
+                            <th>性能</th>
+                            <th>核心特性</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>HTTP/0.9</strong></td>
+                            <td>TCP</td>
+                            <td>短连接</td>
+                            <td>低</td>
+                            <td>仅GET，无Header</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HTTP/1.0</strong></td>
+                            <td>TCP</td>
+                            <td>短连接</td>
+                            <td>低</td>
+                            <td>Header，状态码，POST</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HTTP/1.1</strong></td>
+                            <td>TCP</td>
+                            <td>长连接</td>
+                            <td>中</td>
+                            <td>Keep-Alive，管道化，分块传输</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HTTP/2</strong></td>
+                            <td>TCP</td>
+                            <td>多路复用</td>
+                            <td>高</td>
+                            <td>二进制分帧，服务器推送，头部压缩</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HTTP/3</strong></td>
+                            <td>QUIC/UDP</td>
+                            <td>0-RTT</td>
+                            <td>极高</td>
+                            <td>无队头阻塞，快速握手，连接迁移</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="model">1.3 请求-响应模型</h3>
+                <pre><code><span class="comment">/* HTTP通信流程 */</span>
+
+Client                    Server
+  |                          |
+  | 1. TCP三次握手           |
+  | &lt;--------------------&gt;   |
+  |                          |
+  | 2. HTTP请求              |
+  | -----------------------&gt; |
+  |   GET /index.html HTTP/1.1
+  |   Host: www.example.com
+  |   User-Agent: Chrome/120
+  |                          |
+  | 3. HTTP响应              |
+  | &lt;----------------------- |
+  |   HTTP/1.1 200 OK
+  |   Content-Type: text/html
+  |   Content-Length: 1234
+  |                          |
+  | 4. 关闭连接（或保持）     |
+  | &lt;--------------------&gt;   |</code></pre>
+
+                <h3 id="uri">1.4 URL与URI详解</h3>
+                <pre><code><span class="comment">/* URL结构 */</span>
+https://user:pass@www.example.com:443/path/to/resource?key=value#fragment
+|____| |________| |________________| |_| |________________| |_______| |______|
+  |        |              |           |          |              |        |
+scheme  userinfo        host        port       path          query   fragment
+
+<span class="comment">/* 组成部分 */</span>
+- scheme:   协议（http, https, ftp等）
+- userinfo: 用户信息（很少使用）
+- host:     主机名或IP
+- port:     端口（默认80/443）
+- path:     资源路径
+- query:    查询参数
+- fragment: 锚点（不发送到服务器）
+
+<span class="comment">/* URI vs URL vs URN */</span>
+URI (Uniform Resource Identifier)     <span class="comment">// 统一资源标识符</span>
+ ├─ URL (Uniform Resource Locator)    <span class="comment">// 定位资源的地址</span>
+ └─ URN (Uniform Resource Name)       <span class="comment">// 资源的名称</span>
+
+<span class="comment">/* 示例 */</span>
+URL: https://www.example.com/book/123
+URN: urn:isbn:0-486-27557-4</code></pre>
+            </section>
+
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制</h2>
+                
+                <h3 id="methods">2.1 HTTP请求方法</h3>
+                
+                <h4>2.1.1 标准方法</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>方法</th>
+                            <th>描述</th>
+                            <th>幂等性</th>
+                            <th>安全性</th>
+                            <th>可缓存</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>GET</strong></td>
+                            <td>获取资源</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><strong>POST</strong></td>
+                            <td>提交数据</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PUT</strong></td>
+                            <td>更新资源</td>
+                            <td>✓</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DELETE</strong></td>
+                            <td>删除资源</td>
+                            <td>✓</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                        </tr>
+                        <tr>
+                            <td><strong>HEAD</strong></td>
+                            <td>获取Header</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                        </tr>
+                        <tr>
+                            <td><strong>OPTIONS</strong></td>
+                            <td>查询支持的方法</td>
+                            <td>✓</td>
+                            <td>✓</td>
+                            <td>✗</td>
+                        </tr>
+                        <tr>
+                            <td><strong>PATCH</strong></td>
+                            <td>部分更新</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                            <td>✗</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box tip">
+                    <strong>💡 幂等性与安全性</strong>
+                    <ul>
+                        <li><strong>幂等性</strong>：多次执行产生相同的结果</li>
+                        <li><strong>安全性</strong>：不改变服务器状态（只读操作）</li>
+                    </ul>
+                </div>
+
+                <h4>2.1.2 请求示例</h4>
+                <pre><code><span class="comment">/* GET请求 */</span>
+GET /api/users/123 HTTP/1.1
+Host: api.example.com
+User-Agent: Mozilla/5.0
+Accept: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+
+
+<span class="comment">/* POST请求 - JSON */</span>
+POST /api/users HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+Content-Length: 58
+
+{
+  <span class="string">"name"</span>: <span class="string">"John Doe"</span>,
+  <span class="string">"email"</span>: <span class="string">"john@example.com"</span>
+}
+
+<span class="comment">/* POST请求 - 表单 */</span>
+POST /login HTTP/1.1
+Host: www.example.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 35
+
+username=john&amp;password=secret123
+
+<span class="comment">/* PUT请求 */</span>
+PUT /api/users/123 HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+
+{
+  <span class="string">"name"</span>: <span class="string">"Jane Doe"</span>
+}
+
+<span class="comment">/* DELETE请求 */</span>
+DELETE /api/users/123 HTTP/1.1
+Host: api.example.com
+Authorization: Bearer token123</code></pre>
+
+                <h3 id="status-codes">2.2 HTTP状态码</h3>
+                
+                <h4>2.2.1 状态码分类</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>分类</th>
+                            <th>范围</th>
+                            <th>含义</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1xx</strong></td>
+                            <td>信息性</td>
+                            <td>请求已接收，继续处理</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2xx</strong></td>
+                            <td>成功</td>
+                            <td>请求成功处理</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3xx</strong></td>
+                            <td>重定向</td>
+                            <td>需要进一步操作</td>
+                        </tr>
+                        <tr>
+                            <td><strong>4xx</strong></td>
+                            <td>客户端错误</td>
+                            <td>请求有语法错误或无法实现</td>
+                        </tr>
+                        <tr>
+                            <td><strong>5xx</strong></td>
+                            <td>服务器错误</td>
+                            <td>服务器未能实现合法请求</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>2.2.2 常见状态码详解</h4>
+                <pre><code><span class="comment">/* 2xx - 成功 */</span>
+<span class="number">200</span> OK                   <span class="comment">// 请求成功</span>
+<span class="number">201</span> Created              <span class="comment">// 资源已创建</span>
+<span class="number">202</span> Accepted             <span class="comment">// 已接受，但未处理完成</span>
+<span class="number">204</span> No Content           <span class="comment">// 成功但无返回内容</span>
+<span class="number">206</span> Partial Content      <span class="comment">// 部分内容（范围请求）</span>
+
+<span class="comment">/* 3xx - 重定向 */</span>
+<span class="number">301</span> Moved Permanently    <span class="comment">// 永久重定向</span>
+<span class="number">302</span> Found                <span class="comment">// 临时重定向</span>
+<span class="number">303</span> See Other            <span class="comment">// 使用GET查看其他位置</span>
+<span class="number">304</span> Not Modified         <span class="comment">// 资源未修改（缓存）</span>
+<span class="number">307</span> Temporary Redirect   <span class="comment">// 临时重定向，保持方法</span>
+<span class="number">308</span> Permanent Redirect   <span class="comment">// 永久重定向，保持方法</span>
+
+<span class="comment">/* 4xx - 客户端错误 */</span>
+<span class="number">400</span> Bad Request          <span class="comment">// 请求语法错误</span>
+<span class="number">401</span> Unauthorized         <span class="comment">// 需要身份验证</span>
+<span class="number">403</span> Forbidden            <span class="comment">// 拒绝访问</span>
+<span class="number">404</span> Not Found            <span class="comment">// 资源不存在</span>
+<span class="number">405</span> Method Not Allowed   <span class="comment">// 方法不允许</span>
+<span class="number">408</span> Request Timeout      <span class="comment">// 请求超时</span>
+<span class="number">409</span> Conflict             <span class="comment">// 资源冲突</span>
+<span class="number">413</span> Payload Too Large    <span class="comment">// 请求实体过大</span>
+<span class="number">414</span> URI Too Long         <span class="comment">// URI过长</span>
+<span class="number">429</span> Too Many Requests    <span class="comment">// 请求过多（限流）</span>
+
+<span class="comment">/* 5xx - 服务器错误 */</span>
+<span class="number">500</span> Internal Server Error   <span class="comment">// 服务器内部错误</span>
+<span class="number">501</span> Not Implemented         <span class="comment">// 不支持该功能</span>
+<span class="number">502</span> Bad Gateway             <span class="comment">// 网关错误</span>
+<span class="number">503</span> Service Unavailable     <span class="comment">// 服务不可用</span>
+<span class="number">504</span> Gateway Timeout         <span class="comment">// 网关超时</span></code></pre>
+
+                <h3 id="headers">2.3 HTTP Header机制</h3>
+                
+                <h4>2.3.1 Header分类</h4>
+                <pre><code><span class="comment">/* 通用Header（请求和响应都可用） */</span>
+Cache-Control: no-cache
+Connection: keep-alive
+Date: Wed, 20 Dec 2023 12:00:00 GMT
+Transfer-Encoding: chunked
+
+<span class="comment">/* 请求Header */</span>
+Accept: text/html,application/json
+Accept-Encoding: gzip, deflate, br
+Accept-Language: zh-CN,en;q=0.9
+User-Agent: Mozilla/5.0...
+Host: www.example.com
+Referer: https://google.com
+Cookie: session=abc123
+Authorization: Bearer token
+If-Modified-Since: Wed, 20 Dec 2023 10:00:00 GMT
+If-None-Match: "686897696a7c876b7e"
+
+<span class="comment">/* 响应Header */</span>
+Content-Type: text/html; charset=utf-8
+Content-Length: 1234
+Content-Encoding: gzip
+Set-Cookie: session=xyz; HttpOnly; Secure
+ETag: "686897696a7c876b7e"
+Last-Modified: Wed, 20 Dec 2023 11:00:00 GMT
+Location: https://www.example.com/new-url
+Server: nginx/1.20.1
+Vary: Accept-Encoding
+
+<span class="comment">/* 实体Header */</span>
+Content-Type: application/json
+Content-Length: 512
+Content-Encoding: gzip
+Content-Language: zh-CN
+Expires: Thu, 21 Dec 2023 12:00:00 GMT</code></pre>
+
+                <h4>2.3.2 重要Header详解</h4>
+                <pre><code><span class="comment">/* Host（HTTP/1.1必需） */</span>
+Host: www.example.com:8080
+<span class="comment">// 用途：虚拟主机，一个IP多个域名</span>
+
+<span class="comment">/* Content-Type（指定内容类型） */</span>
+Content-Type: text/html; charset=utf-8
+Content-Type: application/json
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+Content-Type: application/x-www-form-urlencoded
+
+<span class="comment">/* Accept系列（内容协商） */</span>
+Accept: application/json, text/html;q=0.9, */*;q=0.8
+Accept-Encoding: gzip, deflate, br
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+<span class="comment">// q值：质量因子，范围0-1</span>
+
+<span class="comment">/* Range（范围请求） */</span>
+Range: bytes=0-1023           <span class="comment">// 请求前1KB</span>
+Range: bytes=1024-2047        <span class="comment">// 请求第2KB</span>
+Range: bytes=-500             <span class="comment">// 请求最后500字节</span>
+Range: bytes=0-499, 1000-1499 <span class="comment">// 请求多个范围</span>
+
+<span class="comment">/* Content-Range（范围响应） */</span>
+Content-Range: bytes 0-1023/5000
+<span class="comment">// 格式：bytes 起始-结束/总大小</span>
+
+<span class="comment">/* Transfer-Encoding（传输编码） */</span>
+Transfer-Encoding: chunked
+<span class="comment">// 分块传输，不需要Content-Length</span>
+
+<span class="comment">/* Connection（连接管理） */</span>
+Connection: keep-alive        <span class="comment">// HTTP/1.1默认</span>
+Connection: close             <span class="comment">// 关闭连接</span>
+Connection: Upgrade           <span class="comment">// 协议升级</span></code></pre>
+
+                <h3 id="cookie-session">2.4 Cookie与Session机制</h3>
+                
+                <h4>2.4.1 Cookie机制</h4>
+                <pre><code><span class="comment">/* Cookie工作流程 */</span>
+
+<span class="comment">// 1. 服务器设置Cookie</span>
+HTTP/1.1 <span class="number">200</span> OK
+Set-Cookie: sessionId=abc123; Path=/; HttpOnly; Secure
+Set-Cookie: theme=dark; Max-Age=<span class="number">86400</span>; SameSite=Strict
+
+<span class="comment">// 2. 浏览器后续请求自动携带</span>
+GET /profile HTTP/1.1
+Host: www.example.com
+Cookie: sessionId=abc123; theme=dark
+
+<span class="comment">/* Cookie属性详解 */</span>
+Set-Cookie: name=value; <span class="comment">// 必需</span>
+            Domain=example.com;       <span class="comment">// 域名范围</span>
+            Path=/;                   <span class="comment">// 路径范围</span>
+            Expires=Wed, 21 Dec 2024; <span class="comment">// 过期时间（绝对）</span>
+            Max-Age=<span class="number">3600</span>;              <span class="comment">// 过期时间（相对，秒）</span>
+            Secure;                   <span class="comment">// 仅HTTPS传输</span>
+            HttpOnly;                 <span class="comment">// 禁止JS访问</span>
+            SameSite=Strict           <span class="comment">// CSRF防护</span>
+
+<span class="comment">/* SameSite属性 */</span>
+SameSite=Strict    <span class="comment">// 完全禁止跨站发送</span>
+SameSite=Lax       <span class="comment">// 导航跨站允许（默认）</span>
+SameSite=None      <span class="comment">// 允许跨站（需配合Secure）</span></code></pre>
+
+                <h4>2.4.2 Session机制</h4>
+                <pre><code><span class="comment">/* Session实现方式 */</span>
+
+<span class="comment">// 方式1：基于Cookie存储Session ID</span>
+Client                    Server
+  |                          |
+  | 1. POST /login           |
+  | -----------------------&gt; | 创建Session，生成ID
+  |                          | sessions[<span class="string">"abc123"</span>] = {user: <span class="string">"john"</span>}
+  | 2. Set-Cookie: sid=abc123|
+  | &lt;----------------------- |
+  |                          |
+  | 3. GET /profile          |
+  |    Cookie: sid=abc123    |
+  | -----------------------&gt; | 从sessions[<span class="string">"abc123"</span>]获取数据
+  |                          |
+
+<span class="comment">// 方式2：URL重写（Cookie被禁用时）</span>
+GET /profile;jsessionid=ABC123 HTTP/1.1
+
+<span class="comment">/* 服务端Session存储 */</span>
+<span class="preprocessor">#include &lt;map&gt;
+#include &lt;string&gt;</span>
+
+<span class="comment">// 简单Session实现</span>
+<span class="keyword">struct</span> <span class="type">SessionData</span> {
+    <span class="keyword">std::string</span> user_id;
+    <span class="keyword">time_t</span> created_at;
+    <span class="keyword">time_t</span> last_access;
+    <span class="keyword">std::map</span>&lt;<span class="keyword">std::string</span>, <span class="keyword">std::string</span>&gt; data;
+};
+
+<span class="keyword">class</span> <span class="type">SessionManager</span> {
+<span class="keyword">private</span>:
+    <span class="keyword">std::map</span>&lt;<span class="keyword">std::string</span>, SessionData&gt; sessions;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">std::string</span> <span class="function">create_session</span>(<span class="keyword">const std::string</span>&amp; user_id) {
+        <span class="keyword">std::string</span> sid = <span class="function">generate_random_id</span>();
+        SessionData data;
+        data.user_id = user_id;
+        data.created_at = <span class="function">time</span>(NULL);
+        data.last_access = <span class="function">time</span>(NULL);
+        sessions[sid] = data;
+        <span class="keyword">return</span> sid;
+    }
+    
+    SessionData* <span class="function">get_session</span>(<span class="keyword">const std::string</span>&amp; sid) {
+        <span class="keyword">auto</span> it = sessions.<span class="function">find</span>(sid);
+        <span class="keyword">if</span> (it != sessions.<span class="function">end</span>()) {
+            it-&gt;second.last_access = <span class="function">time</span>(NULL);
+            <span class="keyword">return</span> &amp;it-&gt;second;
+        }
+        <span class="keyword">return nullptr</span>;
+    }
+    
+    <span class="keyword">void</span> <span class="function">destroy_session</span>(<span class="keyword">const std::string</span>&amp; sid) {
+        sessions.<span class="function">erase</span>(sid);
+    }
+    
+    <span class="keyword">void</span> <span class="function">cleanup_expired</span>(<span class="keyword">int</span> timeout_seconds) {
+        <span class="keyword">time_t</span> now = <span class="function">time</span>(NULL);
+        <span class="keyword">for</span> (<span class="keyword">auto</span> it = sessions.<span class="function">begin</span>(); it != sessions.<span class="function">end</span>();) {
+            <span class="keyword">if</span> (now - it-&gt;second.last_access &gt; timeout_seconds) {
+                it = sessions.<span class="function">erase</span>(it);
+            } <span class="keyword">else</span> {
+                ++it;
+            }
+        }
+    }
+};</code></pre>
+
+                <div class="info-box warning">
+                    <strong>⚠️ Cookie vs Session</strong>
+                    <ul>
+                        <li><strong>Cookie</strong>：存储在客户端，大小限制4KB，安全性较低</li>
+                        <li><strong>Session</strong>：存储在服务端，无大小限制，安全性高</li>
+                        <li><strong>典型组合</strong>：Cookie存Session ID，Session存用户数据</li>
+                    </ul>
+                </div>
+
+                <h3 id="cache">2.5 HTTP缓存机制</h3>
+                
+                <h4>2.5.1 缓存策略</h4>
+                <pre><code><span class="comment">/* 缓存类型 */</span>
+
+<span class="comment">// 1. 强缓存（不发请求，直接使用缓存）</span>
+Cache-Control: max-age=<span class="number">3600</span>          <span class="comment">// 缓存1小时（优先）</span>
+Expires: Thu, 21 Dec 2023 12:00:00 GMT  <span class="comment">// 过期时间（HTTP/1.0）</span>
+
+<span class="comment">// 2. 协商缓存（发请求验证，304则使用缓存）</span>
+<span class="comment">// 方式A：Last-Modified / If-Modified-Since</span>
+HTTP/1.1 <span class="number">200</span> OK
+Last-Modified: Wed, 20 Dec 2023 10:00:00 GMT
+
+GET /style.css HTTP/1.1
+If-Modified-Since: Wed, 20 Dec 2023 10:00:00 GMT
+
+HTTP/1.1 <span class="number">304</span> Not Modified  <span class="comment">// 未修改，使用缓存</span>
+
+<span class="comment">// 方式B：ETag / If-None-Match（更精确）</span>
+HTTP/1.1 <span class="number">200</span> OK
+ETag: <span class="string">"686897696a7c876b7e"</span>
+
+GET /style.css HTTP/1.1
+If-None-Match: <span class="string">"686897696a7c876b7e"</span>
+
+HTTP/1.1 <span class="number">304</span> Not Modified</code></pre>
+
+                <h4>2.5.2 Cache-Control指令</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指令</th>
+                            <th>作用</th>
+                            <th>使用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>max-age</strong></td>
+                            <td>缓存最大时间（秒）</td>
+                            <td>静态资源</td>
+                        </tr>
+                        <tr>
+                            <td><strong>no-cache</strong></td>
+                            <td>需要验证后才能使用</td>
+                            <td>频繁更新的资源</td>
+                        </tr>
+                        <tr>
+                            <td><strong>no-store</strong></td>
+                            <td>完全禁止缓存</td>
+                            <td>敏感信息</td>
+                        </tr>
+                        <tr>
+                            <td><strong>public</strong></td>
+                            <td>可被任何缓存存储</td>
+                            <td>公共资源</td>
+                        </tr>
+                        <tr>
+                            <td><strong>private</strong></td>
+                            <td>仅浏览器缓存</td>
+                            <td>用户私有数据</td>
+                        </tr>
+                        <tr>
+                            <td><strong>must-revalidate</strong></td>
+                            <td>过期必须验证</td>
+                            <td>重要资源</td>
+                        </tr>
+                        <tr>
+                            <td><strong>immutable</strong></td>
+                            <td>永不改变</td>
+                            <td>带版本号的资源</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>2.5.3 缓存决策流程</h4>
+                <pre><code><span class="comment">/* 浏览器缓存决策 */</span>
+
+请求资源
+   |
+   v
+是否有缓存？
+   |           |
+  否          是
+   |           |
+   |           v
+   |     检查Cache-Control/Expires
+   |           |
+   |      是否过期？
+   |      |        |
+   |     否       是
+   |      |        |
+   |   使用缓存    v
+   |           是否有ETag/Last-Modified？
+   |                |              |
+   |               是             否
+   |                |              |
+   v                v              v
+发送请求      发送条件请求      发送请求
+   |                |              |
+   v                v              v
+返回完整资源   304/200       返回完整资源
+
+<span class="comment">/* 最佳实践 */</span>
+<span class="comment">// 静态资源（带版本号/哈希）</span>
+Cache-Control: public, max-age=<span class="number">31536000</span>, immutable
+<span class="comment">// 1年缓存，永不改变</span>
+
+<span class="comment">// HTML文件</span>
+Cache-Control: no-cache
+<span class="comment">// 每次验证</span>
+
+<span class="comment">// API响应</span>
+Cache-Control: private, no-cache
+<span class="comment">// 私有数据，每次验证</span>
+
+<span class="comment">// 敏感信息</span>
+Cache-Control: no-store, no-cache, must-revalidate
+<span class="comment">// 完全不缓存</span></code></pre>
+
+                <h3 id="connection">2.6 HTTP连接管理</h3>
+                
+                <h4>2.6.1 短连接 vs 长连接</h4>
+                <pre><code><span class="comment">/* HTTP/1.0 - 短连接 */</span>
+Client                    Server
+  |                          |
+  | TCP 3次握手              |
+  | &lt;--------------------&gt;   |
+  | GET /1.html              |
+  | -----------------------&gt; |
+  | 200 OK                   |
+  | &lt;----------------------- |
+  | TCP 4次挥手              |
+  | &lt;--------------------&gt;   |
+  |                          |
+  | TCP 3次握手（新连接）     |
+  | &lt;--------------------&gt;   |
+  | GET /2.html              |
+  | -----------------------&gt; |
+  <span class="comment">// 每个资源都需要新建连接</span>
+
+<span class="comment">/* HTTP/1.1 - 长连接（Keep-Alive）*/</span>
+Client                    Server
+  |                          |
+  | TCP 3次握手              |
+  | &lt;--------------------&gt;   |
+  | GET /1.html              |
+  |   Connection: keep-alive |
+  | -----------------------&gt; |
+  | 200 OK                   |
+  | &lt;----------------------- |
+  |                          |
+  | GET /2.html（复用连接）   |
+  | -----------------------&gt; |
+  | 200 OK                   |
+  | &lt;----------------------- |
+  |                          |
+  | GET /3.html              |
+  | -----------------------&gt; |
+  <span class="comment">// 一个TCP连接复用多次</span>
+
+<span class="comment">/* Keep-Alive参数 */</span>
+Connection: keep-alive
+Keep-Alive: timeout=<span class="number">5</span>, max=<span class="number">100</span>
+<span class="comment">// timeout: 空闲超时时间（秒）</span>
+<span class="comment">// max: 最大请求数</span></code></pre>
+
+                <h4>2.6.2 HTTP管道化（Pipelining）</h4>
+                <pre><code><span class="comment">/* HTTP/1.1管道化（默认禁用）*/</span>
+
+<span class="comment">// 非管道化：请求-响应-请求-响应</span>
+Client: REQ1 -------&gt; Server
+Client: &lt;------- RES1 Server
+Client: REQ2 -------&gt; Server
+Client: &lt;------- RES2 Server
+
+<span class="comment">// 管道化：批量请求-批量响应</span>
+Client: REQ1 -------&gt; Server
+Client: REQ2 -------&gt; Server  <span class="comment">// 不等RES1就发送</span>
+Client: REQ3 -------&gt; Server
+Client: &lt;------- RES1 Server
+Client: &lt;------- RES2 Server
+Client: &lt;------- RES3 Server
+
+<span class="comment">/* 管道化的问题 */</span>
+<span class="comment">// 1. 队头阻塞（Head-of-Line Blocking）</span>
+<span class="comment">//    如果RES1处理慢，RES2/RES3都要等待</span>
+<span class="comment">// 2. 服务器必须按顺序响应</span>
+<span class="comment">// 3. 幂等请求才安全（GET/HEAD）</span></code></pre>
+
+                <h4>2.6.3 HTTP/2多路复用</h4>
+                <pre><code><span class="comment">/* HTTP/2解决队头阻塞 */</span>
+
+<span class="comment">// 二进制分帧</span>
+HTTP/1.1: GET /index.html\r\n...  <span class="comment">// 文本协议</span>
+HTTP/2:   [Frame Header][Frame Payload]  <span class="comment">// 二进制帧</span>
+
+<span class="comment">// 多路复用（一个TCP连接，多个流）</span>
+         TCP Connection
+┌───────────────────────────┐
+│  Stream 1: /index.html    │
+│  Stream 3: /style.css     │
+│  Stream 5: /script.js     │
+│  Stream 7: /image.png     │
+└───────────────────────────┘
+
+<span class="comment">// 流的特点</span>
+<span class="comment">// - 每个流独立</span>
+<span class="comment">// - 可并发传输</span>
+<span class="comment">// - 流之间不阻塞</span>
+<span class="comment">// - 流有优先级</span>
+
+<span class="comment">/* 帧类型 */</span>
+DATA          <span class="comment">// 数据帧</span>
+HEADERS       <span class="comment">// 头部帧</span>
+PRIORITY      <span class="comment">// 优先级帧</span>
+RST_STREAM    <span class="comment">// 流终止帧</span>
+SETTINGS      <span class="comment">// 设置帧</span>
+PUSH_PROMISE  <span class="comment">// 服务器推送帧</span>
+PING          <span class="comment">// 心跳帧</span>
+GOAWAY        <span class="comment">// 连接终止帧</span>
+WINDOW_UPDATE <span class="comment">// 流量控制帧</span></code></pre>
+            </section>
+
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="restful">3.1 RESTful API设计</h3>
+                
+                <h4>3.1.1 REST原则</h4>
+                <div class="info-box note">
+                    <strong>📌 REST六大约束</strong>
+                    <ul>
+                        <li><strong>客户端-服务器</strong>：分离架构</li>
+                        <li><strong>无状态</strong>：每个请求独立完整</li>
+                        <li><strong>可缓存</strong>：响应可被缓存</li>
+                        <li><strong>分层系统</strong>：允许中间层</li>
+                        <li><strong>统一接口</strong>：资源标识、资源操作</li>
+                        <li><strong>按需代码</strong>：可选，可下载代码</li>
+                    </ul>
+                </div>
+
+                <h4>3.1.2 RESTful API设计最佳实践</h4>
+                <pre><code><span class="comment">/* 资源命名 */</span>
+<span class="comment">// 使用名词复数，不是动词</span>
+GET    /users          <span class="comment">// ✓ 获取用户列表</span>
+GET    /getUsers       <span class="comment">// ✗ 动词形式</span>
+
+<span class="comment">// 层级关系</span>
+GET    /users/<span class="number">123</span>/posts         <span class="comment">// 用户123的所有文章</span>
+GET    /users/<span class="number">123</span>/posts/<span class="number">456</span>    <span class="comment">// 用户123的文章456</span>
+
+<span class="comment">/* HTTP方法映射 */</span>
+GET    /users          <span class="comment">// 获取所有用户</span>
+GET    /users/<span class="number">123</span>     <span class="comment">// 获取单个用户</span>
+POST   /users          <span class="comment">// 创建用户</span>
+PUT    /users/<span class="number">123</span>     <span class="comment">// 完整更新用户</span>
+PATCH  /users/<span class="number">123</span>     <span class="comment">// 部分更新用户</span>
+DELETE /users/<span class="number">123</span>     <span class="comment">// 删除用户</span>
+
+<span class="comment">/* 状态码使用 */</span>
+POST   /users
+  Success: <span class="number">201</span> Created + Location header
+  Error:   <span class="number">400</span> Bad Request / <span class="number">409</span> Conflict
+
+GET    /users/<span class="number">123</span>
+  Success: <span class="number">200</span> OK
+  Error:   <span class="number">404</span> Not Found
+
+PUT    /users/<span class="number">123</span>
+  Success: <span class="number">200</span> OK / <span class="number">204</span> No Content
+  Error:   <span class="number">404</span> Not Found / <span class="number">400</span> Bad Request
+
+DELETE /users/<span class="number">123</span>
+  Success: <span class="number">204</span> No Content
+  Error:   <span class="number">404</span> Not Found
+
+<span class="comment">/* 版本管理 */</span>
+<span class="comment">// 方法1：URL版本</span>
+GET /api/v1/users
+GET /api/v2/users
+
+<span class="comment">// 方法2：Header版本</span>
+GET /api/users
+Accept: application/vnd.example.v1+json
+
+<span class="comment">/* 过滤、排序、分页 */</span>
+GET /users?status=active&amp;role=admin         <span class="comment">// 过滤</span>
+GET /users?sort=created_at&amp;order=desc        <span class="comment">// 排序</span>
+GET /users?page=<span class="number">2</span>&amp;limit=<span class="number">20</span>                 <span class="comment">// 分页</span>
+
+<span class="comment">/* 响应格式 */</span>
+{
+  <span class="string">"data"</span>: [
+    {
+      <span class="string">"id"</span>: <span class="number">123</span>,
+      <span class="string">"name"</span>: <span class="string">"John Doe"</span>,
+      <span class="string">"email"</span>: <span class="string">"john@example.com"</span>,
+      <span class="string">"created_at"</span>: <span class="string">"2023-12-20T10:00:00Z"</span>
+    }
+  ],
+  <span class="string">"meta"</span>: {
+    <span class="string">"page"</span>: <span class="number">1</span>,
+    <span class="string">"total_pages"</span>: <span class="number">5</span>,
+    <span class="string">"total_count"</span>: <span class="number">100</span>
+  },
+  <span class="string">"links"</span>: {
+    <span class="string">"self"</span>: <span class="string">"/api/users?page=1"</span>,
+    <span class="string">"next"</span>: <span class="string">"/api/users?page=2"</span>,
+    <span class="string">"prev"</span>: <span class="keyword">null</span>
+  }
+}</code></pre>
+
+                <h3 id="file-transfer">3.2 文件上传下载</h3>
+                
+                <h4>3.2.1 文件上传（multipart/form-data）</h4>
+                <pre><code><span class="comment">/* multipart/form-data格式 */</span>
+POST /upload HTTP/1.1
+Host: example.com
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Length: <span class="number">12345</span>
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name=<span class="string">"username"</span>
+
+john_doe
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name=<span class="string">"file"</span>; filename=<span class="string">"photo.jpg"</span>
+Content-Type: image/jpeg
+
+[binary data here]
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+<span class="comment">/* C++ libcurl上传示例 */</span>
+<span class="preprocessor">#include &lt;curl/curl.h&gt;</span>
+
+<span class="keyword">void</span> <span class="function">upload_file</span>(<span class="keyword">const char</span>* filepath) {
+    CURL *curl = <span class="function">curl_easy_init</span>();
+    
+    <span class="keyword">if</span> (curl) {
+        <span class="keyword">struct</span> <span class="type">curl_httppost</span> *formpost = NULL;
+        <span class="keyword">struct</span> <span class="type">curl_httppost</span> *lastptr = NULL;
+        
+        <span class="comment">// 添加表单字段</span>
+        <span class="function">curl_formadd</span>(&amp;formpost, &amp;lastptr,
+                     CURLFORM_COPYNAME, <span class="string">"username"</span>,
+                     CURLFORM_COPYCONTENTS, <span class="string">"john"</span>,
+                     CURLFORM_END);
+        
+        <span class="comment">// 添加文件</span>
+        <span class="function">curl_formadd</span>(&amp;formpost, &amp;lastptr,
+                     CURLFORM_COPYNAME, <span class="string">"file"</span>,
+                     CURLFORM_FILE, filepath,
+                     CURLFORM_END);
+        
+        <span class="function">curl_easy_setopt</span>(curl, CURLOPT_URL, <span class="string">"http://example.com/upload"</span>);
+        <span class="function">curl_easy_setopt</span>(curl, CURLOPT_HTTPPOST, formpost);
+        
+        CURLcode res = <span class="function">curl_easy_perform</span>(curl);
+        
+        <span class="function">curl_formfree</span>(formpost);
+        <span class="function">curl_easy_cleanup</span>(curl);
+    }
+}</code></pre>
+
+                <h4>3.2.2 断点续传</h4>
+                <pre><code><span class="comment">/* 下载续传 */</span>
+
+<span class="comment">// 1. 获取文件大小</span>
+HEAD /largefile.zip HTTP/1.1
+Host: example.com
+
+HTTP/1.1 <span class="number">200</span> OK
+Content-Length: <span class="number">104857600</span>  <span class="comment">// 100MB</span>
+Accept-Ranges: bytes        <span class="comment">// 支持范围请求</span>
+
+<span class="comment">// 2. 请求部分内容（假设已下载50MB）</span>
+GET /largefile.zip HTTP/1.1
+Host: example.com
+Range: bytes=<span class="number">52428800</span>-          <span class="comment">// 从50MB开始</span>
+
+HTTP/1.1 <span class="number">206</span> Partial Content
+Content-Range: bytes <span class="number">52428800</span>-<span class="number">104857599</span>/<span class="number">104857600</span>
+Content-Length: <span class="number">52428800</span>
+
+[remaining data]
+
+<span class="comment">/* 上传续传 */</span>
+
+<span class="comment">// 1. 查询已上传大小</span>
+HEAD /upload/file123 HTTP/1.1
+
+HTTP/1.1 <span class="number">200</span> OK
+Content-Length: <span class="number">52428800</span>  <span class="comment">// 已上传50MB</span>
+
+<span class="comment">// 2. 续传剩余部分</span>
+PUT /upload/file123 HTTP/1.1
+Content-Range: bytes <span class="number">52428800</span>-<span class="number">104857599</span>/<span class="number">104857600</span>
+
+[remaining data]
+
+HTTP/1.1 <span class="number">200</span> OK</code></pre>
+
+                <h3 id="websocket">3.3 WebSocket协议升级</h3>
+                
+                <h4>3.3.1 升级流程</h4>
+                <pre><code><span class="comment">/* WebSocket握手 */</span>
+
+<span class="comment">// 1. 客户端发起升级请求</span>
+GET /chat HTTP/1.1
+Host: example.com
+Upgrade: websocket                    <span class="comment">// 升级协议</span>
+Connection: Upgrade                   <span class="comment">// 连接升级</span>
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: <span class="number">13</span>
+
+<span class="comment">// 2. 服务器接受升级</span>
+HTTP/1.1 <span class="number">101</span> Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+
+<span class="comment">// 3. 升级成功，开始使用WebSocket帧</span>
+
+<span class="comment">/* Sec-WebSocket-Accept计算 */</span>
+<span class="comment">// Base64(SHA1(Sec-WebSocket-Key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))</span>
+
+<span class="comment">/* WebSocket帧结构 */</span>
+ <span class="number">0</span>                   <span class="number">1</span>                   <span class="number">2</span>                   <span class="number">3</span>
+ <span class="number">0</span> <span class="number">1</span> <span class="number">2</span> <span class="number">3</span> <span class="number">4</span> <span class="number">5</span> <span class="number">6</span> <span class="number">7</span> <span class="number">8</span> <span class="number">9</span> <span class="number">0</span> <span class="number">1</span> <span class="number">2</span> <span class="number">3</span> <span class="number">4</span> <span class="number">5</span> <span class="number">6</span> <span class="number">7</span> <span class="number">8</span> <span class="number">9</span> <span class="number">0</span> <span class="number">1</span> <span class="number">2</span> <span class="number">3</span> <span class="number">4</span> <span class="number">5</span> <span class="number">6</span> <span class="number">7</span> <span class="number">8</span> <span class="number">9</span> <span class="number">0</span> <span class="number">1</span>
++-+-+-+-+-------+-+-------------+-------------------------------+
+|F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+|I|S|S|S|  (<span class="number">4</span>)  |A|     (<span class="number">7</span>)     |             (<span class="number">16</span>/<span class="number">64</span>)           |
+|N|V|V|V|       |S|             |   (<span class="keyword">if</span> payload len==<span class="number">126</span>/<span class="number">127</span>)   |
+| |<span class="number">1</span>|<span class="number">2</span>|<span class="number">3</span>|       |K|             |                               |
++-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+|     Extended payload length continued, <span class="keyword">if</span> payload len == <span class="number">127</span>  |
++ - - - - - - - - - - - - - - - +-------------------------------+
+|                               |Masking-key, <span class="keyword">if</span> MASK set to <span class="number">1</span>  |
++-------------------------------+-------------------------------+
+| Masking-key (continued)       |          Payload Data         |
++-------------------------------- - - - - - - - - - - - - - - - +</code></pre>
+
+                <h3 id="proxy">3.4 反向代理与负载均衡</h3>
+                
+                <h4>3.4.1 Nginx反向代理配置</h4>
+                <pre><code><span class="comment"># nginx.conf</span>
+
+http {
+    <span class="comment"># 上游服务器组</span>
+    upstream backend {
+        server <span class="number">192.168.1.10</span>:<span class="number">8080</span> weight=<span class="number">3</span>;  <span class="comment"># 权重3</span>
+        server <span class="number">192.168.1.11</span>:<span class="number">8080</span> weight=<span class="number">2</span>;
+        server <span class="number">192.168.1.12</span>:<span class="number">8080</span> backup;     <span class="comment"># 备用</span>
+        
+        keepalive <span class="number">32</span>;  <span class="comment"># 保持32个长连接</span>
+    }
+    
+    server {
+        listen <span class="number">80</span>;
+        server_name example.com;
+        
+        location / {
+            proxy_pass http://backend;
+            
+            <span class="comment"># 代理Header</span>
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            <span class="comment"># 超时设置</span>
+            proxy_connect_timeout <span class="number">60s</span>;
+            proxy_send_timeout <span class="number">60s</span>;
+            proxy_read_timeout <span class="number">60s</span>;
+            
+            <span class="comment"># 缓存</span>
+            proxy_buffering on;
+            proxy_buffer_size <span class="number">4k</span>;
+            proxy_buffers <span class="number">8</span> <span class="number">4k</span>;
+        }
+    }
+}</code></pre>
+
+                <h4>3.4.2 负载均衡算法</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>算法</th>
+                            <th>描述</th>
+                            <th>适用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>轮询（Round Robin）</strong></td>
+                            <td>顺序分配</td>
+                            <td>服务器性能相同</td>
+                        </tr>
+                        <tr>
+                            <td><strong>加权轮询</strong></td>
+                            <td>根据权重分配</td>
+                            <td>服务器性能差异</td>
+                        </tr>
+                        <tr>
+                            <td><strong>IP哈希</strong></td>
+                            <td>同IP固定服务器</td>
+                            <td>需要会话保持</td>
+                        </tr>
+                        <tr>
+                            <td><strong>最少连接</strong></td>
+                            <td>选择连接数最少</td>
+                            <td>长连接场景</td>
+                        </tr>
+                        <tr>
+                            <td><strong>响应时间</strong></td>
+                            <td>选择响应最快</td>
+                            <td>动态负载</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧</h2>
+                
+                <h3 id="performance">4.1 HTTP性能优化</h3>
+                
+                <h4>4.1.1 减少请求数</h4>
+                <pre><code><span class="comment">/* 1. 资源合并 */</span>
+<span class="comment">// 合并前：10个CSS文件</span>
+&lt;link rel=<span class="string">"stylesheet"</span> href=<span class="string">"reset.css"</span>&gt;
+&lt;link rel=<span class="string">"stylesheet"</span> href=<span class="string">"typography.css"</span>&gt;
+...
+
+<span class="comment">// 合并后：1个CSS文件</span>
+&lt;link rel=<span class="string">"stylesheet"</span> href=<span class="string">"bundle.css"</span>&gt;
+
+<span class="comment">/* 2. CSS Sprites（图片精灵）*/</span>
+<span class="comment">// 多个小图标合并为一张大图</span>
+.icon-home {
+    background: url(sprites.png) <span class="number">0</span> <span class="number">0</span>;
+}
+.icon-user {
+    background: url(sprites.png) -<span class="number">20px</span> <span class="number">0</span>;
+}
+
+<span class="comment">/* 3. Data URI（嵌入小图片）*/</span>
+<span class="comment">// 小于10KB的图片可直接嵌入CSS/HTML</span>
+.logo {
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANS...);
+}
+
+<span class="comment">/* 4. HTTP/2服务器推送 */</span>
+<span class="comment">// 服务器主动推送资源</span>
+Link: &lt;/style.css&gt;; rel=preload; as=style
+Link: &lt;/script.js&gt;; rel=preload; as=script</code></pre>
+
+                <h4>4.1.2 减少资源大小</h4>
+                <pre><code><span class="comment">/* 1. 压缩 */</span>
+<span class="comment">// Gzip压缩</span>
+Accept-Encoding: gzip, deflate, br
+Content-Encoding: gzip  <span class="comment">// 压缩率通常70-90%</span>
+
+<span class="comment">// Brotli压缩（更高压缩率）</span>
+Content-Encoding: br    <span class="comment">// 比gzip再小15-25%</span>
+
+<span class="comment">/* 2. 代码压缩 */</span>
+<span class="comment">// JavaScript: UglifyJS, Terser</span>
+<span class="comment">// CSS: cssnano</span>
+<span class="comment">// HTML: html-minifier</span>
+
+<span class="comment">/* 3. 图片优化 */</span>
+<span class="comment">// WebP格式（比JPEG小25-35%）</span>
+&lt;picture&gt;
+  &lt;source srcset=<span class="string">"image.webp"</span> type=<span class="string">"image/webp"</span>&gt;
+  &lt;img src=<span class="string">"image.jpg"</span> alt=<span class="string">"fallback"</span>&gt;
+&lt;/picture&gt;
+
+<span class="comment">// 响应式图片</span>
+&lt;img srcset=<span class="string">"small.jpg 480w, medium.jpg 800w, large.jpg 1200w"</span>
+     sizes=<span class="string">"(max-width: 600px) 480px, 800px"</span>&gt;</code></pre>
+
+                <h4>4.1.3 缓存优化</h4>
+                <pre><code><span class="comment">/* 1. 文件指纹/版本号 */</span>
+<span class="comment">// 在文件名中加入哈希值</span>
+&lt;script src=<span class="string">"bundle.a3f2b1c9.js"</span>&gt;&lt;/script&gt;
+
+<span class="comment">// 设置长时间缓存</span>
+Cache-Control: public, max-age=<span class="number">31536000</span>, immutable
+
+<span class="comment">/* 2. CDN加速 */</span>
+<span class="comment">// 使用内容分发网络</span>
+&lt;script src=<span class="string">"https://cdn.example.com/jquery.min.js"</span>&gt;&lt;/script&gt;
+
+<span class="comment">/* 3. Service Worker缓存 */</span>
+<span class="comment">// 离线缓存、预缓存</span>
+self.<span class="function">addEventListener</span>(<span class="string">'fetch'</span>, event =&gt; {
+  event.<span class="function">respondWith</span>(
+    caches.<span class="function">match</span>(event.request)
+      .<span class="function">then</span>(response =&gt; response || <span class="function">fetch</span>(event.request))
+  );
+});</code></pre>
+
+                <h4>4.1.4 连接优化</h4>
+                <pre><code><span class="comment">/* 1. DNS预解析 */</span>
+&lt;link rel=<span class="string">"dns-prefetch"</span> href=<span class="string">"//cdn.example.com"</span>&gt;
+
+<span class="comment">/* 2. TCP预连接 */</span>
+&lt;link rel=<span class="string">"preconnect"</span> href=<span class="string">"https://api.example.com"</span>&gt;
+
+<span class="comment">/* 3. 资源预加载 */</span>
+&lt;link rel=<span class="string">"preload"</span> href=<span class="string">"style.css"</span> as=<span class="string">"style"</span>&gt;
+&lt;link rel=<span class="string">"preload"</span> href=<span class="string">"script.js"</span> as=<span class="string">"script"</span>&gt;
+
+<span class="comment">/* 4. HTTP/2多路复用 */</span>
+<span class="comment">// 一个TCP连接传输所有资源</span>
+<span class="comment">// 无需域名分片（domain sharding）</span></code></pre>
+
+                <h3 id="security">4.2 HTTP安全防护</h3>
+                
+                <h4>4.2.1 HTTPS加密</h4>
+                <pre><code><span class="comment">/* TLS握手过程 */</span>
+
+Client                             Server
+  |                                   |
+  | 1. ClientHello                    |
+  |   - TLS版本                       |
+  |   - 支持的密码套件              |
+  |   - 随机数                        |
+  | --------------------------------&gt; |
+  |                                   |
+  | 2. ServerHello                    |
+  |   - 选择的密码套件              |
+  |   - 服务器证书                   |
+  |   - 随机数                        |
+  | &lt;-------------------------------- |
+  |                                   |
+  | 3. 验证证书                      |
+  |   - 检查证书链                   |
+  |   - 验证签名                     |
+  |   - 检查有效期                  |
+  |                                   |
+  | 4. 生成会话密钥                 |
+  |   - 使用服务器公钥加密         |
+  | --------------------------------&gt; |
+  |                                   |
+  | 5. 开始加密通信                 |
+  | &lt;-------------------------------&gt; |
+
+<span class="comment">/* HTTPS配置最佳实践 */</span>
+<span class="comment"># Nginx配置</span>
+server {
+    listen <span class="number">443</span> ssl http2;
+    
+    <span class="comment"># 证书配置</span>
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    <span class="comment"># TLS版本</span>
+    ssl_protocols TLSv1.<span class="number">2</span> TLSv1.<span class="number">3</span>;
+    
+    <span class="comment"># 密码套件</span>
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    
+    <span class="comment"># 会话缓存</span>
+    ssl_session_cache shared:SSL:<span class="number">10m</span>;
+    ssl_session_timeout <span class="number">10m</span>;
+    
+    <span class="comment"># OCSP Stapling</span>
+    ssl_stapling on;
+    ssl_stapling_verify on;
+}</code></pre>
+
+                <h4>4.2.2 常见攻击防御</h4>
+                <pre><code><span class="comment">/* 1. XSS（跨站脚本攻击）防御 */</span>
+<span class="comment">// Content Security Policy</span>
+Content-Security-Policy: default-src <span class="string">'self'</span>; 
+                         script-src <span class="string">'self'</span> https://trusted.cdn.com;
+                         style-src <span class="string">'self'</span> <span class="string">'unsafe-inline'</span>;
+
+<span class="comment">// X-XSS-Protection</span>
+X-XSS-Protection: <span class="number">1</span>; mode=block
+
+<span class="comment">/* 2. CSRF（跨站请求伪造）防御 */</span>
+<span class="comment">// SameSite Cookie</span>
+Set-Cookie: session=abc123; SameSite=Strict; HttpOnly; Secure
+
+<span class="comment">// CSRF Token</span>
+&lt;form action=<span class="string">"/transfer"</span> method=<span class="string">"POST"</span>&gt;
+  &lt;input type=<span class="string">"hidden"</span> name=<span class="string">"csrf_token"</span> value=<span class="string">"random_token"</span>&gt;
+&lt;/form&gt;
+
+<span class="comment">/* 3. 点击劫持防御 */</span>
+X-Frame-Options: DENY                <span class="comment">// 禁止嵌入iframe</span>
+X-Frame-Options: SAMEORIGIN          <span class="comment">// 仅同源允许</span>
+X-Frame-Options: ALLOW-FROM https://trusted.com
+
+<span class="comment">// 或使用CSP</span>
+Content-Security-Policy: frame-ancestors <span class="string">'self'</span>
+
+<span class="comment">/* 4. SQL注入防御 */</span>
+<span class="comment">// 使用参数化查询</span>
+<span class="keyword">const char</span>* sql = <span class="string">"SELECT * FROM users WHERE id = ?"</span>;
+<span class="function">prepare_statement</span>(sql);
+<span class="function">bind_parameter</span>(<span class="number">1</span>, user_id);
+
+<span class="comment">/* 5. 防盗链 */</span>
+Referer-Policy: no-referrer-when-downgrade
+
+<span class="comment">// 检查Referer</span>
+<span class="keyword">if</span> (referer != <span class="string">"https://example.com"</span>) {
+    <span class="keyword">return</span> <span class="number">403</span>;
+}</code></pre>
+
+                <h4>4.2.3 安全Header</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Header</th>
+                            <th>作用</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>HSTS</strong></td>
+                            <td>强制HTTPS</td>
+                            <td>Strict-Transport-Security: max-age=31536000</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CSP</strong></td>
+                            <td>内容安全策略</td>
+                            <td>Content-Security-Policy: default-src 'self'</td>
+                        </tr>
+                        <tr>
+                            <td><strong>X-Content-Type-Options</strong></td>
+                            <td>禁止MIME嗅探</td>
+                            <td>X-Content-Type-Options: nosniff</td>
+                        </tr>
+                        <tr>
+                            <td><strong>X-Frame-Options</strong></td>
+                            <td>防点击劫持</td>
+                            <td>X-Frame-Options: DENY</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Referrer-Policy</strong></td>
+                            <td>控制Referer</td>
+                            <td>Referrer-Policy: no-referrer</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Permissions-Policy</strong></td>
+                            <td>功能权限</td>
+                            <td>Permissions-Policy: geolocation=()</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="http2-features">4.3 HTTP/2核心特性</h3>
+                
+                <h4>4.3.1 头部压缩（HPACK）</h4>
+                <pre><code><span class="comment">/* HPACK原理 */</span>
+
+<span class="comment">// 1. 静态表（61个预定义Header</span>
+Index | Header Name      | Header Value
+<span class="number">2</span>     | :method          | GET
+<span class="number">3</span>     | :method          | POST
+<span class="number">4</span>     | :path            | /
+<span class="number">8</span>     | :status          | <span class="number">200</span>
+...
+
+<span class="comment">// 2. 动态表：存储自定义Header</span>
+<span class="comment">// 首次发送：</span>
+:authority: example.com
+custom-header: custom-value
+
+<span class="comment">// 加入动态表，索引为62</span>
+
+<span class="comment">// 再次发送相同Header：</span>
+<span class="number">62</span>  <span class="comment">// 仅传输索引，节省带宽</span>
+
+<span class="comment">/* HPACK压缩效果 */</span>
+<span class="comment">// HTTP/1.1 Header：~500字节</span>
+GET /index.html HTTP/1.1
+Host: example.com
+User-Agent: Mozilla/5.0...
+Accept: text/html,application/xhtml+xml...
+Accept-Language: en-US,en;q=<span class="number">0.9</span>
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+
+<span class="comment">// HTTP/2 HPACK：~50字节（90%减少）</span>
+<span class="number">82</span> <span class="number">86</span> <span class="number">84</span> <span class="number">41</span> <span class="number">8a</span> <span class="number">08</span> <span class="number">9d</span> <span class="number">5c</span> <span class="number">0b</span> <span class="number">81</span> <span class="number">70</span> <span class="number">dc</span> <span class="number">78</span> <span class="number">0f</span> <span class="number">03</span> ...</code></pre>
+
+                <h4>4.3.2 服务器推送（Server Push）</h4>
+                <pre><code><span class="comment">/* Server Push原理 */</span>
+
+Client                                 Server
+  |                                       |
+  | GET /index.html                       |
+  | ------------------------------------&gt; |
+  |                                       |
+  | PUSH_PROMISE stream_id=<span class="number">2</span>            |
+  |   :path: /style.css                  |
+  | &lt;------------------------------------ | <span class="comment">// 服务器承诺推送</span>
+  |                                       |
+  | HEADERS + DATA stream_id=<span class="number">1</span>         |
+  |   (index.html content)               |
+  | &lt;------------------------------------ |
+  |                                       |
+  | HEADERS + DATA stream_id=<span class="number">2</span>         |
+  |   (style.css content)                |
+  | &lt;------------------------------------ | <span class="comment">// 推送CSS</span>
+  |                                       |
+
+<span class="comment">/* Nginx配置Server Push */</span>
+server {
+    listen <span class="number">443</span> ssl http2;
+    
+    location / {
+        <span class="comment"># 自动推送</span>
+        http2_push /style.css;
+        http2_push /script.js;
+        
+        <span class="comment"># 或使用Link header</span>
+        add_header Link <span class="string">"&lt;/style.css&gt;; rel=preload; as=style"</span>;
+    }
+}
+
+<span class="comment">/* 注意事项 */</span>
+<span class="comment">// 1. 避免过度推送（浪费带宽）</span>
+<span class="comment">// 2. 客户端可以拒绝推送（RST_STREAM）</span>
+<span class="comment">// 3. 推送的资源应该是高优先级的</span></code></pre>
+
+                <h4>4.3.3 流优先级</h4>
+                <pre><code><span class="comment">/* 优先级和依赖 */</span>
+
+<span class="comment">// 优先级树示例</span>
+        Stream <span class="number">0</span> (虚拟根)
+           |
+    +------+------+
+    |             |
+Stream <span class="number">1</span>     Stream <span class="number">3</span>
+(HTML)       (CSS)
+weight=<span class="number">16</span>    weight=<span class="number">16</span>
+    |
+    |
+Stream <span class="number">5</span>
+(JS)
+weight=<span class="number">8</span>
+
+<span class="comment">/* PRIORITY帧 */</span>
++-----------------------------------------------+
+|E|                 Stream Dependency (<span class="number">31</span>)      |
++-------+---------------------------------------+
+| Weight (<span class="number">8</span>)  |  <span class="comment">// 1-256，默认16</span>
++---------------+
+
+<span class="comment">// E: Exclusive标志</span>
+<span class="comment">// Stream Dependency: 依赖的流ID</span>
+<span class="comment">// Weight: 权重</span></code></pre>
+
+                <h3 id="http3-quic">4.4 HTTP/3与QUIC</h3>
+                
+                <h4>4.4.1 HTTP/3优势</h4>
+                <pre><code><span class="comment">/* HTTP/3 vs HTTP/2 */</span>
+
+<span class="comment">// HTTP/2的问题：TCP队头阻塞</span>
+TCP Layer:  [Packet <span class="number">1</span>] [Packet <span class="number">2</span> Lost] [Packet <span class="number">3</span>] [Packet <span class="number">4</span>]
+                                   ↓
+                            等待重传↓
+                                   ↓
+HTTP/2:     Stream <span class="number">1</span>   Stream <span class="number">2</span>   Stream <span class="number">3</span>   Stream <span class="number">4</span>
+            阻塞     阻塞     阻塞     阻塞
+
+<span class="comment">// HTTP/3：基于UDP，流独立</span>
+UDP Layer:  [Packet <span class="number">1</span>] [Packet <span class="number">2</span> Lost] [Packet <span class="number">3</span>] [Packet <span class="number">4</span>]
+                                   ↓
+QUIC:       Stream <span class="number">1</span>   Stream <span class="number">2</span>   Stream <span class="number">3</span>   Stream <span class="number">4</span>
+            ✓        重传     ✓        ✓
+                     （不影响其他流）
+
+<span class="comment">/* QUIC特性 */</span>
+<span class="number">1</span>. <span class="number">0</span>-RTT建立连接
+   <span class="comment">// TCP+TLS: 3 RTT</span>
+   <span class="comment">// QUIC: 0-1 RTT</span>
+
+<span class="number">2</span>. 连接迁移
+   <span class="comment">// 使用Connection ID，不IP/端口</span>
+   <span class="comment">// Wi-Fi -&gt; 4G切换不断开</span>
+
+<span class="number">3</span>. 内置加密
+   <span class="comment">// TLS 1.3集成</span>
+
+<span class="number">4</span>. 改进的拥塞控制
+   <span class="comment">// BBR算法</span></code></pre>
+
+                <h4>4.4.2 QUIC框架结构</h4>
+                <pre><code><span class="comment">/* QUIC协议堆栈 */</span>
+
++---------------------------+
+|      HTTP/3 (RFC 9114)    |  <span class="comment">// 应用层</span>
++---------------------------+
+|      QPACK (RFC 9204)     |  <span class="comment">// 头部压缩</span>
++---------------------------+
+|       QUIC (RFC 9000)     |  <span class="comment">// 传输层</span>
+|  - 连接管理               |
+|  - 流管理                 |
+|  - 可靠传输               |
+|  - 拥塞控制               |
++---------------------------+
+|       TLS 1.3             |  <span class="comment">// 加密层</span>
++---------------------------+
+|          UDP              |  <span class="comment">// 网络层</span>
++---------------------------+
+
+<span class="comment">/* QUIC包结构 */</span>
++-+-+-+-+-+-+-+-+
+|1|1|T T|R R|P P|  <span class="comment">// Header Form</span>
++-+-+-+-+-+-+-+-+
+|Version (<span class="number">32</span>)   |  <span class="comment">// QUIC版本</span>
++-+-+-+-+-+-+-+-+
+|DCID Len (<span class="number">8</span>)  |  <span class="comment">// 目标连接ID长度</span>
++-+-+-+-+-+-+-+-+
+|Destination  |  <span class="comment">// 目标连接ID</span>
+|Connection ID|</code></pre>
+
+                <h3 id="debugging">4.5 HTTP调试技巧</h3>
+                
+                <h4>4.5.1 命令行工具</h4>
+                <pre><code><span class="comment">/* 1. curl - 强大的HTTP客户端 */</span>
+
+<span class="comment"># 基本请求</span>
+curl https://api.example.com/users
+
+<span class="comment"># 显示详细信息</span>
+curl -v https://api.example.com/users
+
+<span class="comment"># POST请求</span>
+curl -X POST https://api.example.com/users \
+     -H <span class="string">"Content-Type: application/json"</span> \
+     -d <span class="string">'{"name":"John","email":"john@example.com"}'</span>
+
+<span class="comment"># 设置Header</span>
+curl -H <span class="string">"Authorization: Bearer token123"</span> \
+     -H <span class="string">"Accept: application/json"</span> \
+     https://api.example.com/profile
+
+<span class="comment"># 上传文件</span>
+curl -F <span class="string">"file=@photo.jpg"</span> https://api.example.com/upload
+
+<span class="comment"># 保存响应</span>
+curl -o output.html https://example.com
+
+<span class="comment"># 跟随重定向</span>
+curl -L https://short.url/abc123
+
+<span class="comment"># 显示Header</span>
+curl -I https://example.com
+
+<span class="comment"># 设置超时</span>
+curl --connect-timeout <span class="number">10</span> --max-time <span class="number">30</span> https://slow.server
+
+<span class="comment">/* 2. httpie - 更友好的命令行工具 */</span>
+
+<span class="comment"># GET请求</span>
+http GET https://api.example.com/users
+
+<span class="comment"># POST JSON</span>
+http POST https://api.example.com/users \
+     name=<span class="string">"John"</span> email=<span class="string">"john@example.com"</span>
+
+<span class="comment"># 设置Header</span>
+http GET https://api.example.com/profile \
+     Authorization:<span class="string">"Bearer token123"</span>
+
+<span class="comment">/* 3. tcpdump - 抓包工具 */</span>
+
+<span class="comment"># 抓取HTTP流量</span>
+sudo tcpdump -i any -A <span class="string">'tcp port 80'</span>
+
+<span class="comment"># 抓取并保存</span>
+sudo tcpdump -i eth0 -w capture.pcap <span class="string">'port 443'</span>
+
+<span class="comment">/* 4. openssl - 测试HTTPS */</span>
+
+<span class="comment"># 查看证书</span>
+openssl s_client -connect example.com:<span class="number">443</span> -showcerts
+
+<span class="comment"># 测试TLS版本</span>
+openssl s_client -connect example.com:<span class="number">443</span> -tls1_2</code></pre>
+
+                <h4>4.5.2 浏览器工具</h4>
+                <pre><code><span class="comment">/* Chrome DevTools */</span>
+
+<span class="comment">// 1. Network面板</span>
+<span class="comment">//    - 查看请求/响应Header</span>
+<span class="comment">//    - 分析请求时间</span>
+<span class="comment">//    - 查看缓存状态</span>
+<span class="comment">//    - 导出HAR文件</span>
+
+<span class="comment">// 2. 过滤请求</span>
+<span class="comment">//    - 按类型：XHR, JS, CSS, Img</span>
+<span class="comment">//    - 按域名：domain:example.com</span>
+<span class="comment">//    - 按状态码：status-code:404</span>
+
+<span class="comment">// 3. Throttling（限速模拟）</span>
+<span class="comment">//    - Fast 3G</span>
+<span class="comment">//    - Slow 3G</span>
+<span class="comment">//    - Offline</span>
+
+<span class="comment">// 4. 请求阻断</span>
+<span class="comment">//    - 右键 -&gt; Block request URL</span>
+
+<span class="comment">/* Performance分析 */</span>
+<span class="comment">// 1. Lighthouse评分</span>
+<span class="comment">//    - Performance</span>
+<span class="comment">//    - Best Practices</span>
+<span class="comment">//    - SEO</span>
+
+<span class="comment">// 2. 关键指标</span>
+FCP  - First Contentful Paint    <span class="comment">// 首次内容绘制</span>
+LCP  - Largest Contentful Paint  <span class="comment">// 最大内容绘制</span>
+FID  - First Input Delay         <span class="comment">// 首次输入延迟</span>
+CLS  - Cumulative Layout Shift   <span class="comment">// 累计布局偏移</span>
+TTFB - Time to First Byte        <span class="comment">// 首字节时间</span></code></pre>
+            </section>
+
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                
+                <h3>📖 RFC文档</h3>
+                <ul>
+                    <li><a href="https://tools.ietf.org/html/rfc2616">RFC 2616 - HTTP/1.1</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc7540">RFC 7540 - HTTP/2</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc9114">RFC 9114 - HTTP/3</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc9000">RFC 9000 - QUIC</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc6265">RFC 6265 - HTTP Cookie</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc7234">RFC 7234 - HTTP Caching</a></li>
+                </ul>
+
+                <h3>📘 经典书籍</h3>
+                <ul>
+                    <li><strong>HTTP权威指南</strong> - David Gourley, Brian Totty</li>
+                    <li><strong>图解HTTP</strong> - 上野宣</li>
+                    <li><strong>Web性能权威指南</strong> - Ilya Grigorik</li>
+                    <li><strong>High Performance Browser Networking</strong> - Ilya Grigorik</li>
+                </ul>
+
+                <h3>🔗 在线资源</h3>
+                <ul>
+                    <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP">MDN Web Docs - HTTP</a></li>
+                    <li><a href="https://http2.github.io/">HTTP/2官方文档</a></li>
+                    <li><a href="https://www.chromium.org/quic">Chromium QUIC</a></li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        function generateTOC() {
+            const toc = document.getElementById('toc');
+            const headings = document.querySelectorAll('main h2, main h3');
+            
+            headings.forEach(heading => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.textContent = heading.textContent;
+                a.href = '#' + heading.id;
+                
+                if (heading.tagName === 'H3') {
+                    li.style.paddingLeft = '1rem';
+                    a.style.fontSize = '0.9em';
+                }
+                
+                li.appendChild(a);
+                toc.appendChild(li);
+            });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function highlightCurrentSection() {
+            const sections = document.querySelectorAll('section');
+            const tocLinks = document.querySelectorAll('.toc a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.parentElement.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.parentElement.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            if (window.scrollY > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+            highlightCurrentSection();
+        });
+
+        // 页面加载后生成目录
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTOC();
+        });
+    </script>
+</body>
+</html>

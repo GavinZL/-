@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS系统底层内存管理详解 - 从libmalloc到应用层</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif; 
+            line-height: 1.8; 
+            color: #2c3e50; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 20px; 
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); 
+            overflow: hidden; 
+        }
+        header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 60px 40px; 
+            text-align: center; 
+        }
+        header h1 { font-size: 2.8em; margin-bottom: 15px; font-weight: 700; }
+        
+        nav { 
+            background: #f8f9fa; 
+            padding: 25px 40px; 
+            border-bottom: 3px solid #667eea; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100;
+        }
+        nav h2 { color: #667eea; font-size: 1.3em; margin-bottom: 15px; }
+        nav ul { 
+            list-style: none; 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        nav a { 
+            text-decoration: none; 
+            color: #667eea; 
+            padding: 10px 18px; 
+            border-radius: 8px; 
+            transition: all 0.3s; 
+            font-weight: 500;
+            display: block;
+        }
+        nav a:hover { background: #667eea; color: white; }
+        
+        .content { padding: 50px; }
+        section { margin-bottom: 70px; scroll-margin-top: 100px; }
+        
+        h2 { color: #667eea; font-size: 2.2em; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 4px solid #667eea; }
+        h3 { color: #764ba2; font-size: 1.6em; margin: 35px 0 20px 0; padding-left: 20px; border-left: 5px solid #764ba2; }
+        h4 { color: #34495e; font-size: 1.3em; margin: 25px 0 15px 0; padding-left: 15px; }
+        p { margin-bottom: 18px; line-height: 1.9; }
+        
+        .highlight { 
+            background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin: 25px 0; 
+            border-left: 6px solid #667eea;
+        }
+        
+        .code-block { 
+            background: #282c34; 
+            color: #abb2bf; 
+            padding: 25px; 
+            border-radius: 12px; 
+            overflow-x: auto; 
+            margin: 25px 0; 
+            font-family: 'Monaco', 'Consolas', monospace; 
+            font-size: 14px; 
+            line-height: 1.8;
+            position: relative;
+        }
+        .code-block::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: #5c6370;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .code-block pre { margin: 0; white-space: pre; word-wrap: normal; }
+        
+        .keyword { color: #c678dd; font-weight: 600; }
+        .type { color: #e5c07b; font-weight: 500; }
+        .function { color: #61afef; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .number { color: #d19a66; }
+        .operator { color: #56b6c2; }
+        .property { color: #e06c75; }
+        .variable { color: #abb2bf; }
+        .macro { color: #e06c75; font-weight: 600; }
+        
+        table { width: 100%; border-collapse: collapse; margin: 25px 0; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 16px 20px; text-align: left; border-bottom: 1px solid #ecf0f1; }
+        th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+        
+        .flow-diagram { 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
+            border: 3px solid #667eea; 
+            border-radius: 15px; 
+            padding: 35px; 
+            margin: 30px 0; 
+            text-align: center;
+        }
+        .flow-step { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 18px 30px; 
+            border-radius: 10px; 
+            display: inline-block; 
+            margin: 12px; 
+            font-weight: 500;
+        }
+        .flow-arrow { font-size: 2.5em; color: #667eea; display: block; margin: 10px 0; font-weight: bold; }
+        
+        .tree { background: #f8f9fa; padding: 25px; border-radius: 10px; margin: 25px 0; border: 2px solid #e0e0e0; }
+        .tree ul { list-style: none; padding-left: 25px; margin: 10px 0; }
+        .tree li { margin: 8px 0; position: relative; padding-left: 25px; }
+        .tree li::before { content: "├─"; position: absolute; left: 0; color: #667eea; font-weight: bold; }
+        .tree li:last-child::before { content: "└─"; }
+        
+        ul, ol { margin: 18px 0 18px 35px; }
+        li { margin-bottom: 12px; line-height: 1.8; }
+        
+        .note { background: #fff3cd; border-left: 6px solid #ffc107; padding: 20px; border-radius: 8px; margin: 25px 0; }
+        .warning { background: #f8d7da; border-left: 6px solid #dc3545; padding: 20px; border-radius: 8px; margin: 25px 0; }
+        .tip { background: #d1ecf1; border-left: 6px solid #17a2b8; padding: 20px; border-radius: 8px; margin: 25px 0; }
+        
+        .memory-layout {
+            background: #2c3e50;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 25px 0;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .memory-layout .addr { color: #e74c3c; font-weight: bold; }
+        .memory-layout .region { color: #3498db; font-weight: bold; }
+        .memory-layout .metadata { color: #f39c12; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧠 iOS系统底层内存管理详解</h1>
+            <p>从libmalloc到应用层 · 内核到用户空间 · 系统工程师完整视角</p>
+        </header>
+
+        <nav>
+            <h2>📑 目录导航</h2>
+            <ul>
+                <li><a href="#overview">概念与背景</a></li>
+                <li><a href="#architecture">内存管理架构</a></li>
+                <li><a href="#libmalloc">libmalloc机制</a></li>
+                <li><a href="#tiny">Tiny分配器</a></li>
+                <li><a href="#magazine">Magazine机制</a></li>
+                <li><a href="#arc">ARC引用计数</a></li>
+                <li><a href="#weak">weak原理</a></li>
+                <li><a href="#kernel">内核内存管理</a></li>
+                <li><a href="#security">安全机制</a></li>
+                <li><a href="#practice">最佳实践</a></li>
+            </ul>
+        </nav>
+
+        <div class="content">
+            <section id="overview">
+                <h2>一、概念与背景</h2>
+                
+                <h3>1.1 iOS内存管理层次架构</h3>
+                <div class="tree">
+                    <ul>
+                        <li><strong>硬件层</strong>
+                            <ul>
+                                <li>物理内存 (DRAM)</li>
+                                <li>MMU + TLB</li>
+                                <li>Cache L1/L2/L3</li>
+                            </ul>
+                        </li>
+                        <li><strong>内核层 (XNU)</strong>
+                            <ul>
+                                <li>VM Subsystem</li>
+                                <li>Zone Allocator</li>
+                                <li>kalloc_type</li>
+                            </ul>
+                        </li>
+                        <li><strong>用户空间</strong>
+                            <ul>
+                                <li>libmalloc
+                                    <ul>
+                                        <li>Nano (≤256B)</li>
+                                        <li>Tiny (≤1008B)</li>
+                                        <li>Small (≤15KB)</li>
+                                        <li>Large (>128KB)</li>
+                                    </ul>
+                                </li>
+                                <li>libobjc
+                                    <ul>
+                                        <li>ARC</li>
+                                        <li>weak表</li>
+                                        <li>AutoreleasePool</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <h3>1.2 内存安全分类</h3>
+                <table>
+                    <tr>
+                        <th>类型</th>
+                        <th>含义</th>
+                        <th>典型漏洞</th>
+                        <th>iOS防护</th>
+                    </tr>
+                    <tr>
+                        <td>时间安全</td>
+                        <td>生命周期内访问</td>
+                        <td>UAF, Double Free</td>
+                        <td>ARC, Type Isolation</td>
+                    </tr>
+                    <tr>
+                        <td>空间安全</td>
+                        <td>边界内访问</td>
+                        <td>Buffer Overflow</td>
+                        <td>Guard Pages</td>
+                    </tr>
+                    <tr>
+                        <td>类型安全</td>
+                        <td>类型不变性</td>
+                        <td>Type Confusion</td>
+                        <td>Type Isolation</td>
+                    </tr>
+                </table>
+            </section>
+
+            <section id="architecture">
+                <h2>二、内存管理架构</h2>
+                
+                <h3>2.1 虚拟内存布局</h3>
+                <div class="memory-layout">
+<pre>
+<span class="addr">0xFFFFFFFFFFFFFFFF</span>  ┌──────────────────┐
+                  │ <span class="region">Kernel Space</span>     │
+<span class="addr">0x0000008000000000</span>  ├──────────────────┤
+                  │ <span class="region">Stack ↓</span>          │
+                  ├──────────────────┤
+                  │ <span class="region">Shared Libraries</span> │
+                  ├──────────────────┤
+                  │ <span class="region">Heap ↑</span>           │
+                  │  ┌<span class="metadata">Nano Zone</span>┐    │
+                  │  ├<span class="metadata">Tiny</span>──────┤    │
+                  │  ├<span class="metadata">Small</span>─────┤    │
+                  │  └<span class="metadata">Large</span>─────┘    │
+                  ├──────────────────┤
+                  │ <span class="region">Data/BSS</span>         │
+                  ├──────────────────┤
+                  │ <span class="region">Text</span>             │
+<span class="addr">0x0000000100000000</span>  └──────────────────┘
+</pre>
+                </div>
+
+                <h3>2.2 页表与TLB</h3>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// ARM64 4级页表</span>
+<span class="macro">#define PAGE_SIZE</span>  <span class="number">4096</span>  <span class="comment">// 4KB页</span>
+<span class="macro">#define PAGE_SHIFT</span> <span class="number">12</span>
+
+<span class="comment">// 虚拟地址分解 (48位):</span>
+<span class="comment">// [47:39] L0 Index → 512条目</span>
+<span class="comment">// [38:30] L1 Index → 1GB</span>
+<span class="comment">// [29:21] L2 Index → 2MB</span>
+<span class="comment">// [20:12] L3 Index → 4KB</span>
+<span class="comment">// [11:0]  Offset</span></pre></div>
+
+                <h3>2.3 内存压缩 (iOS特色)</h3>
+                <p>iOS无磁盘交换，使用内存压缩扩展可用内存：</p>
+                <div class="highlight">
+                    <strong>内存压缩优势：</strong>
+                    <ul>
+                        <li>压缩比2~4倍，典型节省30~50%内存</li>
+                        <li>LZ4快速压缩 (~500MB/s)</li>
+                        <li>LZFSE高压缩比 (4:1)</li>
+                        <li>减少App被杀死概率</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="libmalloc">
+                <h2>三、libmalloc核心机制</h2>
+                
+                <h3>3.1 Zone分配器选择</h3>
+                <div class="code-block" data-lang="C"><pre><span class="type">void</span> *<span class="function">malloc</span>(<span class="type">size_t</span> size) {
+    <span class="keyword">if</span> (size &lt;= <span class="number">256</span>)   <span class="keyword">return</span> <span class="function">nano_malloc</span>(size);
+    <span class="keyword">if</span> (size &lt;= <span class="number">1008</span>)  <span class="keyword">return</span> <span class="function">tiny_malloc</span>(size);
+    <span class="keyword">if</span> (size &lt;= <span class="number">15360</span>) <span class="keyword">return</span> <span class="function">small_malloc</span>(size);
+    <span class="keyword">if</span> (size &lt;= <span class="number">131072</span>)<span class="keyword">return</span> <span class="function">medium_malloc</span>(size);
+    <span class="keyword">return</span> <span class="function">large_malloc</span>(size);
+}</pre></div>
+
+                <h3>3.2 Size Classes</h3>
+                <table>
+                    <tr>
+                        <th>分配器</th>
+                        <th>范围</th>
+                        <th>对齐</th>
+                        <th>Classes</th>
+                    </tr>
+                    <tr>
+                        <td>Nano</td>
+                        <td>1~256B</td>
+                        <td>16B</td>
+                        <td>16个</td>
+                    </tr>
+                    <tr>
+                        <td>Tiny</td>
+                        <td>1~1008B</td>
+                        <td>16B</td>
+                        <td>64个</td>
+                    </tr>
+                    <tr>
+                        <td>Small</td>
+                        <td>1KB~15KB</td>
+                        <td>512B</td>
+                        <td>29个</td>
+                    </tr>
+                    <tr>
+                        <td>Medium</td>
+                        <td>15~128KB</td>
+                        <td>2KB</td>
+                        <td>57个</td>
+                    </tr>
+                </table>
+            </section>
+
+            <section id="tiny">
+                <h2>四、Tiny Region详解</h2>
+                
+                <h3>4.1 Tiny Region布局</h3>
+                <div class="memory-layout">
+<pre>
+<span class="region">Tiny Region (2MB)</span>
+┌────────────────────────┐
+│ <span class="metadata">Block Space</span>            │
+│ 64,520 × 16B blocks   │
+│ = 1,032,320 bytes     │
+├────────────────────────┤
+│ <span class="metadata">Metadata</span>               │
+│ ├ header bitmap       │
+│ ├ inuse bitmap        │
+│ └ region_trailer      │
+└────────────────────────┘
+</pre>
+                </div>
+
+                <h3>4.2 Free Chunk结构</h3>
+                <div class="code-block" data-lang="C"><pre><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    <span class="type">msize_t</span> previous;  <span class="comment">// 前一free chunk (带checksum)</span>
+    <span class="type">msize_t</span> next;      <span class="comment">// 后一free chunk</span>
+    <span class="type">msize_t</span> msize;     <span class="comment">// 大小(quantum单位)</span>
+    <span class="comment">// ... 数据区 ...</span>
+    <span class="type">msize_t</span> msize_end; <span class="comment">// 末尾重复msize</span>
+} <span class="type">tiny_free_chunk_t</span>;
+
+<span class="comment">// Checksum防篡改</span>
+<span class="type">uintptr_t</span> ptr_encoded = (ptr &gt;&gt; <span class="number">4</span>) | (checksum &lt;&lt; <span class="number">60</span>);</pre></div>
+
+                <h3>4.3 分配流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">1. mag_last_free检查</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">2. Free List查找</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">3. 更大Free List分割</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">4. Region末尾分配</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">5. 新Region分配</div>
+                </div>
+            </section>
+
+            <section id="magazine">
+                <h2>五、Magazine多核优化</h2>
+                
+                <h3>5.1 Magazine结构</h3>
+                <div class="code-block" data-lang="C"><pre><span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    <span class="type">void</span> *mag_last_free;         <span class="comment">// LIFO缓存</span>
+    <span class="type">msize_t</span> mag_last_free_msize;
+    <span class="type">free_list_t</span> free_list[<span class="number">64</span>];  <span class="comment">// 64个free list</span>
+    <span class="type">uint64_t</span> mag_bitmap[<span class="number">4</span>];      <span class="comment">// free list bitmap</span>
+    <span class="type">region_t</span> *regions;          <span class="comment">// 所属regions</span>
+} <span class="type">magazine_t</span>;</pre></div>
+
+                <h3>5.2 Per-Thread Magazine</h3>
+                <p>每个线程独立Magazine，减少锁竞争：</p>
+                <div class="highlight">
+                    <strong>优化原理：</strong>
+                    <ul>
+                        <li>每线程独立内存池</li>
+                        <li>无锁快速路径 (mag_last_free)</li>
+                        <li>降低缓存行竞争</li>
+                        <li>多核扩展性提升10x+</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="arc">
+                <h2>六、ARC引用计数</h2>
+                
+                <h3>6.1 引用计数存储</h3>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// isa指针中的extra_rc (19位)</span>
+<span class="keyword">union</span> <span class="type">isa_t</span> {
+    <span class="keyword">struct</span> {
+        <span class="type">uintptr_t</span> nonpointer      : <span class="number">1</span>;
+        <span class="type">uintptr_t</span> has_assoc       : <span class="number">1</span>;
+        <span class="type">uintptr_t</span> shiftcls        : <span class="number">33</span>;
+        <span class="type">uintptr_t</span> weakly_referenced: <span class="number">1</span>;
+        <span class="type">uintptr_t</span> extra_rc        : <span class="number">19</span>; <span class="comment">// ⭐ RC存储</span>
+    };
+};
+
+<span class="comment">// SideTable (溢出时)</span>
+<span class="keyword">struct</span> <span class="type">SideTable</span> {
+    <span class="type">spinlock_t</span> slock;
+    <span class="type">RefcountMap</span> refcnts;   <span class="comment">// 哈希表</span>
+    <span class="type">weak_table_t</span> weak_table;
+};</pre></div>
+
+                <h3>6.2 retain/release流程</h3>
+                <div class="code-block" data-lang="Objective-C"><pre><span class="type">id</span> <span class="function">objc_retain</span>(<span class="type">id</span> obj) {
+    <span class="comment">// 1. extra_rc++</span>
+    <span class="keyword">if</span> (newisa.extra_rc &lt; RC_MAX) {
+        newisa.extra_rc++;
+        <span class="keyword">return</span> obj;
+    }
+    <span class="comment">// 2. 溢出→转移到SideTable</span>
+    <span class="keyword">return</span> <span class="function">rootRetain_overflow</span>(obj);
+}</pre></div>
+            </section>
+
+            <section id="weak">
+                <h2>七、weak弱引用原理</h2>
+                
+                <h3>7.1 weak_table数据结构</h3>
+                <div class="code-block" data-lang="C"><pre><span class="keyword">struct</span> <span class="type">weak_table_t</span> {
+    <span class="type">weak_entry_t</span> *weak_entries; <span class="comment">// 哈希表</span>
+    <span class="type">size_t</span> num_entries;
+};
+
+<span class="keyword">struct</span> <span class="type">weak_entry_t</span> {
+    <span class="type">objc_object</span> *referent;      <span class="comment">// 被引用对象</span>
+    <span class="keyword">union</span> {
+        <span class="type">weak_referrer_t</span> *referrers;       <span class="comment">// 动态数组</span>
+        <span class="type">weak_referrer_t</span> inline_referrers[<span class="number">4</span>]; <span class="comment">// 内联优化</span>
+    };
+};</pre></div>
+
+                <h3>7.2 自动置nil流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">对象RC=0</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">dealloc</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">clearDeallocating</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="flow-step">weak_clear_no_lock<br/>遍历weak指针置nil</div>
+                </div>
+            </section>
+
+            <section id="kernel">
+                <h2>八、内核内存管理</h2>
+                
+                <h3>8.1 Zone Allocator (内核)</h3>
+                <p>XNU内核使用Zone Allocator管理内核对象：</p>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// osfmk/kern/zalloc.h</span>
+<span class="keyword">struct</span> <span class="type">zone</span> {
+    <span class="type">zone_elem_t</span> *free_elements; <span class="comment">// Free list</span>
+    <span class="type">vm_size_t</span> elem_size;       <span class="comment">// 元素大小</span>
+    <span class="type">vm_size_t</span> alloc_size;      <span class="comment">// 分配粒度</span>
+    <span class="keyword">const</span> <span class="type">char</span> *zone_name;       <span class="comment">// Zone名称</span>
+};
+
+<span class="comment">// 常见内核zone</span>
+<span class="comment">// - proc zone: 进程结构</span>
+<span class="comment">// - thread zone: 线程结构</span>
+<span class="comment">// - vm_map zone: 虚拟内存映射</span></pre></div>
+
+                <h3>8.2 kalloc_type (类型隔离)</h3>
+                <div class="highlight">
+                    <strong>Type Isolation原理：</strong>
+                    <ul>
+                        <li>每种类型独立zone</li>
+                        <li>防止类型混淆攻击</li>
+                        <li>UAF无法替换为其他类型</li>
+                        <li>iOS 14+默认启用</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="security">
+                <h2>九、内存安全机制</h2>
+                
+                <h3>9.1 Pointer Checksum</h3>
+                <p>Free List指针加密防篡改：</p>
+                <div class="code-block" data-lang="C"><pre><span class="comment">// 指针编码: ptr^cookie</span>
+<span class="type">uintptr_t</span> checksum = <span class="function">compute_checksum</span>(ptr ^ cookie);
+<span class="type">uintptr_t</span> encoded = (ptr &gt;&gt; <span class="number">4</span>) | (checksum &lt;&lt; <span class="number">60</span>);</pre></div>
+
+                <h3>9.2 Guard Pages</h3>
+                <p>Large分配前后插入保护页检测溢出。</p>
+
+                <h3>9.3 Type Isolation</h3>
+                <table>
+                    <tr>
+                        <th>隔离级别</th>
+                        <th>实现</th>
+                        <th>防护</th>
+                    </tr>
+                    <tr>
+                        <td>内核态</td>
+                        <td>kalloc_type</td>
+                        <td>进程间类型混淆</td>
+                    </tr>
+                    <tr>
+                        <td>用户态</td>
+                        <td>xzone malloc</td>
+                        <td>App内类型混淆</td>
+                    </tr>
+                </table>
+            </section>
+
+            <section id="practice">
+                <h2>十、最佳实践</h2>
+                
+                <h3>10.1 避免内存泄漏</h3>
+                <div class="code-block" data-lang="Swift"><pre><span class="comment">// ✅ weak避免循环引用</span>
+<span class="keyword">class</span> <span class="type">ViewController</span> {
+    <span class="keyword">var</span> closure: (() -&gt; <span class="type">Void</span>)?
+    <span class="keyword">func</span> <span class="function">setup</span>() {
+        closure = { [<span class="keyword">weak</span> <span class="keyword">self</span>] <span class="keyword">in</span>
+            <span class="keyword">self</span>?.<span class="function">doSomething</span>()
+        }
+    }
+}</pre></div>
+
+                <h3>10.2 优化内存使用</h3>
+                <div class="tip">
+                    <strong>💡 优化建议：</strong>
+                    <ul>
+                        <li>使用autoreleasepool控制峰值内存</li>
+                        <li>NSCache实现自动清除缓存</li>
+                        <li>图片解码使用downsample</li>
+                        <li>监听内存警告及时清理</li>
+                    </ul>
+                </div>
+
+                <h3>10.3 检测工具</h3>
+                <ul>
+                    <li><strong>Instruments Leaks</strong>: 检测泄漏</li>
+                    <li><strong>Memory Graph</strong>: 可视化引用关系</li>
+                    <li><strong>Allocations</strong>: 内存分配追踪</li>
+                    <li><strong>MLeaksFinder</strong>: 自动检测VC泄漏</li>
+                </ul>
+            </section>
+
+            <section class="references">
+                <h2>参考文献</h2>
+                <ul>
+                    <li><a href="https://github.com/apple-oss-distributions/libmalloc">Apple libmalloc开源代码</a></li>
+                    <li><a href="https://github.com/apple-oss-distributions/objc4">Apple objc4运行时源码</a></li>
+                    <li><a href="https://security.apple.com/blog/towards-the-next-generation-of-xnu-memory-safety/">Apple Security: XNU Memory Safety</a></li>
+                    <li><a href="https://www.cocoawithlove.com/2010/05/look-at-how-malloc-works-on-mac.html">How malloc works on Mac</a></li>
+                    <li><a href="https://developer.apple.com/library/archive/documentation/Performance/Conceptual/ManagingMemory/">Apple: Memory Management Programming Guide</a></li>
+                    <li>WWDC Sessions: Advanced Memory Management, Performance Optimization</li>
+                </ul>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({ 
+                    behavior: 'smooth' 
+                });
+            });
+        });
+    </script>
+</body>
+</html>
