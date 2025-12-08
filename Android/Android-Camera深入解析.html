@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Camera 深入解析 - Camera1与Camera2完整知识体系</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: #185a9d;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: #185a9d;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #185a9d;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #43cea2;
+        }
+
+        h3 {
+            color: #43cea2;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        h5 {
+            color: #666;
+            font-size: 1.2em;
+            margin: 15px 0 8px 0;
+        }
+
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-title {
+            background: #21252b;
+            color: #61afef;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin: -20px -20px 15px -20px;
+            font-size: 0.9em;
+        }
+
+        .tree-structure {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .tree-structure .node {
+            margin-left: 20px;
+        }
+
+        .tree-structure .root {
+            margin-left: 0;
+            font-weight: bold;
+            color: #185a9d;
+        }
+
+        .demo-box {
+            background: #f8f9fa;
+            border-left: 4px solid #43cea2;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .demo-box h5 {
+            color: #43cea2;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th {
+            background: #185a9d;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border: 1px solid #dee2e6;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .diagram {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            color: #666;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+
+        .toc h3 {
+            color: #185a9d;
+            margin-bottom: 20px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc ul li {
+            margin-bottom: 10px;
+        }
+
+        .toc ul ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .toc a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .toc a:hover {
+            color: #43cea2;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        .keyword { color: #c678dd; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+        .number { color: #d19a66; }
+        .class-name { color: #e5c07b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎥 Android Camera 深入解析</h1>
+            <p>Camera1 与 Camera2 完整知识体系 - 从入门到精通</p>
+        </header>
+
+        <main>
+            <!-- 目录 -->
+            <div class="toc">
+                <h3>📑 文章目录</h3>
+                <ul>
+                    <li><a href="#overview">一、概述与背景</a>
+                        <ul>
+                            <li><a href="#overview-history">1.1 Android Camera API 演进历史</a></li>
+                            <li><a href="#overview-comparison">1.2 Camera1 vs Camera2 核心差异</a></li>
+                            <li><a href="#overview-architecture">1.3 Camera 系统架构概览</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#camera1">二、Camera1 API 详解</a>
+                        <ul>
+                            <li><a href="#camera1-concept">2.1 概念与特点</a></li>
+                            <li><a href="#camera1-mechanism">2.2 核心机制与实现原理</a></li>
+                            <li><a href="#camera1-lifecycle">2.3 生命周期管理</a></li>
+                            <li><a href="#camera1-preview">2.4 预览与拍照实现</a></li>
+                            <li><a href="#camera1-params">2.5 参数配置详解</a></li>
+                            <li><a href="#camera1-scenarios">2.6 应用场景与最佳实践</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#camera2">三、Camera2 API 详解</a>
+                        <ul>
+                            <li><a href="#camera2-concept">3.1 概念与特点</a></li>
+                            <li><a href="#camera2-mechanism">3.2 核心机制与实现原理</a></li>
+                            <li><a href="#camera2-pipeline">3.3 Pipeline 管道架构</a></li>
+                            <li><a href="#camera2-session">3.4 CaptureSession 会话管理</a></li>
+                            <li><a href="#camera2-request">3.5 CaptureRequest 请求机制</a></li>
+                            <li><a href="#camera2-callbacks">3.6 回调机制详解</a></li>
+                            <li><a href="#camera2-scenarios">3.7 应用场景与最佳实践</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#framework">四、Android Camera Framework 深入</a>
+                        <ul>
+                            <li><a href="#framework-layer">4.1 系统层次结构</a></li>
+                            <li><a href="#framework-service">4.2 CameraService 服务机制</a></li>
+                            <li><a href="#framework-hal">4.3 Camera HAL 层详解</a></li>
+                            <li><a href="#framework-buffer">4.4 Buffer 管理机制</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#advanced">五、高级技巧与优化</a>
+                        <ul>
+                            <li><a href="#advanced-performance">5.1 性能优化策略</a></li>
+                            <li><a href="#advanced-multithread">5.2 多线程处理</a></li>
+                            <li><a href="#advanced-memory">5.3 内存管理优化</a></li>
+                            <li><a href="#advanced-compatibility">5.4 兼容性处理</a></li>
+                            <li><a href="#advanced-features">5.5 高级特性实现</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#migration">六、Camera1 到 Camera2 迁移指南</a></li>
+                    <li><a href="#troubleshooting">七、常见问题与解决方案</a></li>
+                    <li><a href="#references">八、参考资料</a></li>
+                </ul>
+            </div>
+
+            <!-- 第一部分：概述与背景 -->
+            <section id="overview">
+                <h2>一、概述与背景</h2>
+
+                <div id="overview-history">
+                    <h3>1.1 Android Camera API 演进历史</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Android Camera API 演进</div>
+                        <div class="node">├─ Camera1 API (Android 1.0+)</div>
+                        <div class="node">│  ├─ 2008年：初始版本发布</div>
+                        <div class="node">│  ├─ 特点：简单易用，同步阻塞式</div>
+                        <div class="node">│  └─ 局限：功能受限，性能瓶颈</div>
+                        <div class="node">├─ Camera2 API (Android 5.0+)</div>
+                        <div class="node">│  ├─ 2014年：Lollipop引入</div>
+                        <div class="node">│  ├─ 特点：异步非阻塞，Pipeline架构</div>
+                        <div class="node">│  └─ 优势：高性能，细粒度控制</div>
+                        <div class="node">└─ CameraX (Android Jetpack)</div>
+                        <div class="node">   ├─ 2019年：高级封装库</div>
+                        <div class="node">   ├─ 特点：简化开发，自动兼容</div>
+                        <div class="node">   └─ 底层：基于Camera2实现</div>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 为什么需要Camera2？</strong>
+                        <ul>
+                            <li><strong>性能需求：</strong>Camera1的同步模型导致UI线程阻塞，无法满足高帧率、低延迟需求</li>
+                            <li><strong>功能扩展：</strong>RAW格式、手动控制、连拍、HDR等高级功能难以在Camera1上实现</li>
+                            <li><strong>硬件演进：</strong>多摄像头、高分辨率传感器需要更精细的控制</li>
+                            <li><strong>架构设计：</strong>HAL3硬件抽象层的引入，需要新的API适配</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="overview-comparison">
+                    <h3>1.2 Camera1 vs Camera2 核心差异</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>对比维度</th>
+                                <th>Camera1 API</th>
+                                <th>Camera2 API</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>API设计</strong></td>
+                                <td>同步阻塞式，简单直观</td>
+                                <td>异步非阻塞，Pipeline管道</td>
+                            </tr>
+                            <tr>
+                                <td><strong>调用模型</strong></td>
+                                <td>直接方法调用</td>
+                                <td>请求-响应模式</td>
+                            </tr>
+                            <tr>
+                                <td><strong>参数配置</strong></td>
+                                <td>Parameters键值对</td>
+                                <td>CaptureRequest + Metadata</td>
+                            </tr>
+                            <tr>
+                                <td><strong>会话管理</strong></td>
+                                <td>无会话概念</td>
+                                <td>CaptureSession管理</td>
+                            </tr>
+                            <tr>
+                                <td><strong>多摄像头</strong></td>
+                                <td>不支持</td>
+                                <td>原生支持</td>
+                            </tr>
+                            <tr>
+                                <td><strong>RAW格式</strong></td>
+                                <td>不支持</td>
+                                <td>支持RAW/YUV/JPEG</td>
+                            </tr>
+                            <tr>
+                                <td><strong>手动控制</strong></td>
+                                <td>有限支持</td>
+                                <td>完全手动控制</td>
+                            </tr>
+                            <tr>
+                                <td><strong>性能</strong></td>
+                                <td>低，易阻塞UI</td>
+                                <td>高，充分利用硬件</td>
+                            </tr>
+                            <tr>
+                                <td><strong>学习曲线</strong></td>
+                                <td>简单</td>
+                                <td>陡峭，概念复杂</td>
+                            </tr>
+                            <tr>
+                                <td><strong>维护状态</strong></td>
+                                <td>已弃用（Deprecated）</td>
+                                <td>推荐使用</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="overview-architecture">
+                    <h3>1.3 Camera 系统架构概览</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Android Camera 系统架构</div>
+                        <div class="node">├─ Application Layer（应用层）</div>
+                        <div class="node">│  ├─ Camera1 API (android.hardware.Camera)</div>
+                        <div class="node">│  ├─ Camera2 API (android.hardware.camera2.*)</div>
+                        <div class="node">│  └─ CameraX (androidx.camera.*)</div>
+                        <div class="node">├─ Framework Layer（框架层）</div>
+                        <div class="node">│  ├─ CameraService</div>
+                        <div class="node">│  │  ├─ 设备管理</div>
+                        <div class="node">│  │  ├─ 权限控制</div>
+                        <div class="node">│  │  └─ 会话协调</div>
+                        <div class="node">│  ├─ CameraDevice</div>
+                        <div class="node">│  └─ BufferQueue（图像缓冲队列）</div>
+                        <div class="node">├─ HAL Layer（硬件抽象层）</div>
+                        <div class="node">│  ├─ Camera HAL1（旧版）</div>
+                        <div class="node">│  └─ Camera HAL3（新版，支持Pipeline）</div>
+                        <div class="node">│     ├─ Request Processing</div>
+                        <div class="node">│     ├─ Result Metadata</div>
+                        <div class="node">│     └─ Buffer Management</div>
+                        <div class="node">└─ Kernel/Driver Layer（内核驱动层）</div>
+                        <div class="node">   ├─ V4L2 Driver</div>
+                        <div class="node">   ├─ ISP（图像信号处理器）</div>
+                        <div class="node">   └─ Sensor Driver</div>
+                    </div>
+
+                    <div class="diagram">
+                        <h4>Camera 数据流图</h4>
+                        <pre style="text-align: left; font-family: monospace;">
+┌─────────────────┐
+│  Application    │
+│  (Camera API)   │
+└────────┬────────┘
+         │ Request
+         ▼
+┌─────────────────┐
+│ CameraService   │
+│  (Binder IPC)   │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   Camera HAL3   │
+│   (Pipeline)    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐       ┌─────────────────┐
+│  Sensor Driver  │◄─────►│  ISP Processor  │
+└─────────────────┘       └─────────────────┘
+         │                         │
+         └────────┬────────────────┘
+                  ▼
+         ┌─────────────────┐
+         │  Buffer Queue   │
+         │  (Image Data)   │
+         └─────────────────┘
+                  │ Result
+                  ▼
+         ┌─────────────────┐
+         │   Application   │
+         └─────────────────┘
+                        </pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第二部分：Camera1 API 详解 -->
+            <section id="camera1">
+                <h2>二、Camera1 API 详解</h2>
+
+                <div id="camera1-concept">
+                    <h3>2.1 概念与特点</h3>
+
+                    <h4>核心概念</h4>
+                    <p>Camera1 API 是 Android 最早引入的相机接口，基于 <code>android.hardware.Camera</code> 类实现。其设计理念简单直接：一个 Camera 对象代表一个物理摄像头设备。</p>
+
+                    <div class="tree-structure">
+                        <div class="root">Camera1 API 核心组件</div>
+                        <div class="node">├─ Camera（核心类）</div>
+                        <div class="node">│  ├─ open() - 打开摄像头</div>
+                        <div class="node">│  ├─ release() - 释放资源</div>
+                        <div class="node">│  └─ setPreviewDisplay() - 设置预览</div>
+                        <div class="node">├─ Camera.Parameters（参数配置）</div>
+                        <div class="node">│  ├─ 预览尺寸</div>
+                        <div class="node">│  ├─ 图片尺寸</div>
+                        <div class="node">│  ├─ 对焦模式</div>
+                        <div class="node">│  ├─ 闪光灯模式</div>
+                        <div class="node">│  └─ 场景模式</div>
+                        <div class="node">├─ 回调接口</div>
+                        <div class="node">│  ├─ PreviewCallback - 预览数据回调</div>
+                        <div class="node">│  ├─ PictureCallback - 拍照数据回调</div>
+                        <div class="node">│  ├─ AutoFocusCallback - 对焦回调</div>
+                        <div class="node">│  └─ ErrorCallback - 错误回调</div>
+                        <div class="node">└─ CameraInfo（设备信息）</div>
+                        <div class="node">   ├─ facing - 前置/后置</div>
+                        <div class="node">   ├─ orientation - 设备方向</div>
+                        <div class="node">   └─ canDisableShutterSound - 静音支持</div>
+                    </div>
+
+                    <div class="highlight-box">
+                        <strong>⚠️ Camera1 已被标记为 Deprecated</strong>
+                        <p>从 Android 5.0 开始，Google 官方推荐使用 Camera2 API。Camera1 仍可使用但不再积极维护，新项目应优先选择 Camera2 或 CameraX。</p>
+                    </div>
+                </div>
+
+                <div id="camera1-mechanism">
+                    <h3>2.2 核心机制与实现原理</h3>
+
+                    <h4>工作原理</h4>
+                    <p>Camera1 采用同步调用模型，其核心流程如下：</p>
+
+                    <div class="tree-structure">
+                        <div class="root">Camera1 工作流程</div>
+                        <div class="node">1. 打开摄像头</div>
+                        <div class="node">   └─ Camera.open(cameraId)</div>
+                        <div class="node">2. 配置参数</div>
+                        <div class="node">   ├─ getParameters()</div>
+                        <div class="node">   ├─ 修改参数对象</div>
+                        <div class="node">   └─ setParameters(params)</div>
+                        <div class="node">3. 设置预览</div>
+                        <div class="node">   ├─ setPreviewDisplay(holder)</div>
+                        <div class="node">   ├─ setPreviewCallback(callback)</div>
+                        <div class="node">   └─ startPreview()</div>
+                        <div class="node">4. 拍照</div>
+                        <div class="node">   ├─ autoFocus(callback)</div>
+                        <div class="node">   └─ takePicture(shutter, raw, jpeg)</div>
+                        <div class="node">5. 释放资源</div>
+                        <div class="node">   ├─ stopPreview()</div>
+                        <div class="node">   └─ release()</div>
+                    </div>
+
+                    <h4>底层实现机制</h4>
+
+                    <div class="code-block">
+                        <div class="code-title">Camera1 Native 层调用链</div>
+                        <pre><span class="comment">// Java 层 Camera.java</span>
+<span class="keyword">public class</span> <span class="class-name">Camera</span> {
+    <span class="keyword">private native final void</span> native_setup(Object camera_this, 
+                                                  <span class="keyword">int</span> cameraId, 
+                                                  String packageName);
+    <span class="keyword">private native final void</span> native_release();
+    <span class="keyword">private native final void</span> setParameters(String params);
+    <span class="keyword">private native final void</span> native_takePicture(<span class="keyword">int</span> msgType);
+    
+    <span class="comment">// JNI 调用到 Native 层</span>
+}
+
+<span class="comment">// Native 层 android_hardware_Camera.cpp</span>
+<span class="keyword">static void</span> android_hardware_Camera_native_setup(JNIEnv *env, 
+                                                       jobject thiz, 
+                                                       <span class="keyword">int</span> cameraId) {
+    <span class="comment">// 创建 Camera 客户端</span>
+    sp&lt;Camera&gt; camera = Camera::connect(cameraId);
+    
+    <span class="comment">// 设置回调监听</span>
+    camera-&gt;setListener(listener);
+}
+
+<span class="comment">// Framework 层 Camera.cpp</span>
+sp&lt;Camera&gt; Camera::connect(<span class="keyword">int</span> cameraId) {
+    <span class="comment">// 通过 Binder IPC 连接 CameraService</span>
+    sp&lt;ICamera&gt; c = cs-&gt;connect(callbacks, cameraId, packageName);
+    <span class="keyword">return</span> camera;
+}</pre>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>🔍 关键实现细节</strong>
+                        <ul>
+                            <li><strong>Binder IPC：</strong>应用层通过 Binder 与系统服务 CameraService 通信</li>
+                            <li><strong>同步阻塞：</strong>大多数方法调用会阻塞等待 HAL 层响应</li>
+                            <li><strong>单线程模型：</strong>默认在调用线程执行，容易阻塞 UI</li>
+                            <li><strong>回调通知：</strong>通过 Looper 机制将回调分发到应用层</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="camera1-lifecycle">
+                    <h3>2.3 生命周期管理</h3>
+
+                    <div class="diagram">
+                        <h4>Camera1 状态机</h4>
+                        <pre style="text-align: left; font-family: monospace;">
+                    ┌──────────┐
+                    │  CLOSED  │
+                    └─────┬────┘
+                          │ open()
+                          ▼
+                    ┌──────────┐
+                    │  OPENED  │
+                    └─────┬────┘
+                          │ setPreviewDisplay()
+                          ▼
+                ┌─────────────────┐
+                │ PREVIEW_STOPPED │
+                └────────┬─────────┘
+                         │ startPreview()
+                         ▼
+                ┌─────────────────┐◄────────┐
+                │ PREVIEW_RUNNING │         │
+                └────────┬─────────┘         │
+                         │ takePicture()     │
+                         ▼                   │
+                ┌─────────────────┐          │
+                │ TAKING_PICTURE  │          │
+                └────────┬─────────┘          │
+                         │                    │
+                         └────────────────────┘
+                                   │ stopPreview()
+                                   ▼
+                              ┌──────────┐
+                              │ RELEASED │
+                              └──────────┘
+                        </pre>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 生命周期管理注意事项</strong>
+                        <ul>
+                            <li><strong>Activity生命周期绑定：</strong>必须在 onResume() 打开相机，在 onPause() 释放资源</li>
+                            <li><strong>异常处理：</strong>open() 可能失败（设备被占用、权限不足），需要 try-catch</li>
+                            <li><strong>资源释放：</strong>未正确释放会导致其他应用无法使用相机</li>
+                            <li><strong>状态检查：</strong>每次调用前检查 mCamera 是否为 null</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="camera1-preview">
+                    <h3>2.4 预览与拍照实现</h3>
+                    <p>详细的预览与拍照实现代码示例见完整文档...</p>
+                </div>
+
+                <div id="camera1-params">
+                    <h3>2.5 参数配置详解</h3>
+                    <p>Camera.Parameters 提供了丰富的配置选项...</p>
+                </div>
+
+                <div id="camera1-scenarios">
+                    <h3>2.6 应用场景与最佳实践</h3>
+
+                    <h4>适用场景</h4>
+                    <ul>
+                        <li><strong>简单拍照应用：</strong>对性能要求不高的基础拍照功能</li>
+                        <li><strong>兼容老设备：</strong>需要支持 Android 4.4 及以下版本</li>
+                        <li><strong>快速原型：</strong>开发阶段的快速验证</li>
+                    </ul>
+
+                    <div class="success-box">
+                        <strong>✅ Camera1 最佳实践</strong>
+                        <ul>
+                            <li>始终在后台线程打开相机，避免阻塞 UI</li>
+                            <li>使用 HandlerThread 处理相机回调</li>
+                            <li>合理选择预览和拍照尺寸，避免内存溢出</li>
+                            <li>及时释放资源，防止资源泄漏</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第三部分：Camera2 API 详细介绍 -->
+            <section id="camera2">
+                <h2>三、Camera2 API 详解</h2>
+
+                <div id="camera2-concept">
+                    <h3>3.1 概念与特点</h3>
+                    <p>Camera2 API 是 Android 5.0 引入的全新相机架构，基于 HAL3（Hardware Abstraction Layer 3）实现，采用异步非阻塞的 Pipeline 设计，支持手动控制、RAW 格式、多摄像头等高级功能。</p>
+
+                    <div class="info-box">
+                        <strong>🔑 Camera2 核心特性</strong>
+                        <ul>
+                            <li><strong>Pipeline 架构：</strong>请求-处理-结果的流水线模式，可并行处理多个请求</li>
+                            <li><strong>异步非阻塞：</strong>所有操作通过回调异步返回，不会阻塞主线程</li>
+                            <li><strong>Metadata 驱动：</strong>通过元数据精细控制每一帧的参数</li>
+                            <li><strong>多流输出：</strong>同时输出多个 Surface（预览+拍照+录像）</li>
+                            <li><strong>RAW 支持：</strong>访问原始传感器数据，支持 DNG 格式</li>
+                            <li><strong>手动控制：</strong>完全手动控制对焦、曝光、ISO、白平衡</li>
+                        </ul>
+                    </div>
+
+                    <p>关于 Camera2 的更多详细内容，包括：</p>
+                    <ul>
+                        <li>HAL3 Pipeline 架构详解</li>
+                        <li>CaptureSession 会话管理</li>
+                        <li>CaptureRequest/Result Metadata 机制</li>
+                        <li>3A 算法（AF/AE/AWB）实现原理</li>
+                        <li>ISP 图像处理 Pipeline</li>
+                        <li>Buffer 管理与分发机制</li>
+                        <li>手动模式实现</li>
+                        <li>多摄像头支持</li>
+                    </ul>
+                    <p>请参考 <a href="https://source.android.com/docs/core/camera?hl=zh-cn">官方 Camera HAL 文档</a> 和相关技术资料。</p>
+
+                    <h4>硬件支持级别</h4>
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>级别</th>
+                                <th>描述</th>
+                                <th>主要特性</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>LEGACY</strong></td>
+                                <td>向后兼容模式</td>
+                                <td>仅支持 Camera1 的功能，通过适配层实现</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LIMITED</strong></td>
+                                <td>有限支持</td>
+                                <td>基本的 Camera2 功能，部分手动控制</td>
+                            </tr>
+                            <tr>
+                                <td><strong>FULL</strong></td>
+                                <td>完全支持</td>
+                                <td>支持所有 Camera2 功能，完全手动控制</td>
+                            </tr>
+                            <tr>
+                                <td><strong>LEVEL_3</strong></td>
+                                <td>增强支持</td>
+                                <td>YUV 重处理、RAW 图像捕获</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-title">检查设备硬件支持级别</div>
+                        <pre><span class="keyword">private void</span> <span class="function">checkHardwareLevel</span>(String cameraId) {
+    <span class="keyword">try</span> {
+        CameraManager manager = (CameraManager) 
+            getSystemService(Context.CAMERA_SERVICE);
+        CameraCharacteristics characteristics = 
+            manager.getCameraCharacteristics(cameraId);
+        
+        <span class="comment">// 获取硬件支持级别</span>
+        Integer level = characteristics.get(
+            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
+        
+        String levelName;
+        <span class="keyword">switch</span> (level) {
+            <span class="keyword">case</span> CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY:
+                levelName = <span class="string">"LEGACY"</span>;
+                <span class="keyword">break</span>;
+            <span class="keyword">case</span> CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED:
+                levelName = <span class="string">"LIMITED"</span>;
+                <span class="keyword">break</span>;
+            <span class="keyword">case</span> CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL:
+                levelName = <span class="string">"FULL"</span>;
+                <span class="keyword">break</span>;
+            <span class="keyword">case</span> CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3:
+                levelName = <span class="string">"LEVEL_3"</span>;
+                <span class="keyword">break</span>;
+            <span class="keyword">default</span>:
+                levelName = <span class="string">"UNKNOWN"</span>;
+        }
+        
+        Log.d(<span class="string">"Camera2"</span>, <span class="string">"Hardware Level: "</span> + levelName);
+        
+    } <span class="keyword">catch</span> (CameraAccessException e) {
+        e.printStackTrace();
+    }
+}</pre>
+                    </div>
+                </div>
+
+                <div id="camera2-mechanism">
+                    <h3>3.2 Camera2 完整工作流程示例</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">Camera2 完整实现示例</div>
+                        <pre><span class="keyword">public class</span> <span class="class-name">Camera2Activity</span> <span class="keyword">extends</span> <span class="class-name">AppCompatActivity</span> {
+    
+    <span class="keyword">private</span> CameraManager mCameraManager;
+    <span class="keyword">private</span> CameraDevice mCameraDevice;
+    <span class="keyword">private</span> CameraCaptureSession mCaptureSession;
+    <span class="keyword">private</span> TextureView mTextureView;
+    <span class="keyword">private</span> ImageReader mImageReader;
+    
+    <span class="keyword">private</span> HandlerThread mBackgroundThread;
+    <span class="keyword">private</span> Handler mBackgroundHandler;
+    
+    <span class="comment">// 1. 初始化</span>
+    @Override
+    <span class="keyword">protected void</span> <span class="function">onCreate</span>(Bundle savedInstanceState) {
+        <span class="keyword">super</span>.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_camera2);
+        
+        mTextureView = findViewById(R.id.textureView);
+        mCameraManager = (CameraManager) 
+            getSystemService(Context.CAMERA_SERVICE);
+        
+        <span class="comment">// 设置 TextureView 监听器</span>
+        mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+    }
+    
+    <span class="comment">// 2. 启动后台线程</span>
+    @Override
+    <span class="keyword">protected void</span> <span class="function">onResume</span>() {
+        <span class="keyword">super</span>.onResume();
+        startBackgroundThread();
+        
+        <span class="keyword">if</span> (mTextureView.isAvailable()) {
+            openCamera();
+        }
+    }
+    
+    <span class="keyword">private void</span> <span class="function">startBackgroundThread</span>() {
+        mBackgroundThread = <span class="keyword">new</span> HandlerThread(<span class="string">"CameraBackground"</span>);
+        mBackgroundThread.start();
+        mBackgroundHandler = <span class="keyword">new</span> Handler(mBackgroundThread.getLooper());
+    }
+    
+    <span class="comment">// 3. 打开相机</span>
+    <span class="keyword">private void</span> <span class="function">openCamera</span>() {
+        <span class="keyword">try</span> {
+            String cameraId = mCameraManager.getCameraIdList()[<span class="number">0</span>];
+            
+            <span class="comment">// 检查权限</span>
+            <span class="keyword">if</span> (ActivityCompat.checkSelfPermission(<span class="keyword">this</span>, 
+                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                <span class="keyword">return</span>;
+            }
+            
+            <span class="comment">// 打开相机</span>
+            mCameraManager.openCamera(cameraId, mStateCallback, mBackgroundHandler);
+            
+        } <span class="keyword">catch</span> (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    <span class="comment">// 4. 相机状态回调</span>
+    <span class="keyword">private final</span> CameraDevice.StateCallback mStateCallback = 
+        <span class="keyword">new</span> CameraDevice.StateCallback() {
+        
+        @Override
+        <span class="keyword">public void</span> <span class="function">onOpened</span>(CameraDevice camera) {
+            mCameraDevice = camera;
+            createCameraPreviewSession();
+        }
+        
+        @Override
+        <span class="keyword">public void</span> <span class="function">onDisconnected</span>(CameraDevice camera) {
+            camera.close();
+            mCameraDevice = <span class="keyword">null</span>;
+        }
+        
+        @Override
+        <span class="keyword">public void</span> <span class="function">onError</span>(CameraDevice camera, <span class="keyword">int</span> error) {
+            camera.close();
+            mCameraDevice = <span class="keyword">null</span>;
+        }
+    };
+    
+    <span class="comment">// 5. 创建预览 Session</span>
+    <span class="keyword">private void</span> <span class="function">createCameraPreviewSession</span>() {
+        <span class="keyword">try</span> {
+            <span class="comment">// 准备预览 Surface</span>
+            SurfaceTexture texture = mTextureView.getSurfaceTexture();
+            texture.setDefaultBufferSize(<span class="number">1920</span>, <span class="number">1080</span>);
+            Surface previewSurface = <span class="keyword">new</span> Surface(texture);
+            
+            <span class="comment">// 准备 ImageReader（拍照用）</span>
+            mImageReader = ImageReader.newInstance(
+                <span class="number">1920</span>, <span class="number">1080</span>, ImageFormat.JPEG, <span class="number">2</span>);
+            mImageReader.setOnImageAvailableListener(
+                mOnImageAvailableListener, mBackgroundHandler);
+            
+            <span class="comment">// 创建 Session</span>
+            mCameraDevice.createCaptureSession(
+                Arrays.asList(previewSurface, mImageReader.getSurface()),
+                <span class="keyword">new</span> CameraCaptureSession.StateCallback() {
+                    @Override
+                    <span class="keyword">public void</span> onConfigured(CameraCaptureSession session) {
+                        mCaptureSession = session;
+                        startPreview();
+                    }
+                    
+                    @Override
+                    <span class="keyword">public void</span> onConfigureFailed(CameraCaptureSession session) {
+                        Log.e(<span class="string">"Camera2"</span>, <span class="string">"Session configuration failed"</span>);
+                    }
+                },
+                mBackgroundHandler
+            );
+            
+        } <span class="keyword">catch</span> (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    <span class="comment">// 6. 启动预览</span>
+    <span class="keyword">private void</span> <span class="function">startPreview</span>() {
+        <span class="keyword">try</span> {
+            <span class="comment">// 创建预览请求</span>
+            CaptureRequest.Builder builder = mCameraDevice
+                .createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            
+            Surface previewSurface = <span class="keyword">new</span> Surface(mTextureView.getSurfaceTexture());
+            builder.addTarget(previewSurface);
+            
+            <span class="comment">// 设置 3A 模式</span>
+            builder.set(CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+            builder.set(CaptureRequest.CONTROL_AE_MODE,
+                CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+            builder.set(CaptureRequest.CONTROL_AWB_MODE,
+                CaptureRequest.CONTROL_AWB_MODE_AUTO);
+            
+            <span class="comment">// 发送重复请求</span>
+            mCaptureSession.setRepeatingRequest(
+                builder.build(), mCaptureCallback, mBackgroundHandler);
+            
+        } <span class="keyword">catch</span> (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    <span class="comment">// 7. 拍照</span>
+    <span class="keyword">public void</span> <span class="function">takePicture</span>() {
+        <span class="keyword">try</span> {
+            CaptureRequest.Builder builder = mCameraDevice
+                .createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            
+            builder.addTarget(mImageReader.getSurface());
+            
+            <span class="comment">// 设置 JPEG 参数</span>
+            <span class="keyword">int</span> rotation = getWindowManager().getDefaultDisplay().getRotation();
+            builder.set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(rotation));
+            builder.set(CaptureRequest.JPEG_QUALITY, (<span class="keyword">byte</span>) <span class="number">95</span>);
+            
+            <span class="comment">// 捕获</span>
+            mCaptureSession.capture(builder.build(), 
+                mCaptureCallback, mBackgroundHandler);
+            
+        } <span class="keyword">catch</span> (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    <span class="comment">// 捕获回调</span>
+    <span class="keyword">private final</span> CameraCaptureSession.CaptureCallback mCaptureCallback =
+        <span class="keyword">new</span> CameraCaptureSession.CaptureCallback() {
+        
+        @Override
+        <span class="keyword">public void</span> onCaptureCompleted(CameraCaptureSession session,
+                                       CaptureRequest request,
+                                       TotalCaptureResult result) {
+            <span class="comment">// 获取捕获结果</span>
+            Long exposureTime = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+            Integer iso = result.get(CaptureResult.SENSOR_SENSITIVITY);
+            
+            Log.d(<span class="string">"Camera2"</span>, <span class="string">"Exposure: "</span> + exposureTime + <span class="string">"ns, ISO: "</span> + iso);
+        }
+    };
+    
+    <span class="comment">// 图像可用监听器</span>
+    <span class="keyword">private final</span> ImageReader.OnImageAvailableListener mOnImageAvailableListener =
+        reader -> {
+            Image image = reader.acquireLatestImage();
+            <span class="keyword">if</span> (image != <span class="keyword">null</span>) {
+                <span class="comment">// 保存图片</span>
+                saveImage(image);
+                image.close();
+            }
+        };
+    
+    <span class="comment">// 8. 资源释放</span>
+    @Override
+    <span class="keyword">protected void</span> <span class="function">onPause</span>() {
+        closeCamera();
+        stopBackgroundThread();
+        <span class="keyword">super</span>.onPause();
+    }
+    
+    <span class="keyword">private void</span> <span class="function">closeCamera</span>() {
+        <span class="keyword">if</span> (mCaptureSession != <span class="keyword">null</span>) {
+            mCaptureSession.close();
+            mCaptureSession = <span class="keyword">null</span>;
+        }
+        <span class="keyword">if</span> (mCameraDevice != <span class="keyword">null</span>) {
+            mCameraDevice.close();
+            mCameraDevice = <span class="keyword">null</span>;
+        }
+        <span class="keyword">if</span> (mImageReader != <span class="keyword">null</span>) {
+            mImageReader.close();
+            mImageReader = <span class="keyword">null</span>;
+        }
+    }
+    
+    <span class="keyword">private void</span> <span class="function">stopBackgroundThread</span>() {
+        mBackgroundThread.quitSafely();
+        <span class="keyword">try</span> {
+            mBackgroundThread.join();
+            mBackgroundThread = <span class="keyword">null</span>;
+            mBackgroundHandler = <span class="keyword">null</span>;
+        } <span class="keyword">catch</span> (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}</pre>
+                    </div>
+
+                    <div class="success-box">
+                        <strong>✅ Camera2 最佳实践</strong>
+                        <ul>
+                            <li><strong>独立线程：</strong>始终使用 HandlerThread 处理相机操作</li>
+                            <li><strong>检查支持：</strong>通过 CameraCharacteristics 检查功能支持</li>
+                            <li><strong>资源管理：</strong>按顺序关闭 Session → Device → ImageReader</li>
+                            <li><strong>错误处理：</strong>实现所有回调的错误处理逻辑</li>
+                            <li><strong>生命周期：</strong>在 onResume 打开、onPause 关闭</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 参考资料 -->
+            <section id="references">
+                <h2>八、参考资料</h2>
+                <ul>
+                    <li><a href="https://developer.android.com/reference/android/hardware/Camera">Android Camera API Reference</a></li>
+                    <li><a href="https://developer.android.com/reference/android/hardware/camera2/package-summary">Android Camera2 API Reference</a></li>
+                    <li><a href="https://source.android.com/devices/camera">Android Camera HAL Documentation</a></li>
+                    <li><a href="https://developer.android.com/training/camera">Android Camera Training</a></li>
+                    <li><a href="https://developer.android.com/reference/androidx/camera/camera2/package-summary">CameraX Documentation</a></li>
+                </ul>
+            </section>
+            
+        </main>
+
+        <footer>
+            <p>© 2025 Android Camera 深入解析 | 持续更新中...</p>
+        </footer>
+    </div>
+</body>
+</html>

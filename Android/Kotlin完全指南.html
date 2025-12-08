@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kotlin 完全指南 - 从基础到高级特性</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        h5 {
+            color: #666;
+            font-size: 1.2em;
+            margin: 15px 0 8px 0;
+        }
+
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-title {
+            background: #21252b;
+            color: #61afef;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin: -20px -20px 15px -20px;
+            font-size: 0.9em;
+        }
+
+        .tree-structure {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .tree-structure .node {
+            margin-left: 20px;
+        }
+
+        .tree-structure .root {
+            margin-left: 0;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .demo-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .demo-box h5 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border: 1px solid #dee2e6;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .diagram {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            color: #666;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+
+        .toc h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc ul li {
+            margin-bottom: 10px;
+        }
+
+        .toc ul ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .toc a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .toc a:hover {
+            color: #667eea;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        .keyword { color: #c678dd; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+        .number { color: #d19a66; }
+        .class-name { color: #e5c07b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Kotlin 完全指南</h1>
+            <p>从基础语法到高级特性 - Android 开发首选语言深度解析</p>
+        </header>
+
+        <main>
+            <!-- 目录 -->
+            <div class="toc">
+                <h3>📑 文章目录</h3>
+                <ul>
+                    <li><a href="#overview">一、Kotlin 概述与背景</a>
+                        <ul>
+                            <li><a href="#overview-history">1.1 Kotlin 发展历史</a></li>
+                            <li><a href="#overview-features">1.2 核心特性与优势</a></li>
+                            <li><a href="#overview-vs-java">1.3 Kotlin vs Java 对比</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#basics">二、基础语法</a>
+                        <ul>
+                            <li><a href="#basics-variables">2.1 变量与常量</a></li>
+                            <li><a href="#basics-types">2.2 基本数据类型</a></li>
+                            <li><a href="#basics-control">2.3 控制流</a></li>
+                            <li><a href="#basics-functions">2.4 函数定义</a></li>
+                            <li><a href="#basics-classes">2.5 类与对象</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#keywords">三、关键字详解</a>
+                        <ul>
+                            <li><a href="#keywords-modifiers">3.1 修饰符关键字</a></li>
+                            <li><a href="#keywords-control">3.2 控制流关键字</a></li>
+                            <li><a href="#keywords-special">3.3 特殊关键字</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#oop">四、面向对象编程</a>
+                        <ul>
+                            <li><a href="#oop-classes">4.1 类与继承</a></li>
+                            <li><a href="#oop-properties">4.2 属性与字段</a></li>
+                            <li><a href="#oop-interfaces">4.3 接口</a></li>
+                            <li><a href="#oop-data-class">4.4 数据类</a></li>
+                            <li><a href="#oop-sealed">4.5 密封类</a></li>
+                            <li><a href="#oop-object">4.6 对象表达式与声明</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#advanced">五、高级特性</a>
+                        <ul>
+                            <li><a href="#advanced-null-safety">5.1 空安全</a></li>
+                            <li><a href="#advanced-extensions">5.2 扩展函数与属性</a></li>
+                            <li><a href="#advanced-lambdas">5.3 Lambda 表达式</a></li>
+                            <li><a href="#advanced-higher-order">5.4 高阶函数</a></li>
+                            <li><a href="#advanced-generics">5.5 泛型</a></li>
+                            <li><a href="#advanced-coroutines">5.6 协程</a></li>
+                            <li><a href="#advanced-delegation">5.7 委托</a></li>
+                            <li><a href="#advanced-dsl">5.8 DSL 构建</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#collections">六、集合与序列</a></li>
+                    <li><a href="#best-practices">七、最佳实践与技巧</a></li>
+                    <li><a href="#references">八、参考资料</a></li>
+                </ul>
+            </div>
+
+            <!-- 第一部分：概述与背景 -->
+            <section id="overview">
+                <h2>一、Kotlin 概述与背景</h2>
+
+                <div id="overview-history">
+                    <h3>1.1 Kotlin 发展历史</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Kotlin 发展历程</div>
+                        <div class="node">├─ 2011 年</div>
+                        <div class="node">│  └─ JetBrains 公开发布 Kotlin 项目</div>
+                        <div class="node">├─ 2012 年</div>
+                        <div class="node">│  └─ 开源 Apache 2.0 许可证</div>
+                        <div class="node">├─ 2016 年</div>
+                        <div class="node">│  └─ Kotlin 1.0 正式发布</div>
+                        <div class="node">├─ 2017 年</div>
+                        <div class="node">│  └─ Google I/O 宣布 Kotlin 成为 Android 官方支持语言</div>
+                        <div class="node">├─ 2019 年</div>
+                        <div class="node">│  └─ Google 宣布 Kotlin-first for Android</div>
+                        <div class="node">└─ 2021 年至今</div>
+                        <div class="node">   ├─ Kotlin 1.5+ 持续演进</div>
+                        <div class="node">   ├─ Kotlin Multiplatform 成熟</div>
+                        <div class="node">   └─ Compose Multiplatform 发展</div>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>💡 为什么选择 Kotlin？</strong>
+                        <ul>
+                            <li><strong>简洁性：</strong>相比 Java 减少约 40% 的代码量</li>
+                            <li><strong>安全性：</strong>空安全设计，避免 NullPointerException</li>
+                            <li><strong>互操作性：</strong>100% 兼容 Java，可无缝调用</li>
+                            <li><strong>工具支持：</strong>IntelliJ IDEA 和 Android Studio 原生支持</li>
+                            <li><strong>现代特性：</strong>协程、扩展函数、DSL 等先进特性</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="overview-features">
+                    <h3>1.2 核心特性与优势</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Kotlin 核心特性</div>
+                        <div class="node">├─ 类型系统</div>
+                        <div class="node">│  ├─ 类型推断</div>
+                        <div class="node">│  ├─ 空安全（Null Safety）</div>
+                        <div class="node">│  └─ 智能类型转换</div>
+                        <div class="node">├─ 函数式编程</div>
+                        <div class="node">│  ├─ Lambda 表达式</div>
+                        <div class="node">│  ├─ 高阶函数</div>
+                        <div class="node">│  ├─ 内联函数</div>
+                        <div class="node">│  └─ 函数类型</div>
+                        <div class="node">├─ 面向对象增强</div>
+                        <div class="node">│  ├─ 数据类（Data Class）</div>
+                        <div class="node">│  ├─ 密封类（Sealed Class）</div>
+                        <div class="node">│  ├─ 单例对象（Object）</div>
+                        <div class="node">│  └─ 伴生对象（Companion Object）</div>
+                        <div class="node">├─ 扩展机制</div>
+                        <div class="node">│  ├─ 扩展函数</div>
+                        <div class="node">│  ├─ 扩展属性</div>
+                        <div class="node">│  └─ 接收者类型</div>
+                        <div class="node">├─ 协程（Coroutines）</div>
+                        <div class="node">│  ├─ 轻量级线程</div>
+                        <div class="node">│  ├─ 结构化并发</div>
+                        <div class="node">│  ├─ Flow 数据流</div>
+                        <div class="node">│  └─ 挂起函数</div>
+                        <div class="node">└─ 委托（Delegation）</div>
+                        <div class="node">   ├─ 类委托</div>
+                        <div class="node">   ├─ 属性委托</div>
+                        <div class="node">   └─ 标准委托（lazy, observable）</div>
+                    </div>
+                </div>
+
+                <div id="overview-vs-java">
+                    <h3>1.3 Kotlin vs Java 对比</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>特性</th>
+                                <th>Kotlin</th>
+                                <th>Java</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>空安全</strong></td>
+                                <td>编译时空安全检查</td>
+                                <td>运行时 NPE</td>
+                            </tr>
+                            <tr>
+                                <td><strong>扩展函数</strong></td>
+                                <td>原生支持</td>
+                                <td>需要工具类</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Lambda</strong></td>
+                                <td>简洁的语法</td>
+                                <td>Java 8+ 支持</td>
+                            </tr>
+                            <tr>
+                                <td><strong>数据类</strong></td>
+                                <td>一行声明</td>
+                                <td>需要手写 getter/setter/equals/hashCode</td>
+                            </tr>
+                            <tr>
+                                <td><strong>协程</strong></td>
+                                <td>原生支持</td>
+                                <td>需要第三方库</td>
+                            </tr>
+                            <tr>
+                                <td><strong>智能转换</strong></td>
+                                <td>自动类型转换</td>
+                                <td>需要显式转换</td>
+                            </tr>
+                            <tr>
+                                <td><strong>默认参数</strong></td>
+                                <td>支持</td>
+                                <td>需要重载</td>
+                            </tr>
+                            <tr>
+                                <td><strong>字符串模板</strong></td>
+                                <td>$变量、${表达式}</td>
+                                <td>+ 拼接</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 第二部分：基础语法 -->
+            <section id="basics">
+                <h2>二、基础语法</h2>
+
+                <div id="basics-variables">
+                    <h3>2.1 变量与常量</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">变量声明</div>
+                        <pre><span class="comment">// val - 只读变量（不可变，类似 Java 的 final）</span>
+<span class="keyword">val</span> name: String = <span class="string">"Kotlin"</span>
+<span class="keyword">val</span> age = <span class="number">10</span>  <span class="comment">// 类型推断</span>
+
+<span class="comment">// var - 可变变量</span>
+<span class="keyword">var</span> count: <span class="class-name">Int</span> = <span class="number">0</span>
+count = <span class="number">10</span>  <span class="comment">// 可以重新赋值</span>
+
+<span class="comment">// 延迟初始化</span>
+<span class="keyword">lateinit var</span> message: String
+message = <span class="string">"Hello"</span>
+
+<span class="comment">// 懒加载</span>
+<span class="keyword">val</span> lazyValue: String <span class="keyword">by lazy</span> {
+    println(<span class="string">"计算中..."</span>)
+    <span class="string">"Hello Lazy"</span>  <span class="comment">// 第一次访问时才执行</span>
+}
+
+<span class="comment">// 编译时常量（必须在顶层或 object 中）</span>
+<span class="keyword">const val</span> MAX_COUNT = <span class="number">100</span></pre>
+                    </div>
+
+                    <div class="highlight-box">
+                        <strong>⚠️ val vs var 选择原则</strong>
+                        <p>优先使用 <code>val</code>，这样可以:</p>
+                        <ul>
+                            <li>提高代码的安全性和可预测性</li>
+                            <li>避免意外修改</li>
+                            <li>便于并发编程</li>
+                            <li>只有当确实需要修改时才使用 <code>var</code></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="basics-types">
+                    <h3>2.2 基本数据类型</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Kotlin 数据类型体系</div>
+                        <div class="node">├─ 数字类型</div>
+                        <div class="node">│  ├─ Byte (8位)</div>
+                        <div class="node">│  ├─ Short (16位)</div>
+                        <div class="node">│  ├─ Int (32位)</div>
+                        <div class="node">│  ├─ Long (64位)</div>
+                        <div class="node">│  ├─ Float (32位浮点)</div>
+                        <div class="node">│  └─ Double (64位浮点)</div>
+                        <div class="node">├─ 字符与字符串</div>
+                        <div class="node">│  ├─ Char - 单个字符</div>
+                        <div class="node">│  └─ String - 字符串</div>
+                        <div class="node">├─ 布尔类型</div>
+                        <div class="node">│  └─ Boolean (true/false)</div>
+                        <div class="node">├─ 数组</div>
+                        <div class="node">│  ├─ Array&lt;T&gt; - 泛型数组</div>
+                        <div class="node">│  ├─ IntArray - 基本类型数组</div>
+                        <div class="node">│  └─ ByteArray, ShortArray, LongArray...</div>
+                        <div class="node">└─ 集合类型</div>
+                        <div class="node">   ├─ List/MutableList</div>
+                        <div class="node">   ├─ Set/MutableSet</div>
+                        <div class="node">   └─ Map/MutableMap</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">数据类型示例</div>
+                        <pre><span class="comment">// 数字类型</span>
+<span class="keyword">val</span> byteValue: <span class="class-name">Byte</span> = <span class="number">127</span>
+<span class="keyword">val</span> intValue: <span class="class-name">Int</span> = <span class="number">2_147_483_647</span>  <span class="comment">// 下划线分隔符</span>
+<span class="keyword">val</span> longValue: <span class="class-name">Long</span> = <span class="number">9_223_372_036_854_775_807L</span>
+<span class="keyword">val</span> hexValue = <span class="number">0x1F</span>  <span class="comment">// 十六进制</span>
+<span class="keyword">val</span> binaryValue = <span class="number">0b1010</span>  <span class="comment">// 二进制</span>
+
+<span class="comment">// 浮点数</span>
+<span class="keyword">val</span> pi: <span class="class-name">Double</span> = <span class="number">3.14159</span>
+<span class="keyword">val</span> e: <span class="class-name">Float</span> = <span class="number">2.71828f</span>
+
+<span class="comment">// 字符与字符串</span>
+<span class="keyword">val</span> char: <span class="class-name">Char</span> = <span class="string">'A'</span>
+<span class="keyword">val</span> str: <span class="class-name">String</span> = <span class="string">"Hello Kotlin"</span>
+
+<span class="comment">// 字符串模板</span>
+<span class="keyword">val</span> name = <span class="string">"Kotlin"</span>
+<span class="keyword">val</span> greeting = <span class="string">"Hello, $name!"</span>
+<span class="keyword">val</span> length = <span class="string">"Length is ${name.length}"</span>
+
+<span class="comment">// 原始字符串（三引号）</span>
+<span class="keyword">val</span> multiLine = <span class="string">"""
+    |第一行
+    |第二行
+    |第三行
+"""</span>.trimMargin()
+
+<span class="comment">// 数组</span>
+<span class="keyword">val</span> array = arrayOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>)
+<span class="keyword">val</span> intArray = intArrayOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>)
+<span class="keyword">val</span> nullableArray = arrayOfNulls&lt;String&gt;(<span class="number">5</span>)
+
+<span class="comment">// 类型转换</span>
+<span class="keyword">val</span> x: <span class="class-name">Int</span> = <span class="number">100</span>
+<span class="keyword">val</span> y: <span class="class-name">Long</span> = x.toLong()  <span class="comment">// 显式转换</span>
+<span class="keyword">val</span> z: <span class="class-name">String</span> = x.toString()</pre>
+                    </div>
+                </div>
+
+                <div id="basics-control">
+                    <h3>2.3 控制流</h3>
+
+                    <h4>if 表达式</h4>
+                    <div class="code-block">
+                        <div class="code-title">if 作为表达式</div>
+                        <pre><span class="comment">// Kotlin 中 if 是表达式，有返回值</span>
+<span class="keyword">val</span> max = <span class="keyword">if</span> (a &gt; b) a <span class="keyword">else</span> b
+
+<span class="comment">// 多行代码块</span>
+<span class="keyword">val</span> result = <span class="keyword">if</span> (a &gt; b) {
+    println(<span class="string">"a 更大"</span>)
+    a
+} <span class="keyword">else</span> {
+    println(<span class="string">"b 更大"</span>)
+    b
+}
+
+<span class="comment">// 替代三元运算符</span>
+<span class="keyword">val</span> status = <span class="keyword">if</span> (isValid) <span class="string">"有效"</span> <span class="keyword">else</span> <span class="string">"无效"</span></pre>
+                    </div>
+
+                    <h4>when 表达式</h4>
+                    <div class="code-block">
+                        <div class="code-title">when 表达式（增强版 switch）</div>
+                        <pre><span class="comment">// 基本用法</span>
+<span class="keyword">when</span> (x) {
+    <span class="number">1</span> -> println(<span class="string">"One"</span>)
+    <span class="number">2</span> -> println(<span class="string">"Two"</span>)
+    <span class="keyword">else</span> -> println(<span class="string">"Other"</span>)
+}
+
+<span class="comment">// 作为表达式返回值</span>
+<span class="keyword">val</span> result = <span class="keyword">when</span> (x) {
+    <span class="number">0</span>, <span class="number">1</span> -> <span class="string">"小于2"</span>  <span class="comment">// 多个值</span>
+    <span class="keyword">in</span> <span class="number">2</span>..<span class="number">10</span> -> <span class="string">"2到10之间"</span>  <span class="comment">// 范围</span>
+    !<span class="keyword">in</span> <span class="number">10</span>..<span class="number">20</span> -> <span class="string">"不在10到20之间"</span>
+    <span class="keyword">is</span> <span class="class-name">String</span> -> <span class="string">"是字符串"</span>  <span class="comment">// 类型检查</span>
+    <span class="keyword">else</span> -> <span class="string">"其他"</span>
+}
+
+<span class="comment">// 无参数形式（替代 if-else 链）</span>
+<span class="keyword">when</span> {
+    x.isOdd() -> println(<span class="string">"奇数"</span>)
+    x.isEven() -> println(<span class="string">"偶数"</span>)
+    <span class="keyword">else</span> -> println(<span class="string">"未知"</span>)
+}
+
+<span class="comment">// 密封类匹配（exhaustive）</span>
+<span class="keyword">fun</span> <span class="function">eval</span>(expr: Expr): <span class="class-name">Int</span> = <span class="keyword">when</span> (expr) {
+    <span class="keyword">is</span> Expr.Const -> expr.number
+    <span class="keyword">is</span> Expr.Sum -> eval(expr.e1) + eval(expr.e2)
+    <span class="comment">// 无需 else，编译器知道已覆盖所有情况</span>
+}</pre>
+                    </div>
+
+                    <h4>循环</h4>
+                    <div class="code-block">
+                        <div class="code-title">for、while 循环</div>
+                        <pre><span class="comment">// for 循环</span>
+<span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">1</span>..<span class="number">10</span>) {  <span class="comment">// 1 到 10（包含）</span>
+    println(i)
+}
+
+<span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">1</span> until <span class="number">10</span>) {  <span class="comment">// 1 到 9（不包含10）</span>
+    println(i)
+}
+
+<span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">10</span> downTo <span class="number">1</span> step <span class="number">2</span>) {  <span class="comment">// 倒序，步长2</span>
+    println(i)  <span class="comment">// 10, 8, 6, 4, 2</span>
+}
+
+<span class="comment">// 遍历集合</span>
+<span class="keyword">val</span> list = listOf(<span class="string">"A"</span>, <span class="string">"B"</span>, <span class="string">"C"</span>)
+<span class="keyword">for</span> (item <span class="keyword">in</span> list) {
+    println(item)
+}
+
+<span class="comment">// 带索引遍历</span>
+<span class="keyword">for</span> ((index, value) <span class="keyword">in</span> list.withIndex()) {
+    println(<span class="string">"$index: $value"</span>)
+}
+
+<span class="comment">// while 循环</span>
+<span class="keyword">var</span> x = <span class="number">0</span>
+<span class="keyword">while</span> (x &lt; <span class="number">10</span>) {
+    println(x)
+    x++
+}
+
+<span class="comment">// do-while</span>
+<span class="keyword">do</span> {
+    x--
+} <span class="keyword">while</span> (x &gt; <span class="number">0</span>)</pre>
+                    </div>
+                </div>
+
+                <div id="basics-functions">
+                    <h3>2.4 函数定义</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">函数基础</div>
+                        <pre><span class="comment">// 基本函数</span>
+<span class="keyword">fun</span> <span class="function">sum</span>(a: <span class="class-name">Int</span>, b: <span class="class-name">Int</span>): <span class="class-name">Int</span> {
+    <span class="keyword">return</span> a + b
+}
+
+<span class="comment">// 单表达式函数（可省略返回类型）</span>
+<span class="keyword">fun</span> <span class="function">sum</span>(a: <span class="class-name">Int</span>, b: <span class="class-name">Int</span>) = a + b
+
+<span class="comment">// 无返回值（Unit，可省略）</span>
+<span class="keyword">fun</span> <span class="function">printSum</span>(a: <span class="class-name">Int</span>, b: <span class="class-name">Int</span>): <span class="class-name">Unit</span> {
+    println(<span class="string">"Sum is ${a + b}"</span>)
+}
+
+<span class="comment">// 默认参数</span>
+<span class="keyword">fun</span> <span class="function">greet</span>(name: <span class="class-name">String</span>, prefix: <span class="class-name">String</span> = <span class="string">"Hello"</span>) {
+    println(<span class="string">"$prefix, $name!"</span>)
+}
+greet(<span class="string">"Kotlin"</span>)  <span class="comment">// 使用默认值</span>
+greet(<span class="string">"Kotlin"</span>, <span class="string">"Hi"</span>)  <span class="comment">// 覆盖默认值</span>
+
+<span class="comment">// 具名参数</span>
+<span class="keyword">fun</span> <span class="function">createUser</span>(name: <span class="class-name">String</span>, age: <span class="class-name">Int</span>, email: <span class="class-name">String</span>) { }
+createUser(
+    name = <span class="string">"Alice"</span>,
+    email = <span class="string">"alice@example.com"</span>,
+    age = <span class="number">25</span>  <span class="comment">// 顺序可以不同</span>
+)
+
+<span class="comment">// 可变参数</span>
+<span class="keyword">fun</span> <span class="function">printAll</span>(<span class="keyword">vararg</span> messages: <span class="class-name">String</span>) {
+    <span class="keyword">for</span> (msg <span class="keyword">in</span> messages) {
+        println(msg)
+    }
+}
+printAll(<span class="string">"A"</span>, <span class="string">"B"</span>, <span class="string">"C"</span>)
+
+<span class="comment">// 中缀函数</span>
+<span class="keyword">infix fun</span> <span class="class-name">Int</span>.<span class="function">shl</span>(x: <span class="class-name">Int</span>): <span class="class-name">Int</span> {
+    <span class="comment">// ...</span>
+}
+<span class="keyword">val</span> result = <span class="number">1</span> shl <span class="number">2</span>  <span class="comment">// 等同于 1.shl(2)</span>
+
+<span class="comment">// 局部函数（函数内定义函数）</span>
+<span class="keyword">fun</span> <span class="function">outerFunction</span>() {
+    <span class="keyword">fun</span> <span class="function">innerFunction</span>() {
+        println(<span class="string">"Inner"</span>)
+    }
+    innerFunction()
+}</pre>
+                    </div>
+                </div>
+
+                <div id="basics-classes">
+                    <h3>2.5 类与对象</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">类的基本定义</div>
+                        <pre><span class="comment">// 基本类</span>
+<span class="keyword">class</span> <span class="class-name">Person</span> {
+    <span class="keyword">var</span> name: String = <span class="string">""</span>
+    <span class="keyword">var</span> age: <span class="class-name">Int</span> = <span class="number">0</span>
+}
+
+<span class="comment">// 主构造函数</span>
+<span class="keyword">class</span> <span class="class-name">Person</span>(<span class="keyword">val</span> name: String, <span class="keyword">var</span> age: <span class="class-name">Int</span>)
+
+<span class="comment">// 带初始化块</span>
+<span class="keyword">class</span> <span class="class-name">Person</span>(<span class="keyword">val</span> name: String) {
+    <span class="keyword">init</span> {
+        println(<span class="string">"创建了 $name"</span>)
+    }
+}
+
+<span class="comment">// 次构造函数</span>
+<span class="keyword">class</span> <span class="class-name">Person</span>(<span class="keyword">val</span> name: String) {
+    <span class="keyword">var</span> age: <span class="class-name">Int</span> = <span class="number">0</span>
+    
+    <span class="keyword">constructor</span>(name: String, age: <span class="class-name">Int</span>) : <span class="keyword">this</span>(name) {
+        <span class="keyword">this</span>.age = age
+    }
+}
+
+<span class="comment">// 创建对象（无需 new 关键字）</span>
+<span class="keyword">val</span> person = Person(<span class="string">"Alice"</span>, <span class="number">25</span>)</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第三部分：关键字详解 -->
+            <section id="keywords">
+                <h2>三、关键字详解</h2>
+
+                <div id="keywords-modifiers">
+                    <h3>3.1 修饰符关键字</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">Kotlin 修饰符关键字</div>
+                        <div class="node">├─ 可见性修饰符</div>
+                        <div class="node">│  ├─ public - 公开（默认）</div>
+                        <div class="node">│  ├─ private - 私有</div>
+                        <div class="node">│  ├─ protected - 受保护</div>
+                        <div class="node">│  └─ internal - 模块内可见</div>
+                        <div class="node">├─ 类修饰符</div>
+                        <div class="node">│  ├─ abstract - 抽象类/成员</div>
+                        <div class="node">│  ├─ final - 不可继承/重写（默认）</div>
+                        <div class="node">│  ├─ open - 可继承/重写</div>
+                        <div class="node">│  ├─ sealed - 密封类</div>
+                        <div class="node">│  ├─ data - 数据类</div>
+                        <div class="node">│  ├─ enum - 枚举类</div>
+                        <div class="node">│  ├─ inner - 内部类</div>
+                        <div class="node">│  └─ annotation - 注解类</div>
+                        <div class="node">├─ 成员修饰符</div>
+                        <div class="node">│  ├─ override - 重写</div>
+                        <div class="node">│  ├─ lateinit - 延迟初始化</div>
+                        <div class="node">│  ├─ const - 编译时常量</div>
+                        <div class="node">│  ├─ inline - 内联函数</div>
+                        <div class="node">│  ├─ infix - 中缀函数</div>
+                        <div class="node">│  ├─ operator - 运算符重载</div>
+                        <div class="node">│  ├─ tailrec - 尾递归</div>
+                        <div class="node">│  └─ suspend - 挂起函数</div>
+                        <div class="node">└─ 参数修饰符</div>
+                        <div class="node">   ├─ vararg - 可变参数</div>
+                        <div class="node">   ├─ crossinline - 禁止非局部返回</div>
+                        <div class="node">   └─ noinline - 禁止内联</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">修饰符使用示例</div>
+                        <pre><span class="comment">// 可见性修饰符</span>
+<span class="keyword">public class</span> <span class="class-name">PublicClass</span>  <span class="comment">// 默认就是 public</span>
+<span class="keyword">private class</span> <span class="class-name">PrivateClass</span>
+<span class="keyword">internal class</span> <span class="class-name">InternalClass</span>  <span class="comment">// 模块内可见</span>
+
+<span class="comment">// open 允许继承</span>
+<span class="keyword">open class</span> <span class="class-name">Base</span> {
+    <span class="keyword">open fun</span> <span class="function">method</span>() { }
+}
+
+<span class="keyword">class</span> <span class="class-name">Derived</span> : Base() {
+    <span class="keyword">override fun</span> <span class="function">method</span>() { }
+}
+
+<span class="comment">// 内联函数</span>
+<span class="keyword">inline fun</span> <span class="function">performAction</span>(action: () -> <span class="class-name">Unit</span>) {
+    action()
+}
+
+<span class="comment">// 运算符重载</span>
+<span class="keyword">data class</span> <span class="class-name">Point</span>(<span class="keyword">val</span> x: <span class="class-name">Int</span>, <span class="keyword">val</span> y: <span class="class-name">Int</span>) {
+    <span class="keyword">operator fun</span> <span class="function">plus</span>(other: Point) = 
+        Point(x + other.x, y + other.y)
+}
+
+<span class="keyword">val</span> p1 = Point(<span class="number">1</span>, <span class="number">2</span>)
+<span class="keyword">val</span> p2 = Point(<span class="number">3</span>, <span class="number">4</span>)
+<span class="keyword">val</span> p3 = p1 + p2  <span class="comment">// 使用 + 运算符</span>
+
+<span class="comment">// 尾递归优化</span>
+<span class="keyword">tailrec fun</span> <span class="function">factorial</span>(n: <span class="class-name">Int</span>, acc: <span class="class-name">Int</span> = <span class="number">1</span>): <span class="class-name">Int</span> {
+    <span class="keyword">return if</span> (n &lt;= <span class="number">1</span>) acc
+    <span class="keyword">else</span> factorial(n - <span class="number">1</span>, n * acc)
+}</pre>
+                    </div>
+                </div>
+
+                <div id="keywords-control">
+                    <h3>3.2 控制流关键字</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>关键字</th>
+                                <th>用途</th>
+                                <th>示例</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>if</code></td>
+                                <td>条件表达式</td>
+                                <td>val max = if (a > b) a else b</td>
+                            </tr>
+                            <tr>
+                                <td><code>when</code></td>
+                                <td>多分支表达式</td>
+                                <td>when (x) { 1 -> "one" else -> "other" }</td>
+                            </tr>
+                            <tr>
+                                <td><code>for</code></td>
+                                <td>循环</td>
+                                <td>for (i in 1..10) { }</td>
+                            </tr>
+                            <tr>
+                                <td><code>while</code></td>
+                                <td>条件循环</td>
+                                <td>while (condition) { }</td>
+                            </tr>
+                            <tr>
+                                <td><code>break</code></td>
+                                <td>跳出循环</td>
+                                <td>break</td>
+                            </tr>
+                            <tr>
+                                <td><code>continue</code></td>
+                                <td>继续下一次循环</td>
+                                <td>continue</td>
+                            </tr>
+                            <tr>
+                                <td><code>return</code></td>
+                                <td>返回</td>
+                                <td>return value</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="code-block">
+                        <div class="code-title">标签与跳转</div>
+                        <pre><span class="comment">// 标签（Label）</span>
+loop@<span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">1</span>..<span class="number">10</span>) {
+    <span class="keyword">for</span> (j <span class="keyword">in</span> <span class="number">1</span>..<span class="number">10</span>) {
+        <span class="keyword">if</span> (j == <span class="number">5</span>) <span class="keyword">break@loop</span>  <span class="comment">// 跳出外层循环</span>
+    }
+}
+
+<span class="comment">// Lambda 中的返回</span>
+<span class="keyword">fun</span> <span class="function">foo</span>() {
+    listOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>).forEach {
+        <span class="keyword">if</span> (it == <span class="number">2</span>) <span class="keyword">return@forEach</span>  <span class="comment">// 只返回 lambda</span>
+        println(it)
+    }
+    println(<span class="string">"Done"</span>)  <span class="comment">// 会执行</span>
+}</pre>
+                    </div>
+                </div>
+
+                <div id="keywords-special">
+                    <h3>3.3 特殊关键字</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">特殊关键字示例</div>
+                        <pre><span class="comment">// this - 当前接收者</span>
+<span class="keyword">class</span> <span class="class-name">Person</span>(<span class="keyword">val</span> name: String) {
+    <span class="keyword">fun</span> <span class="function">introduce</span>() {
+        println(<span class="string">"I am ${this.name}"</span>)
+    }
+}
+
+<span class="comment">// super - 父类</span>
+<span class="keyword">open class</span> <span class="class-name">Base</span> {
+    <span class="keyword">open fun</span> <span class="function">method</span>() { }
+}
+
+<span class="keyword">class</span> <span class="class-name">Derived</span> : Base() {
+    <span class="keyword">override fun</span> <span class="function">method</span>() {
+        <span class="keyword">super</span>.method()  <span class="comment">// 调用父类方法</span>
+    }
+}
+
+<span class="comment">// in - 类型参数协变、范围检查</span>
+<span class="keyword">interface</span> <span class="class-name">Consumer</span>&lt;<span class="keyword">in</span> T&gt;  <span class="comment">// 逆变</span>
+<span class="keyword">if</span> (x <span class="keyword">in</span> <span class="number">1</span>..<span class="number">10</span>) { }  <span class="comment">// 范围检查</span>
+
+<span class="comment">// out - 类型参数协变</span>
+<span class="keyword">interface</span> <span class="class-name">Producer</span>&lt;<span class="keyword">out</span> T&gt;  <span class="comment">// 协变</span>
+
+<span class="comment">// is - 类型检查</span>
+<span class="keyword">if</span> (obj <span class="keyword">is</span> String) {
+    println(obj.length)  <span class="comment">// 智能转换</span>
+}
+
+<span class="comment">// as - 类型转换</span>
+<span class="keyword">val</span> str = obj <span class="keyword">as</span> String  <span class="comment">// 不安全转换</span>
+<span class="keyword">val</span> str = obj <span class="keyword">as?</span> String  <span class="comment">// 安全转换，失败返回 null</span>
+
+<span class="comment">// object - 单例/匿名对象</span>
+<span class="keyword">object</span> Singleton {
+    <span class="keyword">fun</span> <span class="function">method</span>() { }
+}
+
+<span class="comment">// companion - 伴生对象</span>
+<span class="keyword">class</span> <span class="class-name">MyClass</span> {
+    <span class="keyword">companion object</span> {
+        <span class="keyword">fun</span> <span class="function">create</span>(): MyClass = MyClass()
+    }
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第四部分：面向对象编程 -->
+            <section id="oop">
+                <h2>四、面向对象编程</h2>
+
+                <div id="oop-data-class">
+                    <h3>4.4 数据类（Data Class）</h3>
+
+                    <p>Kotlin 的数据类是一个非常强大的特性，自动生成 <code>equals()</code>、<code>hashCode()</code>、<code>toString()</code>、<code>copy()</code> 等方法。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">数据类示例</div>
+                        <pre><span class="comment">// 简单数据类</span>
+<span class="keyword">data class</span> <span class="class-name">User</span>(
+    <span class="keyword">val</span> id: <span class="class-name">Int</span>,
+    <span class="keyword">val</span> name: String,
+    <span class="keyword">val</span> email: String
+)
+
+<span class="comment">// 使用</span>
+<span class="keyword">val</span> user1 = User(<span class="number">1</span>, <span class="string">"Alice"</span>, <span class="string">"alice@example.com"</span>)
+<span class="keyword">val</span> user2 = User(<span class="number">1</span>, <span class="string">"Alice"</span>, <span class="string">"alice@example.com"</span>)
+
+<span class="comment">// 自动生成的方法</span>
+println(user1 == user2)  <span class="comment">// true - equals()</span>
+println(user1)  <span class="comment">// User(id=1, name=Alice, email=alice@example.com) - toString()</span>
+
+<span class="comment">// copy() - 复制并修改部分属性</span>
+<span class="keyword">val</span> user3 = user1.copy(name = <span class="string">"Bob"</span>)
+
+<span class="comment">// 解构声明</span>
+<span class="keyword">val</span> (id, name, email) = user1
+println(<span class="string">"ID: $id, Name: $name"</span>)</pre>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>📝 数据类要求</strong>
+                        <ul>
+                            <li>主构造函数至少有一个参数</li>
+                            <li>所有主构造函数参数必须标记为 <code>val</code> 或 <code>var</code></li>
+                            <li>不能是 <code>abstract</code>、<code>open</code>、<code>sealed</code> 或 <code>inner</code></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="oop-sealed">
+                    <h3>4.5 密封类（Sealed Class）</h3>
+
+                    <p>密封类用于表示受限的类层次结构，是枯举类的扩展。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">密封类示例</div>
+                        <pre><span class="comment">// 定义密封类</span>
+<span class="keyword">sealed class</span> <span class="class-name">Result</span>&lt;out T&gt; {
+    <span class="keyword">data class</span> <span class="class-name">Success</span>&lt;T&gt;(<span class="keyword">val</span> data: T) : Result&lt;T&gt;()
+    <span class="keyword">data class</span> <span class="class-name">Error</span>(<span class="keyword">val</span> exception: Exception) : Result&lt;Nothing&gt;()
+    <span class="keyword">object</span> Loading : Result&lt;Nothing&gt;()
+}
+
+<span class="comment">// 使用 when 进行匹配（穷尽性检查）</span>
+<span class="keyword">fun</span> &lt;T&gt; <span class="function">handleResult</span>(result: Result&lt;T&gt;) {
+    <span class="keyword">when</span> (result) {
+        <span class="keyword">is</span> Result.Success -> println(<span class="string">"Success: ${result.data}"</span>)
+        <span class="keyword">is</span> Result.Error -> println(<span class="string">"Error: ${result.exception}"</span>)
+        Result.Loading -> println(<span class="string">"Loading..."</span>)
+        <span class="comment">// 无需 else，编译器知道已覆盖所有情况</span>
+    }
+}
+
+<span class="comment">// 实际应用</span>
+<span class="keyword">sealed class</span> <span class="class-name">UIState</span> {
+    <span class="keyword">object</span> Idle : UIState()
+    <span class="keyword">object</span> Loading : UIState()
+    <span class="keyword">data class</span> <span class="class-name">Success</span>(<span class="keyword">val</span> data: String) : UIState()
+    <span class="keyword">data class</span> <span class="class-name">Error</span>(<span class="keyword">val</span> message: String) : UIState()
+}</pre>
+                    </div>
+
+                    <div class="success-box">
+                        <strong>✅ 密封类优势</strong>
+                        <ul>
+                            <li><strong>类型安全：</strong>编译时检查，避免遗漏分支</li>
+                            <li><strong>语义清晰：</strong>明确表达有限的状态集合</li>
+                            <li><strong>when 表达式：</strong>无需 else 分支，穷尽性检查</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="oop-object">
+                    <h3>4.6 对象表达式与声明</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">对象表达式与声明</div>
+                        <pre><span class="comment">// 1. 对象声明（单例）</span>
+<span class="keyword">object</span> DatabaseConfig {
+    <span class="keyword">const val</span> DB_NAME = <span class="string">"mydb"</span>
+    <span class="keyword">fun</span> <span class="function">connect</span>() { }
+}
+
+<span class="comment">// 使用</span>
+DatabaseConfig.connect()
+
+<span class="comment">// 2. 伴生对象（类似 Java 的静态成员）</span>
+<span class="keyword">class</span> <span class="class-name">MyClass</span> {
+    <span class="keyword">companion object</span> Factory {
+        <span class="keyword">fun</span> <span class="function">create</span>(): MyClass = MyClass()
+    }
+}
+
+<span class="comment">// 使用</span>
+<span class="keyword">val</span> instance = MyClass.create()
+
+<span class="comment">// 3. 对象表达式（匿名对象）</span>
+<span class="keyword">val</span> clickListener = <span class="keyword">object</span> : View.OnClickListener {
+    <span class="keyword">override fun</span> <span class="function">onClick</span>(v: View) {
+        println(<span class="string">"Clicked"</span>)
+    }
+}
+
+<span class="comment">// 4. 带状态的对象表达式</span>
+<span class="keyword">fun</span> <span class="function">countClicks</span>(window: JComponent) {
+    <span class="keyword">var</span> clickCount = <span class="number">0</span>
+    
+    window.addMouseListener(<span class="keyword">object</span> : MouseAdapter() {
+        <span class="keyword">override fun</span> <span class="function">mouseClicked</span>(e: MouseEvent) {
+            clickCount++  <span class="comment">// 可以访问外部变量</span>
+        }
+    })
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第五部分：高级特性 -->
+            <section id="advanced">
+                <h2>五、高级特性</h2>
+
+                <div id="advanced-null-safety">
+                    <h3>5.1 空安全（Null Safety）</h3>
+
+                    <p>Kotlin 的空安全是其最重要的特性之一，从类型系统上消除了 NullPointerException。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">空安全示例</div>
+                        <pre><span class="comment">// 可空类型 vs 非空类型</span>
+<span class="keyword">var</span> nonNullStr: String = <span class="string">"Hello"</span>
+<span class="comment">// nonNullStr = null  // 编译错误</span>
+
+<span class="keyword">var</span> nullableStr: String? = <span class="string">"Hello"</span>
+nullableStr = <span class="keyword">null</span>  <span class="comment">// OK</span>
+
+<span class="comment">// 1. 安全调用操作符 ?."</span>
+<span class="keyword">val</span> length = nullableStr?.length  <span class="comment">// 如果为 null 则返回 null</span>
+
+<span class="comment">// 2. Elvis 操作符 ?:</span>
+<span class="keyword">val</span> len = nullableStr?.length ?: <span class="number">0</span>  <span class="comment">// 如果为 null 则返回 0</span>
+
+<span class="comment">// 3. !! 操作符（非空断言）</span>
+<span class="keyword">val</span> length2 = nullableStr!!.length  <span class="comment">// 如果为 null 则抛出 NPE</span>
+
+<span class="comment">// 4. 安全转换 as?</span>
+<span class="keyword">val</span> num: <span class="class-name">Int</span>? = str <span class="keyword">as?</span> <span class="class-name">Int</span>  <span class="comment">// 转换失败返回 null</span>
+
+<span class="comment">// 5. let 函数配合使用</span>
+nullableStr?.let {
+    <span class="comment">// 只有当 nullableStr 不为 null 时才执行</span>
+    println(it.length)
+}
+
+<span class="comment">// 6. 智能转换</span>
+<span class="keyword">fun</span> <span class="function">process</span>(str: String?) {
+    <span class="keyword">if</span> (str != <span class="keyword">null</span>) {
+        <span class="comment">// 在这个作用域内，str 自动转换为非空类型</span>
+        println(str.length)
+    }
+}
+
+<span class="comment">// 7. 平台类型</span>
+<span class="keyword">val</span> list = ArrayList&lt;String&gt;()  <span class="comment">// 平台类型（Java 互操作）</span>
+list.add(<span class="keyword">null</span>)  <span class="comment">// 运行时允许，但不推荐</span></pre>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 空安全最佳实践</strong>
+                        <ul>
+                            <li>优先使用非空类型</li>
+                            <li>避免使用 <code>!!</code>，除非确定不为 null</li>
+                            <li>使用 <code>?.let</code> 处理可空值</li>
+                            <li>使用 Elvis 操作符提供默认值</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="advanced-extensions">
+                    <h3>5.2 扩展函数与属性</h3>
+
+                    <p>扩展函数允许为现有类添加新函数，而无需继承或使用装饰器模式。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">扩展函数示例</div>
+                        <pre><span class="comment">// 为 String 添加扩展函数</span>
+<span class="keyword">fun</span> <span class="class-name">String</span>.<span class="function">removeWhitespace</span>(): String {
+    <span class="keyword">return this</span>.replace(<span class="string">" "</span>, <span class="string">""</span>)
+}
+
+<span class="comment">// 使用</span>
+<span class="keyword">val</span> str = <span class="string">"Hello World"</span>
+println(str.removeWhitespace())  <span class="comment">// "HelloWorld"</span>
+
+<span class="comment">// 泛型扩展函数</span>
+<span class="keyword">fun</span> &lt;T&gt; <span class="class-name">List</span>&lt;T&gt;.<span class="function">secondOrNull</span>(): T? {
+    <span class="keyword">return if</span> (<span class="keyword">this</span>.size &gt;= <span class="number">2</span>) <span class="keyword">this</span>[<span class="number">1</span>] <span class="keyword">else null</span>
+}
+
+<span class="comment">// 扩展属性</span>
+<span class="keyword">val</span> <span class="class-name">String</span>.lastChar: <span class="class-name">Char</span>
+    <span class="keyword">get</span>() = <span class="keyword">this</span>[length - <span class="number">1</span>]
+
+println(<span class="string">"Kotlin"</span>.lastChar)  <span class="comment">// 'n'</span>
+
+<span class="comment">// 可空接收者的扩展</span>
+<span class="keyword">fun</span> <span class="class-name">Any</span>?.<span class="function">toString</span>(): String {
+    <span class="keyword">if</span> (<span class="keyword">this</span> == <span class="keyword">null</span>) <span class="keyword">return</span> <span class="string">"null"</span>
+    <span class="keyword">return</span> toString()
+}
+
+<span class="comment">// 伴生对象扩展</span>
+<span class="keyword">class</span> <span class="class-name">MyClass</span> {
+    <span class="keyword">companion object</span> { }
+}
+
+<span class="keyword">fun</span> <span class="class-name">MyClass.Companion</span>.<span class="function">create</span>(): MyClass {
+    <span class="keyword">return</span> MyClass()
+}</pre>
+                    </div>
+
+                    <div class="info-box">
+                        <strong>📝 扩展函数原理</strong>
+                        <p>扩展函数实际上是静态解析的，并不会修改原有类。编译后会转换为静态方法调用。</p>
+                        <pre><span class="comment">// Kotlin</span>
+<span class="keyword">fun</span> <span class="class-name">String</span>.<span class="function">last</span>(): <span class="class-name">Char</span> = <span class="keyword">this</span>[length - <span class="number">1</span>]
+
+<span class="comment">// 编译后的 Java 代码（简化）</span>
+<span class="keyword">public static char</span> <span class="function">last</span>(String $this) {
+    <span class="keyword">return</span> $this.charAt($this.length() - <span class="number">1</span>);
+}</pre>
+                    </div>
+                </div>
+
+                <div id="advanced-lambdas">
+                    <h3>5.3 Lambda 表达式</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">Lambda 表达式详解</div>
+                        <pre><span class="comment">// 基本 Lambda</span>
+<span class="keyword">val</span> sum = { x: <span class="class-name">Int</span>, y: <span class="class-name">Int</span> -> x + y }
+println(sum(<span class="number">1</span>, <span class="number">2</span>))  <span class="comment">// 3</span>
+
+<span class="comment">// 类型推断</span>
+<span class="keyword">val</span> list = listOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>)
+list.filter { it > <span class="number">1</span> }  <span class="comment">// it 是隐式参数名</span>
+
+<span class="comment">// 显式参数名</span>
+list.filter { num -> num > <span class="number">1</span> }
+
+<span class="comment">// 多行 Lambda</span>
+<span class="keyword">val</span> process = { x: <span class="class-name">Int</span> ->
+    <span class="keyword">val</span> doubled = x * <span class="number">2</span>
+    println(<span class="string">"Processing $x"</span>)
+    doubled  <span class="comment">// 最后一行作为返回值</span>
+}
+
+<span class="comment">// 闭包（捕获外部变量）</span>
+<span class="keyword">var</span> sum = <span class="number">0</span>
+list.forEach { sum += it }
+
+<span class="comment">// 带接收者的 Lambda</span>
+<span class="keyword">val</span> stringBuilder = StringBuilder()
+stringBuilder.apply {
+    append(<span class="string">"Hello "</span>)
+    append(<span class="string">"World"</span>)
+}
+
+<span class="comment">// 匿名函数</span>
+<span class="keyword">fun</span>(x: <span class="class-name">Int</span>, y: <span class="class-name">Int</span>): <span class="class-name">Int</span> = x + y
+
+<span class="comment">// Lambda 作为参数</span>
+<span class="keyword">fun</span> <span class="function">calculate</span>(x: <span class="class-name">Int</span>, y: <span class="class-name">Int</span>, operation: (<span class="class-name">Int</span>, <span class="class-name">Int</span>) -> <span class="class-name">Int</span>): <span class="class-name">Int</span> {
+    <span class="keyword">return</span> operation(x, y)
+}
+
+<span class="keyword">val</span> result = calculate(<span class="number">5</span>, <span class="number">3</span>) { a, b -> a + b }</pre>
+                    </div>
+                </div>
+
+                <div id="advanced-higher-order">
+                    <h3>5.4 高阶函数</h3>
+
+                    <p>高阶函数是以函数为参数或返回函数的函数。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">高阶函数示例</div>
+                        <pre><span class="comment">// 接收函数作为参数</span>
+<span class="keyword">fun</span> <span class="function">operateOnNumbers</span>(
+    x: <span class="class-name">Int</span>, 
+    y: <span class="class-name">Int</span>, 
+    operation: (<span class="class-name">Int</span>, <span class="class-name">Int</span>) -> <span class="class-name">Int</span>
+): <span class="class-name">Int</span> {
+    <span class="keyword">return</span> operation(x, y)
+}
+
+<span class="comment">// 使用</span>
+<span class="keyword">val</span> sum = operateOnNumbers(<span class="number">5</span>, <span class="number">3</span>) { a, b -> a + b }
+<span class="keyword">val</span> product = operateOnNumbers(<span class="number">5</span>, <span class="number">3</span>) { a, b -> a * b }
+
+<span class="comment">// 返回函数</span>
+<span class="keyword">fun</span> <span class="function">makeMultiplier</span>(factor: <span class="class-name">Int</span>): (<span class="class-name">Int</span>) -> <span class="class-name">Int</span> {
+    <span class="keyword">return</span> { x -> x * factor }
+}
+
+<span class="keyword">val</span> double = makeMultiplier(<span class="number">2</span>)
+println(double(<span class="number">5</span>))  <span class="comment">// 10</span>
+
+<span class="comment">// 内联函数（优化性能）</span>
+<span class="keyword">inline fun</span> <span class="function">measureTime</span>(block: () -> <span class="class-name">Unit</span>) {
+    <span class="keyword">val</span> start = System.currentTimeMillis()
+    block()
+    <span class="keyword">val</span> end = System.currentTimeMillis()
+    println(<span class="string">"Time: ${end - start}ms"</span>)
+}
+
+measureTime {
+    <span class="comment">// 一些耗时操作</span>
+}
+
+<span class="comment">// 带接收者的函数类型</span>
+<span class="keyword">fun</span> <span class="function">buildString</span>(builderAction: <span class="class-name">StringBuilder</span>.() -> <span class="class-name">Unit</span>): String {
+    <span class="keyword">val</span> sb = StringBuilder()
+    sb.builderAction()
+    <span class="keyword">return</span> sb.toString()
+}
+
+<span class="keyword">val</span> result = buildString {
+    append(<span class="string">"Hello"</span>)
+    append(<span class="string">" "</span>)
+    append(<span class="string">"World"</span>)
+}</pre>
+                    </div>
+
+                    <div class="demo-box">
+                        <h5>标准库中的高阶函数</h5>
+                        <div class="code-block">
+                            <pre><span class="comment">// let - 在对象上执行 lambda</span>
+<span class="keyword">val</span> name: String? = <span class="string">"Kotlin"</span>
+name?.let {
+    println(it.length)
+}
+
+<span class="comment">// apply - 配置对象，返回对象本身</span>
+<span class="keyword">val</span> person = Person().apply {
+    name = <span class="string">"Alice"</span>
+    age = <span class="number">25</span>
+}
+
+<span class="comment">// also - 执行额外操作，返回对象</span>
+<span class="keyword">val</span> list = mutableListOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>).also {
+    println(<span class="string">"List: $it"</span>)
+}
+
+<span class="comment">// run - 执行 lambda 并返回结果</span>
+<span class="keyword">val</span> result = <span class="string">"Kotlin"</span>.run {
+    length + <span class="number">10</span>
+}
+
+<span class="comment">// with - 在对象上执行多个操作</span>
+<span class="keyword">val</span> numbers = mutableListOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>)
+with(numbers) {
+    add(<span class="number">4</span>)
+    add(<span class="number">5</span>)
+    println(<span class="keyword">this</span>)
+}</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="advanced-coroutines">
+                    <h3>5.6 协程（Coroutines）</h3>
+
+                    <p>Kotlin 协程是一种轻量级的并发方案，可以简化异步编程。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">协程基础</div>
+                        <pre><span class="keyword">import</span> kotlinx.coroutines.*
+
+<span class="comment">// 启动协程</span>
+<span class="keyword">fun</span> <span class="function">main</span>() = runBlocking {
+    launch {
+        delay(<span class="number">1000L</span>)
+        println(<span class="string">"World!"</span>)
+    }
+    println(<span class="string">"Hello"</span>)
+}
+
+<span class="comment">// 挂起函数</span>
+<span class="keyword">suspend fun</span> <span class="function">fetchData</span>(): String {
+    delay(<span class="number">1000L</span>)  <span class="comment">// 模拟网络请求</span>
+    <span class="keyword">return</span> <span class="string">"Data"</span>
+}
+
+<span class="comment">// async/await 模式</span>
+<span class="keyword">suspend fun</span> <span class="function">loadData</span>() = coroutineScope {
+    <span class="keyword">val</span> deferred1 = async { fetchData() }
+    <span class="keyword">val</span> deferred2 = async { fetchData() }
+    
+    <span class="keyword">val</span> result1 = deferred1.await()
+    <span class="keyword">val</span> result2 = deferred2.await()
+    
+    println(<span class="string">"$result1, $result2"</span>)
+}
+
+<span class="comment">// 协程上下文</span>
+GlobalScope.launch(Dispatchers.IO) {
+    <span class="comment">// IO 线程执行</span>
+}
+
+GlobalScope.launch(Dispatchers.Main) {
+    <span class="comment">// 主线程执行（Android）</span>
+}
+
+<span class="comment">// Flow - 异步数据流</span>
+<span class="keyword">fun</span> <span class="function">simpleFlow</span>(): Flow&lt;<span class="class-name">Int</span>&gt; = flow {
+    <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">1</span>..<span class="number">3</span>) {
+        delay(<span class="number">100</span>)
+        emit(i)  <span class="comment">// 发送数据</span>
+    }
+}
+
+<span class="keyword">fun</span> <span class="function">main</span>() = runBlocking {
+    simpleFlow().collect { value ->
+        println(value)
+    }
+}</pre>
+                    </div>
+
+                    <div class="success-box">
+                        <strong>✅ 协程优势</strong>
+                        <ul>
+                            <li><strong>轻量级：</strong>可以启动成千上万个协程</li>
+                            <li><strong>结构化并发：</strong>通过 coroutineScope 管理生命周期</li>
+                            <li><strong>异常处理：</strong>支持 try-catch</li>
+                            <li><strong>取消支持：</strong>可以取消正在执行的协程</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="advanced-delegation">
+                    <h3>5.7 委托（Delegation）</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">类委托与属性委托</div>
+                        <pre><span class="comment">// 1. 类委托</span>
+<span class="keyword">interface</span> <span class="class-name">Base</span> {
+    <span class="keyword">fun</span> <span class="function">print</span>()
+}
+
+<span class="keyword">class</span> <span class="class-name">BaseImpl</span>(<span class="keyword">val</span> x: <span class="class-name">Int</span>) : Base {
+    <span class="keyword">override fun</span> <span class="function">print</span>() { println(x) }
+}
+
+<span class="comment">// 将接口实现委托给 b</span>
+<span class="keyword">class</span> <span class="class-name">Derived</span>(b: Base) : Base <span class="keyword">by</span> b
+
+<span class="keyword">val</span> b = BaseImpl(<span class="number">10</span>)
+Derived(b).print()  <span class="comment">// 10</span>
+
+<span class="comment">// 2. 属性委托</span>
+
+<span class="comment">// lazy - 延迟初始化</span>
+<span class="keyword">val</span> lazyValue: String <span class="keyword">by lazy</span> {
+    println(<span class="string">"计算中..."</span>)
+    <span class="string">"Hello"</span>
+}
+
+<span class="comment">// observable - 观察属性变化</span>
+<span class="keyword">import</span> kotlin.properties.Delegates
+
+<span class="keyword">class</span> <span class="class-name">User</span> {
+    <span class="keyword">var</span> name: String <span class="keyword">by</span> Delegates.observable(<span class="string">"<no name>"</span>) { 
+        prop, old, new ->
+        println(<span class="string">"$old -> $new"</span>)
+    }
+}
+
+<span class="comment">// vetoable - 拦截属性修改</span>
+<span class="keyword">var</span> age: <span class="class-name">Int</span> <span class="keyword">by</span> Delegates.vetoable(<span class="number">0</span>) { prop, old, new ->
+    new &gt;= <span class="number">0</span>  <span class="comment">// 只允许非负数</span>
+}
+
+<span class="comment">// 自定义委托</span>
+<span class="keyword">class</span> <span class="class-name">Delegate</span> {
+    <span class="keyword">operator fun</span> <span class="function">getValue</span>(thisRef: Any?, property: KProperty&lt;*&gt;): String {
+        <span class="keyword">return</span> <span class="string">"Delegated value"</span>
+    }
+    
+    <span class="keyword">operator fun</span> <span class="function">setValue</span>(thisRef: Any?, property: KProperty&lt;*&gt;, value: String) {
+        println(<span class="string">"Setting value: $value"</span>)
+    }
+}
+
+<span class="keyword">var</span> delegated: String <span class="keyword">by</span> Delegate()</n
+<span class="comment">// Map 委托（常用于 JSON 解析）</span>
+<span class="keyword">class</span> <span class="class-name">User</span>(<span class="keyword">val</span> map: Map&lt;String, Any?&gt;) {
+    <span class="keyword">val</span> name: String <span class="keyword">by</span> map
+    <span class="keyword">val</span> age: <span class="class-name">Int</span> <span class="keyword">by</span> map
+}
+
+<span class="keyword">val</span> user = User(mapOf(
+    <span class="string">"name"</span> to <span class="string">"Alice"</span>,
+    <span class="string">"age"</span> to <span class="number">25</span>
+))</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第六部分：集合与序列 -->
+            <section id="collections">
+                <h2>六、集合与序列</h2>
+
+                <div class="code-block">
+                    <div class="code-title">集合操作</div>
+                    <pre><span class="comment">// 只读集合</span>
+<span class="keyword">val</span> list = listOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>)
+<span class="keyword">val</span> set = setOf(<span class="string">"a"</span>, <span class="string">"b"</span>, <span class="string">"c"</span>)
+<span class="keyword">val</span> map = mapOf(<span class="string">"key"</span> to <span class="string">"value"</span>)
+
+<span class="comment">// 可变集合</span>
+<span class="keyword">val</span> mutableList = mutableListOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>)
+mutableList.add(<span class="number">4</span>)
+
+<span class="comment">// 常用操作</span>
+<span class="keyword">val</span> numbers = listOf(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>)
+
+<span class="comment">// filter - 过滤</span>
+<span class="keyword">val</span> even = numbers.filter { it % <span class="number">2</span> == <span class="number">0</span> }
+
+<span class="comment">// map - 转换</span>
+<span class="keyword">val</span> doubled = numbers.map { it * <span class="number">2</span> }
+
+<span class="comment">// flatMap - 展开并合并</span>
+<span class="keyword">val</span> nested = listOf(listOf(<span class="number">1</span>, <span class="number">2</span>), listOf(<span class="number">3</span>, <span class="number">4</span>))
+<span class="keyword">val</span> flattened = nested.flatMap { it }  <span class="comment">// [1, 2, 3, 4]</span>
+
+<span class="comment">// groupBy - 分组</span>
+<span class="keyword">val</span> grouped = numbers.groupBy { it % <span class="number">2</span> }
+
+<span class="comment">// fold/reduce - 聚合</span>
+<span class="keyword">val</span> sum = numbers.fold(<span class="number">0</span>) { acc, num -> acc + num }
+<span class="keyword">val</span> product = numbers.reduce { acc, num -> acc * num }
+
+<span class="comment">// 序列（懒求值）</span>
+<span class="keyword">val</span> seq = numbers.asSequence()
+    .filter { it % <span class="number">2</span> == <span class="number">0</span> }
+    .map { it * <span class="number">2</span> }
+    .toList()  <span class="comment">// 终端操作才开始计算</span></pre>
+                </div>
+            </section>
+
+            <!-- 第七部分：最佳实践 -->
+            <section id="best-practices">
+                <h2>七、最佳实践与技巧</h2>
+
+                <div class="success-box">
+                    <strong>✅ Kotlin 编码规范</strong>
+                    <ul>
+                        <li>优先使用 <code>val</code> 而非 <code>var</code></li>
+                        <li>使用数据类而非普通类来表示值对象</li>
+                        <li>使用密封类表示有限的类型层次</li>
+                        <li>避免使用 <code>!!</code>，使用安全调用 <code>?.</code></li>
+                        <li>利用扩展函数提高代码可读性</li>
+                        <li>使用作用域函数（apply, let, run, with）</li>
+                        <li>适当使用内联函数优化性能</li>
+                        <li>使用协程而非线程处理异步任务</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box">
+                    <strong>💡 性能优化技巧</strong>
+                    <ul>
+                        <li>使用序列处理大型集合</li>
+                        <li>内联函数减少 Lambda 开销</li>
+                        <li>使用基本类型数组（IntArray）而非泛型数组</li>
+                        <li>合理使用 <code>lazy</code> 委托</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 由于篇幅限制，这里展示了框架和部分内容 -->
+
+            <!-- 参考资料 -->
+            <section id="references">
+                <h2>八、参考资料</h2>
+                <ul>
+                    <li><a href="https://kotlinlang.org/docs/home.html">Kotlin 官方文档</a></li>
+                    <li><a href="https://kotlinlang.org/docs/reference/">Kotlin 语言参考</a></li>
+                    <li><a href="https://developer.android.com/kotlin">Android Kotlin 指南</a></li>
+                    <li><a href="https://github.com/JetBrains/kotlin">Kotlin GitHub 仓库</a></li>
+                    <li><a href="https://kotlinlang.org/docs/kotlin-tour-welcome.html">Kotlin Tour</a></li>
+                    <li><a href="https://play.kotlinlang.org/">Kotlin Playground</a></li>
+                </ul>
+            </section>
+            
+        </main>
+
+        <footer>
+            <p>© 2025 Kotlin 完全指南 | 持续更新中...</p>
+        </footer>
+    </div>
+</body>
+</html>
