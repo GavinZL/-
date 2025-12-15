@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Camera2视频录制与编辑完全指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: #2193b0;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: #2193b0;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #2193b0;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #2193b0;
+        }
+
+        h3 {
+            color: #1a7a8f;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        h5 {
+            color: #666;
+            font-size: 1.2em;
+            margin: 15px 0 8px 0;
+        }
+
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre;
+            word-wrap: normal;
+            overflow-x: auto;
+        }
+
+        .code-title {
+            background: #21252b;
+            color: #61afef;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin: -20px -20px 15px -20px;
+            font-size: 0.9em;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #856404;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .tip-box {
+            background: #d4edda;
+            border-left: 4px solid #155724;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .important-box {
+            background: #f8d7da;
+            border-left: 4px solid #721c24;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .flow-step {
+            display: inline-block;
+            background: #2193b0;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .flow-arrow {
+            display: inline-block;
+            color: #2193b0;
+            font-size: 1.5em;
+            margin: 0 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: #2193b0;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #2193b0;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+            display: none;
+        }
+
+        .back-to-top:hover {
+            background: #1a7a8f;
+            transform: translateY(-5px);
+        }
+
+        .back-to-top.show {
+            display: block;
+        }
+
+        /* 代码语法高亮 */
+        .keyword { color: #c678dd; font-weight: bold; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+        .type { color: #e5c07b; }
+        .number { color: #d19a66; }
+        .operator { color: #56b6c2; }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2em;
+            }
+
+            main {
+                padding: 20px;
+            }
+
+            .code-block {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📹 Android Camera2视频录制与编辑完全指南</h1>
+            <p>从Camera2 API到MediaCodec编码的完整技术链路</p>
+        </header>
+
+        <nav>
+            <ul>
+                <li><a href="#overview">概览</a></li>
+                <li><a href="#camera2-basics">Camera2基础</a></li>
+                <li><a href="#surface-texture">SurfaceTexture输出</a></li>
+                <li><a href="#mediacodec">MediaCodec编码</a></li>
+                <li><a href="#recording">录制流程</a></li>
+                <li><a href="#editing">视频编辑</a></li>
+                <li><a href="#complete-example">完整示例</a></li>
+                <li><a href="#best-practices">最佳实践</a></li>
+            </ul>
+        </nav>
+
+        <main>
+            <!-- 第一部分：概览 -->
+            <section id="overview">
+                <h2>一、技术架构概览</h2>
+                
+                <h3>1.1 完整处理链路</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step">Camera2 API</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">SurfaceTexture</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">OpenGL ES处理</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaCodec编码</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaMuxer封装</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MP4文件</div>
+                </div>
+
+                <h3>1.2 核心组件说明</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>组件</th>
+                            <th>作用</th>
+                            <th>关键特性</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Camera2 API</strong></td>
+                            <td>相机数据采集</td>
+                            <td>低延迟、高性能、支持RAW</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SurfaceTexture</strong></td>
+                            <td>接收相机帧数据</td>
+                            <td>OpenGL纹理、异步更新</td>
+                        </tr>
+                        <tr>
+                            <td><strong>OpenGL ES</strong></td>
+                            <td>图像处理与特效</td>
+                            <td>GPU加速、滤镜、美颜</td>
+                        </tr>
+                        <tr>
+                            <td><strong>MediaCodec</strong></td>
+                            <td>硬件编解码</td>
+                            <td>H.264/H.265、硬件加速</td>
+                        </tr>
+                        <tr>
+                            <td><strong>MediaMuxer</strong></td>
+                            <td>音视频复用</td>
+                            <td>封装MP4、WebM</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <strong>📌 架构优势</strong>
+                    <ul>
+                        <li><strong>低延迟：</strong>直接访问硬件，减少中间拷贝</li>
+                        <li><strong>高性能：</strong>GPU处理图像，硬件编码视频</li>
+                        <li><strong>灵活性：</strong>支持实时滤镜、美颜等特效</li>
+                        <li><strong>可扩展：</strong>易于集成第三方算法和编辑功能</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 第二部分：Camera2基础 -->
+            <section id="camera2-basics">
+                <h2>二、Camera2 API基础</h2>
+
+                <h3>2.1 Camera2架构</h3>
+                <p>Camera2 API采用管道模型，通过会话（Session）和请求（Request）来控制相机行为。</p>
+
+                <h4>核心类说明</h4>
+                <ul>
+                    <li><strong>CameraManager：</strong>相机服务管理器，用于获取相机列表和打开相机</li>
+                    <li><strong>CameraDevice：</strong>代表一个物理相机设备</li>
+                    <li><strong>CameraCharacteristics：</strong>相机特性参数（支持的分辨率、帧率等）</li>
+                    <li><strong>CaptureRequest：</strong>相机拍摄请求，包含所有控制参数</li>
+                    <li><strong>CameraCaptureSession：</strong>相机捕获会话，管理数据输出</li>
+                </ul>
+
+                <h3>2.2 打开相机</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 打开相机设备</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">CameraController</span>(<span class="keyword">private val</span> context: Context) {
+    <span class="keyword">private var</span> cameraDevice: CameraDevice? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> captureSession: CameraCaptureSession? = <span class="keyword">null</span>
+    <span class="keyword">private lateinit var</span> cameraManager: CameraManager
+    
+    <span class="comment">// 相机状态回调</span>
+    <span class="keyword">private val</span> stateCallback = <span class="keyword">object</span> : CameraDevice.StateCallback() {
+        <span class="keyword">override fun</span> <span class="function">onOpened</span>(camera: CameraDevice) {
+            cameraDevice = camera
+            Log.d(<span class="string">"Camera"</span>, <span class="string">"相机已打开: ${camera.id}"</span>)
+            <span class="comment">// 创建捕获会话</span>
+            createCaptureSession()
+        }
+        
+        <span class="keyword">override fun</span> <span class="function">onDisconnected</span>(camera: CameraDevice) {
+            camera.close()
+            cameraDevice = <span class="keyword">null</span>
+            Log.w(<span class="string">"Camera"</span>, <span class="string">"相机断开连接"</span>)
+        }
+        
+        <span class="keyword">override fun</span> <span class="function">onError</span>(camera: CameraDevice, error: <span class="type">Int</span>) {
+            camera.close()
+            cameraDevice = <span class="keyword">null</span>
+            Log.e(<span class="string">"Camera"</span>, <span class="string">"相机错误: $error"</span>)
+        }
+    }
+    
+    <span class="comment">// 打开相机</span>
+    <span class="keyword">fun</span> <span class="function">openCamera</span>(cameraId: String = <span class="string">"0"</span>) {
+        cameraManager = context.getSystemService(Context.CAMERA_SERVICE) <span class="keyword">as</span> CameraManager
+        
+        <span class="keyword">try</span> {
+            <span class="comment">// 获取相机特性</span>
+            <span class="keyword">val</span> characteristics = cameraManager.getCameraCharacteristics(cameraId)
+            <span class="keyword">val</span> map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+            
+            <span class="comment">// 检查权限</span>
+            <span class="keyword">if</span> (ActivityCompat.checkSelfPermission(
+                    context, 
+                    Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e(<span class="string">"Camera"</span>, <span class="string">"缺少相机权限"</span>)
+                <span class="keyword">return</span>
+            }
+            
+            <span class="comment">// 打开相机设备</span>
+            cameraManager.openCamera(cameraId, stateCallback, <span class="keyword">null</span>)
+            
+        } <span class="keyword">catch</span> (e: CameraAccessException) {
+            Log.e(<span class="string">"Camera"</span>, <span class="string">"打开相机失败"</span>, e)
+        }
+    }
+}</code></pre>
+                </div>
+
+                <h3>2.3 配置相机参数</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 获取支持的分辨率和配置</div>
+                    <pre><code><span class="comment">// 获取相机特性和配置</span>
+<span class="keyword">fun</span> <span class="function">getCameraConfiguration</span>(cameraId: String): CameraConfig {
+    <span class="keyword">val</span> characteristics = cameraManager.getCameraCharacteristics(cameraId)
+    
+    <span class="comment">// 获取支持的输出格式和尺寸</span>
+    <span class="keyword">val</span> map = characteristics.get(
+        CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP
+    ) ?: <span class="keyword">throw</span> RuntimeException(<span class="string">"无法获取相机配置"</span>)
+    
+    <span class="comment">// 获取所有支持的视频尺寸</span>
+    <span class="keyword">val</span> videoSizes = map.getOutputSizes(MediaRecorder::<span class="keyword">class</span>.java)
+    <span class="keyword">val</span> previewSizes = map.getOutputSizes(SurfaceTexture::<span class="keyword">class</span>.java)
+    
+    <span class="comment">// 选择最佳视频尺寸（1920x1080优先）</span>
+    <span class="keyword">val</span> videoSize = chooseOptimalSize(
+        videoSizes,
+        <span class="number">1920</span>, <span class="number">1080</span>,
+        Size(<span class="number">1920</span>, <span class="number">1080</span>)
+    )
+    
+    <span class="comment">// 获取帧率范围</span>
+    <span class="keyword">val</span> fpsRanges = characteristics.get(
+        CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
+    )
+    
+    <span class="comment">// 选择30fps</span>
+    <span class="keyword">val</span> targetFps = fpsRanges?.firstOrNull { 
+        it.lower == <span class="number">30</span> && it.upper == <span class="number">30</span> 
+    } ?: fpsRanges?.last()
+    
+    <span class="keyword">return</span> CameraConfig(
+        videoSize = videoSize,
+        fpsRange = targetFps,
+        sensorOrientation = characteristics.get(
+            CameraCharacteristics.SENSOR_ORIENTATION
+        ) ?: <span class="number">0</span>
+    )
+}
+
+<span class="comment">// 选择最优尺寸</span>
+<span class="keyword">private fun</span> <span class="function">chooseOptimalSize</span>(
+    choices: <span class="type">Array</span>&lt;Size&gt;,
+    width: <span class="type">Int</span>,
+    height: <span class="type">Int</span>,
+    aspectRatio: Size
+): Size {
+    <span class="keyword">val</span> bigEnough = mutableListOf&lt;Size&gt;()
+    
+    <span class="keyword">for</span> (option <span class="keyword">in</span> choices) {
+        <span class="keyword">if</span> (option.height == option.width * aspectRatio.height / aspectRatio.width &&
+            option.width &gt;= width && option.height &gt;= height) {
+            bigEnough.add(option)
+        }
+    }
+    
+    <span class="keyword">return if</span> (bigEnough.size &gt; <span class="number">0</span>) {
+        Collections.min(bigEnough, CompareSizesByArea())
+    } <span class="keyword">else</span> {
+        choices[<span class="number">0</span>]
+    }
+}
+
+<span class="comment">// 尺寸比较器</span>
+<span class="keyword">class</span> <span class="type">CompareSizesByArea</span> : Comparator&lt;Size&gt; {
+    <span class="keyword">override fun</span> <span class="function">compare</span>(lhs: Size, rhs: Size): <span class="type">Int</span> {
+        <span class="keyword">return</span> Long.signum(
+            lhs.width.toLong() * lhs.height - 
+            rhs.width.toLong() * rhs.height
+        )
+    }
+}
+
+<span class="comment">// 配置数据类</span>
+<span class="keyword">data class</span> <span class="type">CameraConfig</span>(
+    <span class="keyword">val</span> videoSize: Size,
+    <span class="keyword">val</span> fpsRange: Range&lt;<span class="type">Int</span>&gt;?,
+    <span class="keyword">val</span> sensorOrientation: <span class="type">Int</span>
+)</code></pre>
+                </div>
+            </section>
+
+            <!-- 第三部分：SurfaceTexture -->
+            <section id="surface-texture">
+                <h2>三、SurfaceTexture数据输出</h2>
+
+                <h3>3.1 SurfaceTexture原理</h3>
+                <p>SurfaceTexture是Android中用于从图像流中捕获帧的类，它可以将图像流作为OpenGL ES纹理使用。在Camera2中，SurfaceTexture作为相机数据的接收端。</p>
+
+                <div class="info-box">
+                    <strong>🔑 关键概念</strong>
+                    <ul>
+                        <li><strong>纹理对象：</strong>SurfaceTexture绑定到一个OpenGL纹理ID</li>
+                        <li><strong>异步更新：</strong>相机帧数据异步写入纹理</li>
+                        <li><strong>帧可用回调：</strong>通过OnFrameAvailableListener接收新帧通知</li>
+                        <li><strong>纹理矩阵：</strong>需要应用变换矩阵以正确显示图像</li>
+                    </ul>
+                </div>
+
+                <h3>3.2 创建SurfaceTexture</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 创建和配置SurfaceTexture</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">SurfaceTextureManager</span> {
+    <span class="keyword">private var</span> surfaceTexture: SurfaceTexture? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> textureId: <span class="type">Int</span> = <span class="number">0</span>
+    <span class="keyword">private val</span> transformMatrix = FloatArray(<span class="number">16</span>)
+    
+    <span class="comment">// 创建OpenGL纹理</span>
+    <span class="keyword">fun</span> <span class="function">createTexture</span>(): <span class="type">Int</span> {
+        <span class="keyword">val</span> textures = IntArray(<span class="number">1</span>)
+        GLES20.glGenTextures(<span class="number">1</span>, textures, <span class="number">0</span>)
+        
+        textureId = textures[<span class="number">0</span>]
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+        
+        <span class="comment">// 设置纹理参数</span>
+        GLES20.glTexParameterf(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GLES20.GL_TEXTURE_MIN_FILTER,
+            GLES20.GL_LINEAR.toFloat()
+        )
+        GLES20.glTexParameterf(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GLES20.GL_TEXTURE_MAG_FILTER,
+            GLES20.GL_LINEAR.toFloat()
+        )
+        GLES20.glTexParameteri(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GLES20.GL_TEXTURE_WRAP_S,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        GLES20.glTexParameteri(
+            GLES11Ext.GL_TEXTURE_EXTERNAL_OES,
+            GLES20.GL_TEXTURE_WRAP_T,
+            GLES20.GL_CLAMP_TO_EDGE
+        )
+        
+        <span class="keyword">return</span> textureId
+    }
+    
+    <span class="comment">// 初始化SurfaceTexture</span>
+    <span class="keyword">fun</span> <span class="function">initSurfaceTexture</span>(
+        width: <span class="type">Int</span>, 
+        height: <span class="type">Int</span>,
+        frameListener: SurfaceTexture.OnFrameAvailableListener
+    ): SurfaceTexture {
+        <span class="keyword">if</span> (textureId == <span class="number">0</span>) {
+            createTexture()
+        }
+        
+        surfaceTexture = SurfaceTexture(textureId).apply {
+            setDefaultBufferSize(width, height)
+            setOnFrameAvailableListener(frameListener)
+        }
+        
+        <span class="keyword">return</span> surfaceTexture!!
+    }
+    
+    <span class="comment">// 更新纹理图像</span>
+    <span class="keyword">fun</span> <span class="function">updateTexImage</span>() {
+        surfaceTexture?.updateTexImage()
+        surfaceTexture?.getTransformMatrix(transformMatrix)
+    }
+    
+    <span class="comment">// 获取变换矩阵</span>
+    <span class="keyword">fun</span> <span class="function">getTransformMatrix</span>(): FloatArray = transformMatrix
+    
+    <span class="comment">// 释放资源</span>
+    <span class="keyword">fun</span> <span class="function">release</span>() {
+        surfaceTexture?.release()
+        surfaceTexture = <span class="keyword">null</span>
+        
+        <span class="keyword">if</span> (textureId != <span class="number">0</span>) {
+            <span class="keyword">val</span> textures = intArrayOf(textureId)
+            GLES20.glDeleteTextures(<span class="number">1</span>, textures, <span class="number">0</span>)
+            textureId = <span class="number">0</span>
+        }
+    }
+}</code></pre>
+                </div>
+
+                <h3>3.3 创建相机捕获会话</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 创建捕获会话并连接SurfaceTexture</div>
+                    <pre><code><span class="keyword">private fun</span> <span class="function">createCaptureSession</span>() {
+    <span class="keyword">val</span> device = cameraDevice ?: <span class="keyword">return</span>
+    
+    <span class="comment">// 创建SurfaceTexture和Surface</span>
+    <span class="keyword">val</span> surfaceTexture = surfaceTextureManager.initSurfaceTexture(
+        videoWidth, videoHeight,
+        SurfaceTexture.OnFrameAvailableListener { texture -&gt;
+            <span class="comment">// 新帧可用时的回调</span>
+            onFrameAvailable(texture)
+        }
+    )
+    
+    <span class="keyword">val</span> surface = Surface(surfaceTexture)
+    
+    <span class="comment">// 创建预览请求构建器</span>
+    <span class="keyword">val</span> previewRequestBuilder = device.createCaptureRequest(
+        CameraDevice.TEMPLATE_RECORD
+    ).apply {
+        addTarget(surface)
+        
+        <span class="comment">// 设置自动对焦模式</span>
+        set(
+            CaptureRequest.CONTROL_AF_MODE,
+            CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+        )
+        
+        <span class="comment">// 设置自动曝光模式</span>
+        set(
+            CaptureRequest.CONTROL_AE_MODE,
+            CaptureRequest.CONTROL_AE_MODE_ON
+        )
+        
+        <span class="comment">// 设置帧率</span>
+        cameraConfig.fpsRange?.let { fpsRange -&gt;
+            set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange)
+        }
+    }
+    
+    <span class="comment">// 创建捕获会话</span>
+    device.createCaptureSession(
+        listOf(surface),
+        <span class="keyword">object</span> : CameraCaptureSession.StateCallback() {
+            <span class="keyword">override fun</span> <span class="function">onConfigured</span>(session: CameraCaptureSession) {
+                captureSession = session
+                
+                <span class="keyword">try</span> {
+                    <span class="comment">// 开始重复请求（预览）</span>
+                    session.setRepeatingRequest(
+                        previewRequestBuilder.build(),
+                        <span class="keyword">null</span>,
+                        <span class="keyword">null</span>
+                    )
+                    Log.d(<span class="string">"Camera"</span>, <span class="string">"捕获会话已配置"</span>)
+                } <span class="keyword">catch</span> (e: CameraAccessException) {
+                    Log.e(<span class="string">"Camera"</span>, <span class="string">"设置重复请求失败"</span>, e)
+                }
+            }
+            
+            <span class="keyword">override fun</span> <span class="function">onConfigureFailed</span>(session: CameraCaptureSession) {
+                Log.e(<span class="string">"Camera"</span>, <span class="string">"捕获会话配置失败"</span>)
+            }
+        },
+        <span class="keyword">null</span>
+    )
+}
+
+<span class="comment">// 帧可用回调处理</span>
+<span class="keyword">private fun</span> <span class="function">onFrameAvailable</span>(surfaceTexture: SurfaceTexture) {
+    <span class="comment">// 在OpenGL线程中处理</span>
+    glHandler.post {
+        <span class="comment">// 更新纹理</span>
+        surfaceTextureManager.updateTexImage()
+        
+        <span class="comment">// 如果正在录制，编码当前帧</span>
+        <span class="keyword">if</span> (isRecording) {
+            encodeFrame()
+        }
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- 第四部分：MediaCodec编码 -->
+            <section id="mediacodec">
+                <h2>四、MediaCodec视频编码</h2>
+
+                <h3>4.1 MediaCodec架构</h3>
+                <p>MediaCodec是Android底层的编解码器API，支持硬件加速编码。它使用缓冲区队列模型处理数据。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step">Input Buffers</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Encoder</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">Output Buffers</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaMuxer</div>
+                </div>
+
+                <h3>4.2 配置视频编码器</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 初始化MediaCodec编码器</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">VideoEncoder</span>(
+    <span class="keyword">private val</span> width: <span class="type">Int</span>,
+    <span class="keyword">private val</span> height: <span class="type">Int</span>,
+    <span class="keyword">private val</span> bitRate: <span class="type">Int</span> = <span class="number">6000000</span>, <span class="comment">// 6 Mbps</span>
+    <span class="keyword">private val</span> frameRate: <span class="type">Int</span> = <span class="number">30</span>,
+    <span class="keyword">private val</span> iFrameInterval: <span class="type">Int</span> = <span class="number">1</span>
+) {
+    <span class="keyword">private var</span> mediaCodec: MediaCodec? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> inputSurface: Surface? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> trackIndex = <span class="number">-1</span>
+    <span class="keyword">private var</span> isEncoding = <span class="keyword">false</span>
+    
+    <span class="keyword">companion object</span> {
+        <span class="keyword">const val</span> MIME_TYPE = <span class="string">"video/avc"</span> <span class="comment">// H.264</span>
+        <span class="keyword">const val</span> TIMEOUT_USEC = <span class="number">10000L</span>
+    }
+    
+    <span class="comment">// 初始化编码器</span>
+    <span class="keyword">fun</span> <span class="function">initialize</span>(): Surface {
+        <span class="comment">// 创建视频格式</span>
+        <span class="keyword">val</span> format = MediaFormat.createVideoFormat(MIME_TYPE, width, height).apply {
+            <span class="comment">// 设置颜色格式（Surface输入）</span>
+            setInteger(
+                MediaFormat.KEY_COLOR_FORMAT,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+            )
+            
+            <span class="comment">// 设置码率</span>
+            setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+            
+            <span class="comment">// 设置帧率</span>
+            setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+            
+            <span class="comment">// 设置I帧间隔</span>
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, iFrameInterval)
+            
+            <span class="comment">// 设置码率控制模式（恒定码率）</span>
+            setInteger(
+                MediaFormat.KEY_BITRATE_MODE,
+                MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR
+            )
+            
+            <span class="comment">// 设置编码配置（baseline profile）</span>
+            setInteger(
+                MediaFormat.KEY_PROFILE,
+                MediaCodecProfileLevel.AVCProfileBaseline
+            )
+            
+            <span class="comment">// 设置重复帧间隔（降低编码延迟）</span>
+            setInteger(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, <span class="number">1000000</span> / frameRate)
+        }
+        
+        <span class="comment">// 创建编码器</span>
+        mediaCodec = MediaCodec.createEncoderByType(MIME_TYPE).apply {
+            configure(format, <span class="keyword">null</span>, <span class="keyword">null</span>, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            
+            <span class="comment">// 创建输入Surface</span>
+            inputSurface = createInputSurface()
+        }
+        
+        <span class="keyword">return</span> inputSurface!!
+    }
+    
+    <span class="comment">// 启动编码器</span>
+    <span class="keyword">fun</span> <span class="function">start</span>() {
+        mediaCodec?.start()
+        isEncoding = <span class="keyword">true</span>
+        Log.d(<span class="string">"VideoEncoder"</span>, <span class="string">"编码器已启动"</span>)
+    }
+    
+    <span class="comment">// 停止编码器</span>
+    <span class="keyword">fun</span> <span class="function">stop</span>() {
+        isEncoding = <span class="keyword">false</span>
+        
+        <span class="keyword">try</span> {
+            mediaCodec?.stop()
+            mediaCodec?.release()
+            inputSurface?.release()
+        } <span class="keyword">catch</span> (e: Exception) {
+            Log.e(<span class="string">"VideoEncoder"</span>, <span class="string">"停止编码器失败"</span>, e)
+        } <span class="keyword">finally</span> {
+            mediaCodec = <span class="keyword">null</span>
+            inputSurface = <span class="keyword">null</span>
+        }
+    }
+    
+    <span class="comment">// 获取编码后的数据</span>
+    <span class="keyword">fun</span> <span class="function">drainEncoder</span>(
+        endOfStream: <span class="type">Boolean</span>,
+        muxer: MediaMuxer?,
+        onBufferAvailable: (ByteBuffer, MediaCodec.BufferInfo) -&gt; Unit
+    ) {
+        <span class="keyword">val</span> codec = mediaCodec ?: <span class="keyword">return</span>
+        
+        <span class="keyword">if</span> (endOfStream) {
+            <span class="comment">// 发送结束信号</span>
+            codec.signalEndOfInputStream()
+        }
+        
+        <span class="keyword">val</span> bufferInfo = MediaCodec.BufferInfo()
+        
+        <span class="keyword">while</span> (<span class="keyword">true</span>) {
+            <span class="keyword">val</span> outputBufferId = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_USEC)
+            
+            <span class="keyword">when</span> {
+                outputBufferId == MediaCodec.INFO_TRY_AGAIN_LATER -&gt; {
+                    <span class="keyword">if</span> (!endOfStream) {
+                        <span class="keyword">break</span> <span class="comment">// 没有可用输出，退出</span>
+                    }
+                }
+                
+                outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -&gt; {
+                    <span class="comment">// 输出格式改变，通常在开始时发生一次</span>
+                    <span class="keyword">val</span> newFormat = codec.outputFormat
+                    Log.d(<span class="string">"VideoEncoder"</span>, <span class="string">"输出格式改变: $newFormat"</span>)
+                    
+                    <span class="comment">// 添加视频轨道到Muxer</span>
+                    muxer?.let {
+                        trackIndex = it.addTrack(newFormat)
+                        it.start()
+                        Log.d(<span class="string">"VideoEncoder"</span>, <span class="string">"Muxer已启动，轨道: $trackIndex"</span>)
+                    }
+                }
+                
+                outputBufferId &gt;= <span class="number">0</span> -&gt; {
+                    <span class="keyword">val</span> encodedData = codec.getOutputBuffer(outputBufferId)
+                        ?: <span class="keyword">throw</span> RuntimeException(<span class="string">"获取输出缓冲区失败"</span>)
+                    
+                    <span class="keyword">if</span> (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != <span class="number">0</span>) {
+                        <span class="comment">// 编解码器配置数据，不写入文件</span>
+                        bufferInfo.size = <span class="number">0</span>
+                    }
+                    
+                    <span class="keyword">if</span> (bufferInfo.size != <span class="number">0</span>) {
+                        <span class="comment">// 设置缓冲区位置</span>
+                        encodedData.position(bufferInfo.offset)
+                        encodedData.limit(bufferInfo.offset + bufferInfo.size)
+                        
+                        <span class="comment">// 写入Muxer</span>
+                        muxer?.let {
+                            <span class="keyword">if</span> (trackIndex != <span class="number">-1</span>) {
+                                it.writeSampleData(trackIndex, encodedData, bufferInfo)
+                            }
+                        }
+                        
+                        <span class="comment">// 回调</span>
+                        onBufferAvailable(encodedData, bufferInfo)
+                    }
+                    
+                    <span class="comment">// 释放输出缓冲区</span>
+                    codec.releaseOutputBuffer(outputBufferId, <span class="keyword">false</span>)
+                    
+                    <span class="keyword">if</span> (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != <span class="number">0</span>) {
+                        Log.d(<span class="string">"VideoEncoder"</span>, <span class="string">"编码结束"</span>)
+                        <span class="keyword">break</span>
+                    }
+                }
+            }
+        }
+    }
+}</code></pre>
+                </div>
+
+                <h3>4.3 使用InputSurface进行编码</h3>
+                <p>MediaCodec可以通过InputSurface接收OpenGL渲染的数据，这样可以直接将GPU处理后的图像编码，避免CPU拷贝。</p>
+
+                <div class="code-block">
+                    <div class="code-title">Kotlin - InputSurface封装</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">InputSurface</span>(<span class="keyword">private val</span> surface: Surface) {
+    <span class="keyword">private var</span> eglDisplay: EGLDisplay? = EGL14.EGL_NO_DISPLAY
+    <span class="keyword">private var</span> eglContext: EGLContext? = EGL14.EGL_NO_CONTEXT
+    <span class="keyword">private var</span> eglSurface: EGLSurface? = EGL14.EGL_NO_SURFACE
+    
+    <span class="keyword">init</span> {
+        setupEGL()
+    }
+    
+    <span class="comment">// 设置EGL环境</span>
+    <span class="keyword">private fun</span> <span class="function">setupEGL</span>() {
+        eglDisplay = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+        <span class="keyword">if</span> (eglDisplay == EGL14.EGL_NO_DISPLAY) {
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"无法获取EGL显示"</span>)
+        }
+        
+        <span class="keyword">val</span> version = IntArray(<span class="number">2</span>)
+        <span class="keyword">if</span> (!EGL14.eglInitialize(eglDisplay, version, <span class="number">0</span>, version, <span class="number">1</span>)) {
+            eglDisplay = <span class="keyword">null</span>
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"无法初始化EGL"</span>)
+        }
+        
+        <span class="comment">// 配置EGL属性</span>
+        <span class="keyword">val</span> attribList = intArrayOf(
+            EGL14.EGL_RED_SIZE, <span class="number">8</span>,
+            EGL14.EGL_GREEN_SIZE, <span class="number">8</span>,
+            EGL14.EGL_BLUE_SIZE, <span class="number">8</span>,
+            EGL14.EGL_ALPHA_SIZE, <span class="number">8</span>,
+            EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
+            EGLExt.EGL_RECORDABLE_ANDROID, <span class="number">1</span>, <span class="comment">// 支持录制</span>
+            EGL14.EGL_NONE
+        )
+        
+        <span class="keyword">val</span> configs = arrayOfNulls&lt;EGLConfig&gt;(<span class="number">1</span>)
+        <span class="keyword">val</span> numConfigs = IntArray(<span class="number">1</span>)
+        
+        <span class="keyword">if</span> (!EGL14.eglChooseConfig(
+                eglDisplay, attribList, <span class="number">0</span>,
+                configs, <span class="number">0</span>, configs.size,
+                numConfigs, <span class="number">0</span>
+            )) {
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"无法选择EGL配置"</span>)
+        }
+        
+        <span class="comment">// 创建EGL上下文</span>
+        <span class="keyword">val</span> contextAttribs = intArrayOf(
+            EGL14.EGL_CONTEXT_CLIENT_VERSION, <span class="number">2</span>,
+            EGL14.EGL_NONE
+        )
+        
+        eglContext = EGL14.eglCreateContext(
+            eglDisplay, configs[<span class="number">0</span>],
+            EGL14.EGL_NO_CONTEXT, contextAttribs, <span class="number">0</span>
+        )
+        
+        <span class="keyword">if</span> (eglContext == EGL14.EGL_NO_CONTEXT) {
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"无法创建EGL上下文"</span>)
+        }
+        
+        <span class="comment">// 创建窗口Surface</span>
+        <span class="keyword">val</span> surfaceAttribs = intArrayOf(EGL14.EGL_NONE)
+        eglSurface = EGL14.eglCreateWindowSurface(
+            eglDisplay, configs[<span class="number">0</span>], surface,
+            surfaceAttribs, <span class="number">0</span>
+        )
+        
+        <span class="keyword">if</span> (eglSurface == EGL14.EGL_NO_SURFACE) {
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"无法创建EGL Surface"</span>)
+        }
+    }
+    
+    <span class="comment">// 使当前EGL上下文生效</span>
+    <span class="keyword">fun</span> <span class="function">makeCurrent</span>() {
+        <span class="keyword">if</span> (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+            <span class="keyword">throw</span> RuntimeException(<span class="string">"eglMakeCurrent失败"</span>)
+        }
+    }
+    
+    <span class="comment">// 交换缓冲区（提交帧到编码器）</span>
+    <span class="keyword">fun</span> <span class="function">swapBuffers</span>(): <span class="type">Boolean</span> {
+        <span class="keyword">return</span> EGL14.eglSwapBuffers(eglDisplay, eglSurface)
+    }
+    
+    <span class="comment">// 设置时间戳</span>
+    <span class="keyword">fun</span> <span class="function">setPresentationTime</span>(nsecs: <span class="type">Long</span>) {
+        EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, nsecs)
+    }
+    
+    <span class="comment">// 释放资源</span>
+    <span class="keyword">fun</span> <span class="function">release</span>() {
+        <span class="keyword">if</span> (eglDisplay != EGL14.EGL_NO_DISPLAY) {
+            EGL14.eglMakeCurrent(
+                eglDisplay,
+                EGL14.EGL_NO_SURFACE,
+                EGL14.EGL_NO_SURFACE,
+                EGL14.EGL_NO_CONTEXT
+            )
+            EGL14.eglDestroySurface(eglDisplay, eglSurface)
+            EGL14.eglDestroyContext(eglDisplay, eglContext)
+            EGL14.eglTerminate(eglDisplay)
+        }
+        
+        eglDisplay = EGL14.EGL_NO_DISPLAY
+        eglContext = EGL14.EGL_NO_CONTEXT
+        eglSurface = EGL14.EGL_NO_SURFACE
+        
+        surface.release()
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- 第五部分：录制流程 -->
+            <section id="recording">
+                <h2>五、完整录制流程实现</h2>
+
+                <h3>5.1 录制架构</h3>
+                <div class="info-box">
+                    <strong>📋 录制流程概述</strong>
+                    <ol>
+                        <li>初始化Camera2，创建SurfaceTexture接收相机数据</li>
+                        <li>创建OpenGL上下文，准备渲染管线</li>
+                        <li>初始化MediaCodec编码器和InputSurface</li>
+                        <li>相机帧数据 → SurfaceTexture → OpenGL处理 → InputSurface → MediaCodec</li>
+                        <li>MediaCodec输出 → MediaMuxer → MP4文件</li>
+                    </ol>
+                </div>
+
+                <h3>5.2 视频录制器实现</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - 完整的视频录制器</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">VideoRecorder</span>(
+    <span class="keyword">private val</span> context: Context,
+    <span class="keyword">private val</span> width: <span class="type">Int</span> = <span class="number">1920</span>,
+    <span class="keyword">private val</span> height: <span class="type">Int</span> = <span class="number">1080</span>,
+    <span class="keyword">private val</span> fps: <span class="type">Int</span> = <span class="number">30</span>
+) {
+    <span class="keyword">private var</span> cameraController: CameraController? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> videoEncoder: VideoEncoder? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> inputSurface: InputSurface? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> mediaMuxer: MediaMuxer? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> surfaceTextureManager: SurfaceTextureManager? = <span class="keyword">null</span>
+    <span class="keyword">private var</span> glRenderer: GLRenderer? = <span class="keyword">null</span>
+    
+    <span class="keyword">private var</span> isRecording = <span class="keyword">false</span>
+    <span class="keyword">private var</span> startTime: <span class="type">Long</span> = <span class="number">0L</span>
+    <span class="keyword">private var</span> frameCount = <span class="number">0</span>
+    
+    <span class="keyword">private val</span> glThread = HandlerThread(<span class="string">"GLThread"</span>).apply { start() }
+    <span class="keyword">private val</span> glHandler = Handler(glThread.looper)
+    
+    <span class="comment">// 准备录制</span>
+    <span class="keyword">fun</span> <span class="function">prepare</span>(outputPath: String) {
+        glHandler.post {
+            <span class="keyword">try</span> {
+                <span class="comment">// 1. 初始化视频编码器</span>
+                videoEncoder = VideoEncoder(width, height, fps = fps).apply {
+                    <span class="keyword">val</span> encoderSurface = initialize()
+                    inputSurface = InputSurface(encoderSurface)
+                }
+                
+                <span class="comment">// 2. 创建MediaMuxer</span>
+                mediaMuxer = MediaMuxer(
+                    outputPath,
+                    MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+                )
+                
+                <span class="comment">// 3. 初始化OpenGL渲染器</span>
+                inputSurface?.makeCurrent()
+                glRenderer = GLRenderer(width, height)
+                
+                <span class="comment">// 4. 创建SurfaceTexture</span>
+                surfaceTextureManager = SurfaceTextureManager().apply {
+                    initSurfaceTexture(
+                        width, height,
+                        SurfaceTexture.OnFrameAvailableListener {
+                            onCameraFrameAvailable()
+                        }
+                    )
+                }
+                
+                <span class="comment">// 5. 打开相机</span>
+                cameraController = CameraController(context).apply {
+                    openCamera(surfaceTextureManager!!.getSurfaceTexture())
+                }
+                
+                Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"录制准备完成"</span>)
+                
+            } <span class="keyword">catch</span> (e: Exception) {
+                Log.e(<span class="string">"VideoRecorder"</span>, <span class="string">"准备录制失败"</span>, e)
+            }
+        }
+    }
+    
+    <span class="comment">// 开始录制</span>
+    <span class="keyword">fun</span> <span class="function">startRecording</span>() {
+        glHandler.post {
+            <span class="keyword">if</span> (!isRecording) {
+                videoEncoder?.start()
+                isRecording = <span class="keyword">true</span>
+                startTime = System.nanoTime()
+                frameCount = <span class="number">0</span>
+                Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"开始录制"</span>)
+            }
+        }
+    }
+    
+    <span class="comment">// 停止录制</span>
+    <span class="keyword">fun</span> <span class="function">stopRecording</span>(onComplete: () -&gt; Unit) {
+        glHandler.post {
+            <span class="keyword">if</span> (isRecording) {
+                isRecording = <span class="keyword">false</span>
+                
+                <span class="comment">// 1. 停止编码器并释放最后的数据</span>
+                videoEncoder?.drainEncoder(<span class="keyword">true</span>, mediaMuxer) { buffer, info -&gt;
+                    Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"最后一帧: size=${info.size}"</span>)
+                }
+                
+                <span class="comment">// 2. 停止Muxer</span>
+                mediaMuxer?.stop()
+                mediaMuxer?.release()
+                
+                <span class="comment">// 3. 停止编码器</span>
+                videoEncoder?.stop()
+                
+                Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"录制完成，共 $frameCount 帧"</span>)
+                
+                onComplete()
+            }
+        }
+    }
+    
+    <span class="comment">// 相机帧可用回调</span>
+    <span class="keyword">private fun</span> <span class="function">onCameraFrameAvailable</span>() {
+        glHandler.post {
+            <span class="keyword">if</span> (!isRecording) <span class="keyword">return</span>@post
+            
+            <span class="keyword">try</span> {
+                <span class="comment">// 1. 更新SurfaceTexture</span>
+                surfaceTextureManager?.updateTexImage()
+                
+                <span class="comment">// 2. 获取变换矩阵</span>
+                <span class="keyword">val</span> transformMatrix = surfaceTextureManager?.getTransformMatrix()
+                
+                <span class="comment">// 3. 使InputSurface生效</span>
+                inputSurface?.makeCurrent()
+                
+                <span class="comment">// 4. 使用OpenGL渲染到InputSurface</span>
+                glRenderer?.drawFrame(
+                    surfaceTextureManager?.getTextureId() ?: <span class="number">0</span>,
+                    transformMatrix ?: FloatArray(<span class="number">16</span>)
+                )
+                
+                <span class="comment">// 5. 计算时间戳</span>
+                <span class="keyword">val</span> presentationTimeNs = (System.nanoTime() - startTime)
+                inputSurface?.setPresentationTime(presentationTimeNs)
+                
+                <span class="comment">// 6. 提交到编码器</span>
+                inputSurface?.swapBuffers()
+                
+                <span class="comment">// 7. 从编码器读取数据</span>
+                videoEncoder?.drainEncoder(<span class="keyword">false</span>, mediaMuxer) { buffer, info -&gt;
+                    frameCount++
+                    <span class="keyword">if</span> (frameCount % <span class="number">30</span> == <span class="number">0</span>) {
+                        Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"已编码 $frameCount 帧"</span>)
+                    }
+                }
+                
+            } <span class="keyword">catch</span> (e: Exception) {
+                Log.e(<span class="string">"VideoRecorder"</span>, <span class="string">"处理帧失败"</span>, e)
+            }
+        }
+    }
+    
+    <span class="comment">// 释放资源</span>
+    <span class="keyword">fun</span> <span class="function">release</span>() {
+        glHandler.post {
+            cameraController?.release()
+            glRenderer?.release()
+            surfaceTextureManager?.release()
+            inputSurface?.release()
+            videoEncoder?.stop()
+            mediaMuxer?.release()
+            
+            glThread.quitSafely()
+            
+            Log.d(<span class="string">"VideoRecorder"</span>, <span class="string">"资源已释放"</span>)
+        }
+    }
+}</code></pre>
+                </div>
+
+                <h3>5.3 OpenGL渲染器实现</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - OpenGL ES渲染器（支持滤镜）</div>
+                    <pre><code><span class="keyword">class</span> <span class="type">GLRenderer</span>(
+    <span class="keyword">private val</span> width: <span class="type">Int</span>,
+    <span class="keyword">private val</span> height: <span class="type">Int</span>
+) {
+    <span class="keyword">private var</span> program = <span class="number">0</span>
+    <span class="keyword">private var</span> textureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES
+    
+    private val vertexShader = """
+        attribute vec4 aPosition;
+        attribute vec4 aTextureCoord;
+        uniform mat4 uTextureMatrix;
+        varying vec2 vTextureCoord;
+        
+        void main() {
+            gl_Position = aPosition;
+            vTextureCoord = (uTextureMatrix * aTextureCoord).xy;
+        }
+    """.trimIndent()
+    
+    private val fragmentShader = """
+        #extension GL_OES_EGL_image_external : require
+        precision mediump float;
+        varying vec2 vTextureCoord;
+        uniform samplerExternalOES sTexture;
+        
+        void main() {
+            gl_FragColor = texture2D(sTexture, vTextureCoord);
+        }
+    """.trimIndent()
+    
+    fun drawFrame(textureId: Int, transformMatrix: FloatArray) {
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        GLES20.glUseProgram(program)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(textureTarget, textureId)
+        // ... 绘制逻辑
+    }
+    
+    fun release() {
+        GLES20.glDeleteProgram(program)
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- 第六部分:视频编辑 -->
+            <section id="editing">
+                <h2>六、视频编辑功能</h2>
+
+                <h3>6.1 视频编辑架构</h3>
+                <p>视频编辑需要解码源视频,进行处理(裁剪、滤镜、特效等),然后重新编码。</p>
+
+                <div class="flow-diagram">
+                    <div class="flow-step">源视频</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaExtractor</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaCodec解码</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">OpenGL处理</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">MediaCodec编码</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step">输出视频</div>
+                </div>
+
+                <h3>6.2 完整使用示例</h3>
+                <div class="code-block">
+                    <div class="code-title">Kotlin - Activity中使用录制功能</div>
+                    <pre><code>class CameraActivity : AppCompatActivity() {
+    private lateinit var videoRecorder: VideoRecorder
+    private var isRecording = false
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_camera)
+        
+        videoRecorder = VideoRecorder(this, 1920, 1080, 30)
+        
+        findViewById&lt;Button&gt;(R.id.btnRecord).setOnClickListener {
+            if (isRecording) stopRecording() else startRecording()
+        }
+    }
+    
+    private fun startRecording() {
+        val outputFile = File(
+            getExternalFilesDir(Environment.DIRECTORY_MOVIES),
+            "video_${System.currentTimeMillis()}.mp4"
+        )
+        videoRecorder.prepare(outputFile.absolutePath)
+        videoRecorder.startRecording()
+        isRecording = true
+    }
+    
+    private fun stopRecording() {
+        videoRecorder.stopRecording {
+            isRecording = false
+            Toast.makeText(this, "录制完成", Toast.LENGTH_SHORT).show()
+        }
+    }
+}</code></pre>
+                </div>
+            </section>
+
+            <!-- 第七部分:最佳实践 -->
+            <section id="best-practices">
+                <h2>七、最佳实践与优化建议</h2>
+
+                <h3>7.1 性能优化</h3>
+                <div class="tip-box">
+                    <strong>💡 优化建议</strong>
+                    <ul>
+                        <li><strong>使用硬件编码:</strong> 优先选择硬件编码器,性能提升显著</li>
+                        <li><strong>合理设置码率:</strong> 1080p@30fps建议6-8Mbps,720p@30fps建议3-5Mbps</li>
+                        <li><strong>I帧间隔:</strong> 建议设置为1-2秒,平衡文件大小和随机访问性能</li>
+                        <li><strong>使用CBR模式:</strong> 恒定码率模式适合实时录制,文件大小可预测</li>
+                        <li><strong>避免内存拷贝:</strong> 使用Surface-to-Surface链路,减少CPU参与</li>
+                    </ul>
+                </div>
+
+                <h3>7.2 常见问题处理</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>问题</th>
+                            <th>原因</th>
+                            <th>解决方案</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>画面旋转错误</td>
+                            <td>未正确处理传感器方向</td>
+                            <td>根据SENSOR_ORIENTATION调整变换矩阵</td>
+                        </tr>
+                        <tr>
+                            <td>编码延迟高</td>
+                            <td>输出缓冲区未及时释放</td>
+                            <td>及时调用drainEncoder()处理输出数据</td>
+                        </tr>
+                        <tr>
+                            <td>颜色异常</td>
+                            <td>颜色空间转换问题</td>
+                            <td>使用TEXTURE_EXTERNAL_OES纹理格式</td>
+                        </tr>
+                        <tr>
+                            <td>音视频不同步</td>
+                            <td>时间戳设置不正确</td>
+                            <td>使用统一的时间基准</td>
+                        </tr>
+                        <tr>
+                            <td>内存泄漏</td>
+                            <td>资源未正确释放</td>
+                            <td>及时释放MediaCodec、Surface、EGL资源</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>7.3 关键代码检查清单</h3>
+                <div class="important-box">
+                    <strong>⚠️ 必做检查项</strong>
+                    <ol>
+                        <li>✓ MediaCodec配置FLAG_ENCODE标志</li>
+                        <li>✓ InputSurface设置EGL_RECORDABLE_ANDROID属性</li>
+                        <li>✓ 正确设置presentationTime(纳秒级)</li>
+                        <li>✓ 处理BUFFER_FLAG_END_OF_STREAM标志</li>
+                        <li>✓ MediaMuxer在收到格式变化后才start()</li>
+                        <li>✓ 所有OpenGL操作在正确的线程执行</li>
+                        <li>✓ 释放资源的顺序:先stop()再release()</li>
+                    </ol>
+                </div>
+
+                <h3>7.4 完整数据流示意图</h3>
+                <div class="code-block">
+                    <div class="code-title">完整数据流</div>
+                    <pre><code>Camera2 API
+    ↓ (Image Stream)
+SurfaceTexture (OES Texture)
+    ↓ (updateTexImage)
+OpenGL Thread
+    ├→ Apply Filters/Effects
+    └→ Render to InputSurface
+        ↓ (eglSwapBuffers)
+MediaCodec Encoder
+    ↓ (Encoded Data)
+MediaMuxer
+    ↓ (Mux Audio + Video)
+MP4 File</code></pre>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚡ 线程模型注意事项</strong>
+                    <ul>
+                        <li><strong>相机回调:</strong> 在Camera Handler线程</li>
+                        <li><strong>OpenGL操作:</strong> 必须在EGL上下文所在的GL线程</li>
+                        <li><strong>编码器操作:</strong> 可在任意线程,但建议使用专用线程</li>
+                        <li><strong>Muxer操作:</strong> 必须在同一线程完成</li>
+                    </ul>
+                </div>
+
+                <h3>7.5 扩展功能建议</h3>
+                <div class="info-box">
+                    <strong>🚀 进阶功能</strong>
+                    <ul>
+                        <li><strong>实时美颜:</strong> 使用GPUImage或自定义Fragment Shader实现</li>
+                        <li><strong>水印添加:</strong> 在OpenGL渲染阶段叠加纹理</li>
+                        <li><strong>变速录制:</strong> 调整presentationTime实现慢动作/快动作</li>
+                        <li><strong>多轨道合成:</strong> MediaMuxer支持多音频/视频轨道</li>
+                        <li><strong>H.265编码:</strong> 使用"video/hevc" MIME类型,文件更小</li>
+                        <li><strong>硬件加速滤镜:</strong> RenderScript或Vulkan实现高性能处理</li>
+                    </ul>
+                </div>
+
+                <h3>7.6 参考资源</h3>
+                <ul>
+                    <li><strong>官方文档:</strong> <a href="https://developer.android.com/reference/android/hardware/camera2/package-summary" target="_blank">Camera2 API</a></li>
+                    <li><strong>MediaCodec指南:</strong> <a href="https://developer.android.com/reference/android/media/MediaCodec" target="_blank">MediaCodec Reference</a></li>
+                    <li><strong>开源项目:</strong> Grafika (Google官方示例)</li>
+                    <li><strong>最佳实践:</strong> Android CTS测试用例参考</li>
+                </ul>
+            </section>
+        </main>
+
+        <button class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+    </div>
+
+    <script>
+        // 返回顶部按钮显示控制
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+        });
+
+        // 平滑滚动
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
