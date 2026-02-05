@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ void_t 深度解析 - 掌握SFINAE的瑞士军刀</title>
+    <link rel="stylesheet" href="common-styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>C++ void_t 深度解析</h1>
+            <p class="subtitle">Understanding void_t · SFINAE与类型检测的优雅解决方案</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p><strong>void_t</strong>是C++17引入的一个看似简单却极其强大的工具，仅用一行代码就能实现复杂的类型检测和SFINAE控制。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">void_t的定义与本质</div>
+                        <div class="tree-item">为什么需要void_t</div>
+                        <div class="tree-item">传统SFINAE的复杂性</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制</div>
+                    <div class="tree-node">
+                        <div class="tree-item">void_t的实现原理</div>
+                        <div class="tree-item">SFINAE工作机制</div>
+                        <div class="tree-item">常见使用模式</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">检测成员函数</div>
+                        <div class="tree-item">检测类型别名</div>
+                        <div class="tree-item">Detection Idiom</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧</div>
+                    <div class="tree-node">
+                        <div class="tree-item">组合条件检测</div>
+                        <div class="tree-item">与C++20 Concepts对比</div>
+                        <div class="tree-item">常见陷阱</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第一层 -->
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="definition">1.1 void_t的定义</h3>
+                
+                <div class="info-box note">
+                    <strong>📌 完整定义</strong>
+                    <pre><code><span class="keyword">namespace</span> std {
+    <span class="keyword">template</span>&lt;<span class="keyword">typename</span>... Ts&gt;
+    <span class="keyword">using</span> void_t = <span class="keyword">void</span>;
+}</code></pre>
+                </div>
+
+                <p>无论传入什么类型，始终返回<code>void</code>。</p>
+
+                <h3 id="why">1.2 为什么需要void_t</h3>
+                
+                <h4>传统方法（C++11）</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">has_begin_old</span> {
+    <span class="keyword">template</span>&lt;<span class="keyword">typename</span> U&gt;
+    <span class="keyword">static</span> <span class="keyword">auto</span> <span class="function">test</span>(<span class="keyword">int</span>) 
+        -&gt; <span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;U&gt;().<span class="function">begin</span>(), std::true_type{});
+    <span class="keyword">template</span>&lt;<span class="keyword">typename</span>&gt;
+    <span class="keyword">static</span> std::false_type <span class="function">test</span>(...);
+<span class="keyword">public</span>:
+    <span class="keyword">using</span> type = <span class="keyword">decltype</span>(<span class="function">test</span>&lt;T&gt;(<span class="number">0</span>));
+};</code></pre>
+
+                <h4>void_t方法（C++17）</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span>&lt;T, std::void_t&lt;<span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">begin</span>())&gt;&gt;
+    : std::true_type {};</code></pre>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>传统SFINAE</th>
+                            <th>void_t</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>代码行数</td>
+                            <td>9行</td>
+                            <td>5行</td>
+                        </tr>
+                        <tr>
+                            <td>可读性</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                        </tr>
+                        <tr>
+                            <td>维护性</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 第二层 -->
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制</h2>
+                
+                <h3 id="mechanism">2.1 工作原理</h3>
+                
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_value_type</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_value_type</span>&lt;T, std::void_t&lt;<span class="keyword">typename</span> T::value_type&gt;&gt;
+    : std::true_type {};</code></pre>
+
+                <h4>编译器处理流程</h4>
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #27ae60;">✅ vector&lt;int&gt;</div>
+                    <div class="tree-node">
+                        <div class="tree-item">T::value_type → int</div>
+                        <div class="tree-item">void_t&lt;int&gt; → void</div>
+                        <div class="tree-item">匹配特化版本</div>
+                        <div class="tree-item">结果：true</div>
+                    </div>
+                </div>
+
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #e74c3c;">❌ int</div>
+                    <div class="tree-node">
+                        <div class="tree-item">T::value_type → 错误</div>
+                        <div class="tree-item">SFINAE触发</div>
+                        <div class="tree-item">使用主模板</div>
+                        <div class="tree-item">结果：false</div>
+                    </div>
+                </div>
+
+                <h3 id="patterns">2.2 使用模式</h3>
+                
+                <h4>检测类型成员</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_iterator</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_iterator</span>&lt;T, std::void_t&lt;<span class="keyword">typename</span> T::iterator&gt;&gt;
+    : std::true_type {};</code></pre>
+
+                <h4>检测成员函数</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_size</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_size</span>&lt;T, std::void_t&lt;<span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">size</span>())&gt;&gt;
+    : std::true_type {};</code></pre>
+
+                <h4>检测运算符</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_plus</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_plus</span>&lt;T, std::void_t&lt;<span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;() + std::<span class="function">declval</span>&lt;T&gt;())&gt;&gt;
+    : std::true_type {};</code></pre>
+
+                <h4>组合多个条件</h4>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">is_container</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">is_container</span>&lt;T, std::void_t&lt;
+    <span class="keyword">typename</span> T::value_type,
+    <span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">begin</span>()),
+    <span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">end</span>())
+&gt;&gt; : std::true_type {};</code></pre>
+            </section>
+
+            <!-- 第三层 -->
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="app1">3.1 条件性优化</h3>
+                
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_reserve</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_reserve</span>&lt;T, std::void_t&lt;
+    <span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">reserve</span>(std::<span class="function">declval</span>&lt;<span class="keyword">size_t</span>&gt;()))
+&gt;&gt; : std::true_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> C&gt;
+<span class="keyword">void</span> <span class="function">prepare</span>(C&amp; c, <span class="keyword">size_t</span> n) {
+    <span class="keyword">if</span> <span class="keyword">constexpr</span> (has_reserve&lt;C&gt;::value) {
+        c.<span class="function">reserve</span>(n);  <span class="comment">// vector有</span>
+    }
+    <span class="comment">// list无，跳过</span>
+}</code></pre>
+
+                <h3 id="app2">3.2 Detection Idiom</h3>
+                
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Default, <span class="keyword">typename</span> Void,
+         <span class="keyword">template</span>&lt;<span class="keyword">typename</span>...&gt; <span class="keyword">class</span> <span class="type">Op</span>, <span class="keyword">typename</span>... Args&gt;
+<span class="keyword">struct</span> <span class="type">detector</span> {
+    <span class="keyword">using</span> value_t = std::false_type;
+    <span class="keyword">using</span> type = Default;
+};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> Default, <span class="keyword">template</span>&lt;<span class="keyword">typename</span>...&gt; <span class="keyword">class</span> <span class="type">Op</span>, 
+         <span class="keyword">typename</span>... Args&gt;
+<span class="keyword">struct</span> <span class="type">detector</span>&lt;Default, std::void_t&lt;<span class="type">Op</span>&lt;Args...&gt;&gt;, <span class="type">Op</span>, Args...&gt; {
+    <span class="keyword">using</span> value_t = std::true_type;
+    <span class="keyword">using</span> type = <span class="type">Op</span>&lt;Args...&gt;;
+};</code></pre>
+
+                <h3 id="app3">3.3 通用打印</h3>
+                
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">is_printable</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">is_printable</span>&lt;T, std::void_t&lt;
+    <span class="keyword">decltype</span>(std::cout &lt;&lt; std::<span class="function">declval</span>&lt;T&gt;())
+&gt;&gt; : std::true_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">void</span> <span class="function">print</span>(<span class="keyword">const</span> T&amp; v) {
+    <span class="keyword">if</span> <span class="keyword">constexpr</span> (is_printable&lt;T&gt;::value) {
+        std::cout &lt;&lt; v &lt;&lt; <span class="string">"\n"</span>;
+    } <span class="keyword">else</span> {
+        std::cout &lt;&lt; <span class="string">"[not printable]\n"</span>;
+    }
+}</code></pre>
+            </section>
+
+            <!-- 第四层 -->
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧</h2>
+                
+                <h3 id="advanced1">4.1 复杂条件检测</h3>
+                
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">is_map_like</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">is_map_like</span>&lt;T, std::void_t&lt;
+    <span class="keyword">typename</span> T::key_type,
+    <span class="keyword">typename</span> T::mapped_type,
+    <span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;()[std::<span class="function">declval</span>&lt;<span class="keyword">typename</span> T::key_type&gt;()])
+&gt;&gt; : std::true_type {};</code></pre>
+
+                <h3 id="advanced2">4.2 与C++20 Concepts对比</h3>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>void_t</th>
+                            <th>Concepts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>可读性</td>
+                            <td>中等</td>
+                            <td>✅ 优秀</td>
+                        </tr>
+                        <tr>
+                            <td>错误信息</td>
+                            <td>复杂</td>
+                            <td>✅ 清晰</td>
+                        </tr>
+                        <tr>
+                            <td>编译速度</td>
+                            <td>快</td>
+                            <td>快</td>
+                        </tr>
+                        <tr>
+                            <td>C++17支持</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <pre><code><span class="comment">// void_t方式</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span>&lt;T, std::void_t&lt;<span class="keyword">decltype</span>(std::<span class="function">declval</span>&lt;T&gt;().<span class="function">begin</span>())&gt;&gt;
+    : std::true_type {};
+
+<span class="comment">// C++20 Concepts</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">concept</span> <span class="type">HasBegin</span> = <span class="keyword">requires</span>(T t) { t.<span class="function">begin</span>(); };</code></pre>
+
+                <h3 id="pitfalls">4.3 常见陷阱</h3>
+                
+                <h4>陷阱1：缺少主模板</h4>
+                <pre><code><span class="comment">// ❌ 错误</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span>&lt;T, std::void_t&lt;...&gt;&gt; : std::true_type {};
+
+<span class="comment">// ✅ 正确</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> = <span class="keyword">void</span>&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span> : std::false_type {};
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">has_begin</span>&lt;T, std::void_t&lt;...&gt;&gt; : std::true_type {};</code></pre>
+
+                <h4>陷阱2：C++14兼容性</h4>
+                <pre><code><span class="comment">// C++14需自己实现</span>
+<span class="preprocessor">#if</span> __cplusplus &lt; <span class="number">201703L</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span>... Ts&gt;
+<span class="keyword">using</span> void_t = <span class="keyword">void</span>;
+<span class="preprocessor">#endif</span></code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 最佳实践</strong>
+                    <ul>
+                        <li>✅ 优先使用void_t（C++17）</li>
+                        <li>✅ 考虑升级到Concepts（C++20）</li>
+                        <li>✅ 组合多个条件提高精确度</li>
+                        <li>⚠️ 注意即时上下文限制</li>
+                        <li>⚠️ 私有成员无法检测</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                
+                <h3>标准文档</h3>
+                <ul>
+                    <li><a href="https://en.cppreference.com/w/cpp/types/void_t" target="_blank">std::void_t - cppreference</a></li>
+                    <li><a href="https://wg21.link/n3911" target="_blank">N3911: TransformationTrait Alias void_t</a></li>
+                </ul>
+
+                <h3>经典文章</h3>
+                <ul>
+                    <li><a href="https://www.youtube.com/watch?v=Am2is2QCvxY" target="_blank">CppCon 2014: Walter E. Brown "Modern Template Metaprogramming"</a></li>
+                    <li><a href="https://www.bfilipek.com/2016/02/notes-on-c-sfinae.html" target="_blank">Notes on C++ SFINAE</a></li>
+                </ul>
+
+                <h3>书籍</h3>
+                <ul>
+                    <li><strong>C++17 - The Complete Guide</strong> - Nicolai M. Josuttis</li>
+                    <li><strong>C++ Templates: The Complete Guide (2nd Ed)</strong> - David Vandevoorde</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        function generateTOC() {
+            const headings = document.querySelectorAll('#main-content h2, #main-content h3');
+            const toc = document.getElementById('toc');
+            
+            headings.forEach(heading => {
+                if (heading.id && heading.id !== 'overview') {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = '#' + heading.id;
+                    a.textContent = heading.textContent;
+                    
+                    if (heading.tagName === 'H3') {
+                        li.style.paddingLeft = '1rem';
+                        li.style.fontSize = '0.9rem';
+                    }
+                    
+                    li.appendChild(a);
+                    toc.appendChild(li);
+                }
+            });
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            if (window.scrollY > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+        });
+
+        generateTOC();
+    </script>
+</body>
+</html>

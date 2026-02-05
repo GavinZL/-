@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>第三层：应用场景 - C++ 模板知识体系</title>
+    <link rel="stylesheet" href="common-styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>🛠️ 第三层：应用场景</h1>
+            <p class="subtitle">模板在实际工程中的应用 · STL设计与最佳实践</p>
+            <p class="subtitle">
+                <a href="layer2-core-mechanisms.html" style="color: white;">← 上一章</a> | 
+                <a href="index.html" style="color: white;">首页</a> | 
+                <a href="layer4-advanced.html" style="color: white;">下一章 →</a>
+            </p>
+        </div>
+    </header>
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 本章目录</h2>
+            <ul class="toc">
+                <li><a href="#overview">章节概述</a></li>
+                <li><a href="#stl">3.1 STL容器设计</a></li>
+                <li><a href="#algo">3.2 STL算法</a></li>
+                <li><a href="#smart">3.3 智能指针</a></li>
+                <li><a href="#pattern">3.4 设计模式</a></li>
+            </ul>
+        </aside>
+        <main>
+            <section id="overview">
+                <h2>📖 章节概述</h2>
+                <p>本层展示模板在实际工程中的应用，学习STL容器、算法、智能指针和设计模式的模板实现。</p>
+            </section>
+            <section id="stl">
+                <h2>📦 3.1 STL容器设计</h2>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Alloc = std::allocator&lt;T&gt;&gt;
+<span class="keyword">class</span> <span class="type">vector</span> {
+    T* data;
+    <span class="keyword">size_t</span> size, capacity;
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">push_back</span>(<span class="keyword">const</span> T& v);
+    T* <span class="function">begin</span>() { <span class="keyword">return</span> data; }
+};</code></pre>
+            </section>
+            <section id="algo">
+                <h2>⚙️ 3.2 STL算法抽象</h2>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> Iter, <span class="keyword">typename</span> T&gt;
+Iter <span class="function">find</span>(Iter first, Iter last, <span class="keyword">const</span> T& val) {
+    <span class="keyword">while</span> (first != last && *first != val) ++first;
+    <span class="keyword">return</span> first;
+}</code></pre>
+            </section>
+            <section id="smart">
+                <h2>🎯 3.3 智能指针实现</h2>
+                <pre><code><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">unique_ptr</span> {
+    T* ptr;
+<span class="keyword">public</span>:
+    <span class="keyword">explicit</span> <span class="function">unique_ptr</span>(T* p) : ptr(p) {}
+    ~<span class="function">unique_ptr</span>() { <span class="keyword">delete</span> ptr; }
+    T* <span class="keyword">operator</span>->() { <span class="keyword">return</span> ptr; }
+};</code></pre>
+            </section>
+            <section id="pattern">
+                <h2>🎨 3.4 设计模式应用</h2>
+                <pre><code><span class="comment">// CRTP单例</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">Singleton</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">static</span> T& <span class="function">instance</span>() {
+        <span class="keyword">static</span> T inst;
+        <span class="keyword">return</span> inst;
+    }
+};</code></pre>
+            </section>
+            <section>
+                <h2>📚 本章小结</h2>
+                <p>掌握了STL、智能指针和设计模式的模板应用。</p>
+                <p>下一步：<a href="layer4-advanced.html">第四层：高级技巧</a></p>
+            </section>
+        </main>
+    </div>
+    <button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('backToTop').classList.toggle('show', window.scrollY > 300);
+        });
+    </script>
+</body>
+</html>

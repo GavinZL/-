@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ 内存序深度解析 - 多线程编程的基石</title>
+    <link rel="stylesheet" href="common-styles.css">
+</head>
+<body>
+    <!-- <header>
+        <div class="header-content">
+            <h1>C++ 内存序深度解析</h1>
+            <p class="subtitle">Memory Order · 深入理解多线程同步与原子操作的核心机制</p>
+        </div>
+    </header> -->
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p>C++11引入的内存序（Memory Order）是现代多线程编程的核心基石，它定义了原子操作之间的可见性和排序保证。理解内存序对于编写高性能、正确的并发代码至关重要。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">多线程内存模型的诞生背景</div>
+                        <div class="tree-item">内存重排序问题</div>
+                        <div class="tree-item">顺序一致性 vs 宽松内存模型</div>
+                        <div class="tree-item">happens-before关系</div>
+                        <div class="tree-item">内存序的分类与层次</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制与实现原理</div>
+                    <div class="tree-node">
+                        <div class="tree-item">六种内存序详解</div>
+                        <div class="tree-item">编译器重排序</div>
+                        <div class="tree-item">CPU重排序与内存屏障</div>
+                        <div class="tree-item">不同架构的实现（x86/ARM/POWER）</div>
+                        <div class="tree-item">libc++/libstdc++的实现分析</div>
+                        <div class="tree-item">内核atomic实现</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">自旋锁实现</div>
+                        <div class="tree-item">无锁队列设计</div>
+                        <div class="tree-item">双重检查锁定（DCLP）</div>
+                        <div class="tree-item">引用计数</div>
+                        <div class="tree-item">生产者-消费者模式</div>
+                        <div class="tree-item">RCU（Read-Copy-Update）</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧与最佳实践</div>
+                    <div class="tree-node">
+                        <div class="tree-item">性能优化策略</div>
+                        <div class="tree-item">常见陷阱与调试技巧</div>
+                        <div class="tree-item">形式化验证方法</div>
+                        <div class="tree-item">工业级代码分析（folly/abseil）</div>
+                        <div class="tree-item">C++20改进</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第一层：概念与背景 -->
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="history">1.1 多线程内存模型的诞生背景</h3>
+                <p>在C++11之前，C++标准未定义多线程行为，程序员依赖平台特定的API（如pthread、Windows线程）。这导致：</p>
+                <ul>
+                    <li><strong>可移植性差</strong>：不同平台有不同的内存模型</li>
+                    <li><strong>编译器优化受限</strong>：编译器不知道哪些变量需要同步</li>
+                    <li><strong>错误难以调试</strong>：内存可见性问题在不同硬件上表现不同</li>
+                </ul>
+
+                <div class="info-box note">
+                    <strong>📌 历史演进</strong>
+                    <ul>
+                        <li>1979年: Lamport提出顺序一致性（Sequential Consistency）</li>
+                        <li>1990年: 弱内存模型（Weak Memory Model）理论发展</li>
+                        <li>2008年: Hans Boehm等人推动C++内存模型标准化</li>
+                        <li>2011年: C++11引入完整的内存模型和atomic库</li>
+                        <li>2020年: C++20增强atomic功能（wait/notify机制）</li>
+                    </ul>
+                </div>
+
+                <h3 id="reordering">1.2 内存重排序问题</h3>
+                <p>内存重排序发生在两个层面：</p>
+                
+                <h4>1.2.1 编译器重排序</h4>
+                <pre><code><span class="comment">// 原始代码</span>
+<span class="keyword">int</span> a = <span class="number">0</span>, b = <span class="number">0</span>;
+<span class="keyword">void</span> <span class="function">thread1</span>() {
+    a = <span class="number">1</span>;  <span class="comment">// 语句1</span>
+    b = <span class="number">1</span>;  <span class="comment">// 语句2</span>
+}
+
+<span class="comment">// 编译器可能优化为：</span>
+<span class="keyword">void</span> <span class="function">thread1</span>() {
+    b = <span class="number">1</span>;  <span class="comment">// 先执行语句2</span>
+    a = <span class="number">1</span>;  <span class="comment">// 后执行语句1</span>
+}</code></pre>
+
+                <h4>1.2.2 CPU重排序</h4>
+                <p>即使编译器没有重排，CPU也会在运行时重排序指令以提升性能：</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>重排序类型</th>
+                            <th>描述</th>
+                            <th>x86-64</th>
+                            <th>ARM/POWER</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Store-Store</td>
+                            <td>后面的写操作可能先于前面的写操作可见</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                        </tr>
+                        <tr>
+                            <td>Load-Load</td>
+                            <td>后面的读操作可能先于前面的读操作执行</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                        </tr>
+                        <tr>
+                            <td>Load-Store</td>
+                            <td>后面的写操作可能先于前面的读操作</td>
+                            <td>✅</td>
+                            <td>✅</td>
+                        </tr>
+                        <tr>
+                            <td>Store-Load</td>
+                            <td>后面的读操作可能先于前面的写操作</td>
+                            <td>✅</td>
+                            <td>✅</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box warning">
+                    <strong>⚠️ 经典问题：Dekker算法失效</strong>
+                    在没有内存序保证的情况下，经典的Dekker互斥算法在现代CPU上会失效。
+                </div>
+
+                <h3 id="sequential-consistency">1.3 顺序一致性 vs 宽松内存模型</h3>
+                
+                <h4>1.3.1 顺序一致性（Sequential Consistency - SC）</h4>
+                <p>Lamport定义：程序的执行结果等同于所有线程的操作按某种全局顺序交错执行。</p>
+
+                <h4>1.3.2 宽松内存模型的必要性</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>方面</th>
+                            <th>顺序一致性</th>
+                            <th>宽松内存模型</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>正确性</td>
+                            <td>易于理解和验证</td>
+                            <td>需要深入理解内存序</td>
+                        </tr>
+                        <tr>
+                            <td>性能</td>
+                            <td>需要大量内存屏障，性能低</td>
+                            <td>可根据需求选择最小同步</td>
+                        </tr>
+                        <tr>
+                            <td>硬件支持</td>
+                            <td>x86较好，ARM/POWER代价高</td>
+                            <td>充分利用硬件特性</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="happens-before">1.4 happens-before关系</h3>
+                <p>C++内存模型的核心概念，定义操作之间的可见性保证。</p>
+                
+                <h4>1.4.1 定义</h4>
+                <p>如果操作A happens-before 操作B，则：</p>
+                <ul>
+                    <li>A的结果对B可见</li>
+                    <li>A在B之前执行（从程序语义角度）</li>
+                </ul>
+
+                <h3 id="memory-order-classification">1.5 内存序的分类与层次</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>内存序</th>
+                            <th>类别</th>
+                            <th>同步保证</th>
+                            <th>性能</th>
+                            <th>使用场景</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>memory_order_relaxed</code></td>
+                            <td>宽松</td>
+                            <td>仅原子性，无同步</td>
+                            <td>最快</td>
+                            <td>计数器</td>
+                        </tr>
+                        <tr>
+                            <td><code>memory_order_consume</code></td>
+                            <td>获取</td>
+                            <td>数据依赖排序</td>
+                            <td>快</td>
+                            <td>已废弃</td>
+                        </tr>
+                        <tr>
+                            <td><code>memory_order_acquire</code></td>
+                            <td>获取</td>
+                            <td>acquire语义</td>
+                            <td>中等</td>
+                            <td>读锁、读屏障</td>
+                        </tr>
+                        <tr>
+                            <td><code>memory_order_release</code></td>
+                            <td>释放</td>
+                            <td>release语义</td>
+                            <td>中等</td>
+                            <td>写锁、写屏障</td>
+                        </tr>
+                        <tr>
+                            <td><code>memory_order_acq_rel</code></td>
+                            <td>获取-释放</td>
+                            <td>两者结合</td>
+                            <td>较慢</td>
+                            <td>RMW操作</td>
+                        </tr>
+                        <tr>
+                            <td><code>memory_order_seq_cst</code></td>
+                            <td>顺序一致</td>
+                            <td>全局顺序</td>
+                            <td>最慢</td>
+                            <td>默认，简单场景</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box tip">
+                    <strong>💡 选择原则</strong>
+                    <ul>
+                        <li>默认使用 <code>seq_cst</code>，除非有性能瓶颈</li>
+                        <li>只需要原子性：使用 <code>relaxed</code></li>
+                        <li>需要同步：使用 <code>acquire/release</code></li>
+                        <li>需要全局顺序：使用 <code>seq_cst</code></li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 第二层：核心机制 -->
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制与实现原理</h2>
+                
+                <h3 id="six-orders">2.1 六种内存序详解</h3>
+                
+                <h4>2.1.1 memory_order_relaxed（宽松序）</h4>
+                <p><strong>特性：</strong>仅保证操作的原子性，不提供任何同步或排序保证。</p>
+                <pre><code><span class="comment">// 示例：计数器（不需要同步）</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; counter{<span class="number">0</span>};
+
+<span class="keyword">void</span> <span class="function">increment</span>() {
+    counter.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);
+}
+
+<span class="keyword">int</span> <span class="function">get_count</span>() {
+    <span class="keyword">return</span> counter.<span class="function">load</span>(std::memory_order_relaxed);
+}</code></pre>
+
+                <h4>2.1.2 memory_order_acquire（获取序）</h4>
+                <p><strong>特性：</strong>load操作，防止后续读写操作重排到此操作之前。</p>
+                <pre><code><span class="comment">// acquire语义</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; flag{<span class="keyword">false</span>};
+<span class="keyword">int</span> data = <span class="number">0</span>;
+
+<span class="comment">// Thread 2（消费者）</span>
+<span class="keyword">while</span> (!flag.<span class="function">load</span>(std::memory_order_acquire)) {
+    <span class="comment">// 自旋等待</span>
+}
+<span class="comment">// 这里保证能看到Thread 1对data的修改</span>
+assert(data == <span class="number">42</span>);</code></pre>
+
+                <p><strong>内存屏障：</strong></p>
+                <ul>
+                    <li>x86-64: 无需额外指令（TSO模型天然满足）</li>
+                    <li>ARM64: <code>ldar</code>（Load-Acquire）</li>
+                    <li>POWER: <code>isync</code></li>
+                </ul>
+
+                <h4>2.1.3 memory_order_release（释放序）</h4>
+                <p><strong>特性：</strong>store操作，防止前面的读写操作重排到此操作之后。</p>
+                <pre><code><span class="comment">// release语义</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; flag{<span class="keyword">false</span>};
+<span class="keyword">int</span> data = <span class="number">0</span>;
+
+<span class="comment">// Thread 1（生产者）</span>
+data = <span class="number">42</span>;
+flag.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_release);
+<span class="comment">// release保证data的修改在flag之前完成</span></code></pre>
+
+                <p><strong>内存屏障：</strong></p>
+                <ul>
+                    <li>x86-64: 无需额外指令</li>
+                    <li>ARM64: <code>stlr</code>（Store-Release）</li>
+                    <li>POWER: <code>lwsync</code></li>
+                </ul>
+
+                <h4>2.1.4 memory_order_acq_rel（获取-释放序）</h4>
+                <p><strong>特性：</strong>同时具有acquire和release语义，用于RMW（Read-Modify-Write）操作。</p>
+                <pre><code><span class="comment">// 示例：自旋锁</span>
+<span class="keyword">class</span> <span class="type">SpinLock</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; flag{<span class="keyword">false</span>};
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">lock</span>() {
+        <span class="keyword">while</span> (flag.<span class="function">exchange</span>(<span class="keyword">true</span>, std::memory_order_acq_rel)) {
+            <span class="comment">// 自旋</span>
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">unlock</span>() {
+        flag.<span class="function">store</span>(<span class="keyword">false</span>, std::memory_order_release);
+    }
+};</code></pre>
+
+                <h4>2.1.5 memory_order_seq_cst（顺序一致性）</h4>
+                <p><strong>特性：</strong>最强的内存序，保证全局的单一总顺序。</p>
+                <pre><code><span class="comment">// 经典示例：Dekker算法修正版</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; x{<span class="keyword">false</span>}, y{<span class="keyword">false</span>};
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; z{<span class="number">0</span>};
+
+<span class="comment">// Thread 1</span>
+x.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_seq_cst);
+<span class="keyword">if</span> (!y.<span class="function">load</span>(std::memory_order_seq_cst)) {
+    ++z;
+}
+
+<span class="comment">// Thread 2</span>
+y.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_seq_cst);
+<span class="keyword">if</span> (!x.<span class="function">load</span>(std::memory_order_seq_cst)) {
+    ++z;
+}
+
+<span class="comment">// 保证：z最终值为0或1，不会是2</span></code></pre>
+
+                <p><strong>实现代价：</strong></p>
+                <ul>
+                    <li>x86-64: store需要 <code>mfence</code> 或 <code>lock xchg</code></li>
+                    <li>ARM64: 需要完整的 <code>dmb</code> 屏障</li>
+                    <li>POWER: 需要 <code>sync</code> 指令</li>
+                </ul>
+
+                <h4>2.1.6 memory_order_consume（消费序）</h4>
+                <div class="info-box important">
+                    <strong>🚫 已废弃</strong>
+                    <p>C++17标准将consume标记为不鼓励使用，所有主流编译器将其实现为acquire。原因：</p>
+                    <ul>
+                        <li>编译器难以正确实现数据依赖跟踪</li>
+                        <li>性能提升不明显</li>
+                        <li>容易导致微妙的bug</li>
+                    </ul>
+                </div>
+
+                <h3 id="compiler-reordering">2.2 编译器重排序机制</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>编译器</th>
+                            <th>屏障指令</th>
+                            <th>作用</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GCC/Clang</td>
+                            <td><code>asm volatile("" ::: "memory")</code></td>
+                            <td>阻止编译器重排序</td>
+                        </tr>
+                        <tr>
+                            <td>MSVC</td>
+                            <td><code>_ReadWriteBarrier()</code></td>
+                            <td>阻止编译器重排序</td>
+                        </tr>
+                        <tr>
+                            <td>C++11</td>
+                            <td><code>atomic_signal_fence()</code></td>
+                            <td>编译器屏障</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="cpu-reordering">2.3 CPU重排序与内存屏障</h3>
+                
+                <h4>2.3.1 x86-64内存模型（TSO）</h4>
+                <p>x86-64采用较强的TSO模型，特点：</p>
+                <ul>
+                    <li>✅ Store-Store不重排</li>
+                    <li>✅ Load-Load不重排</li>
+                    <li>✅ Load-Store不重排</li>
+                    <li>❌ Store-Load可能重排（Store Buffer导致）</li>
+                </ul>
+
+                <pre><code><span class="comment">// x86-64内存屏障指令</span>
+<span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="string">"mfence"</span>);  <span class="comment">// 全屏障</span>
+<span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="string">"sfence"</span>);  <span class="comment">// Store屏障</span>
+<span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="string">"lfence"</span>);  <span class="comment">// Load屏障</span>
+
+<span class="comment">// seq_cst store在x86上的实现</span>
+<span class="comment">// 方式1: MFENCE + MOV</span>
+<span class="keyword">void</span> <span class="function">store_seq_cst</span>(<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt;* p, <span class="keyword">int</span> val) {
+    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="string">"mfence"</span>);
+    p-&gt;<span class="function">store</span>(val, std::memory_order_relaxed);
+}
+
+<span class="comment">// 方式2: LOCK XCHG (更快)</span>
+<span class="keyword">void</span> <span class="function">store_seq_cst_fast</span>(<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt;* p, <span class="keyword">int</span> val) {
+    <span class="keyword">int</span> dummy;
+    <span class="keyword">asm</span> <span class="keyword">volatile</span>(
+        <span class="string">"lock xchg %0, %1"</span>
+        : <span class="string">"=r"</span>(dummy), <span class="string">"=m"</span>(*p)
+        : <span class="string">"0"</span>(val)
+    );
+}</code></pre>
+
+                <div class="info-box note">
+                    <strong>📌 x86-64的Store Buffer</strong>
+                    <p>x86-64 CPU使用Store Buffer来提升性能：</p>
+                    <ul>
+                        <li>写操作先进入Store Buffer，异步刷新到缓存</li>
+                        <li>导致Store-Load重排序（后续读操作可能绕过Store Buffer）</li>
+                        <li>MFENCE刷新Store Buffer，保证全局可见性</li>
+                    </ul>
+                </div>
+
+                <h4>2.3.2 ARM64内存模型（弱内存模型）</h4>
+                <p>ARM64允许更激进的重排序，需要显式屏障：</p>
+                <pre><code><span class="comment">// ARM64屏障指令</span>
+DMB ISH       <span class="comment">// Data Memory Barrier (Inner Shareable)</span>
+DMB ISHST     <span class="comment">// Store屏障</span>
+DMB ISHLD     <span class="comment">// Load屏障</span>
+DSB ISH       <span class="comment">// 更强的屏障（等待所有访问完成）</span>
+
+<span class="comment">// ARM64 Load-Acquire / Store-Release</span>
+LDAR X0, [X1]  <span class="comment">// Load-Acquire</span>
+STLR X0, [X1]  <span class="comment">// Store-Release</span>
+
+<span class="comment">// C++代码对应的ARM64汇编</span>
+<span class="comment">// std::atomic<int> x;</span>
+<span class="comment">// x.load(memory_order_acquire)</span>
+LDAR W0, [X0]  <span class="comment">// 单条指令实现acquire</span>
+
+<span class="comment">// x.store(42, memory_order_release)</span>
+MOV W1, <span class="number">#42</span>
+STLR W1, [X0]  <span class="comment">// 单条指令实现release</span>
+
+<span class="comment">// x.store(42, memory_order_seq_cst)</span>
+MOV W1, <span class="number">#42</span>
+STLR W1, [X0]
+DMB ISH        <span class="comment">// 需要额外屏障保证全局顺序</span></code></pre>
+
+                <h4>2.3.3 POWER内存模型（最弱）</h4>
+                <p>POWER架构允许几乎所有形式的重排序：</p>
+                <pre><code><span class="comment">// POWER屏障指令</span>
+sync       <span class="comment">// 全屏障（最强，等待所有操作完成）</span>
+lwsync     <span class="comment">// Light-weight sync（不阻止Store-Load重排）</span>
+isync      <span class="comment">// Instruction sync（acquire语义）</span>
+eieio      <span class="comment">// 设备I/O屏障</span>
+
+<span class="comment">// acquire实现（POWER）</span>
+ld r3, 0(r4)   <span class="comment">// load</span>
+cmpw r3, r3    <span class="comment">// 创建数据依赖</span>
+bne- $+4       <span class="comment">// 永不跳转的分支</span>
+isync          <span class="comment">// 指令同步屏障</span>
+
+<span class="comment">// release实现（POWER）</span>
+lwsync         <span class="comment">// 轻量级同步</span>
+std r3, 0(r4)  <span class="comment">// store</span></code></pre>
+
+                <h3 id="libcpp-implementation">2.4 libc++/libstdc++的实现分析</h3>
+                
+                <h4>2.4.1 libc++ atomic实现（Clang）</h4>
+                <pre><code><span class="comment">// libc++/include/atomic (简化版)</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">struct</span> <span class="type">atomic</span> {
+    <span class="keyword">using</span> value_type = T;
+    
+    <span class="keyword">void</span> <span class="function">store</span>(T desired, memory_order order = memory_order_seq_cst) <span class="keyword">noexcept</span> {
+        __atomic_store(&amp;_value, &amp;desired, <span class="function">__to_gcc_order</span>(order));
+    }
+    
+    T <span class="function">load</span>(memory_order order = memory_order_seq_cst) <span class="keyword">const</span> <span class="keyword">noexcept</span> {
+        T result;
+        __atomic_load(&amp;_value, &amp;result, <span class="function">__to_gcc_order</span>(order));
+        <span class="keyword">return</span> result;
+    }
+    
+    T <span class="function">exchange</span>(T desired, memory_order order = memory_order_seq_cst) <span class="keyword">noexcept</span> {
+        T result;
+        __atomic_exchange(&amp;_value, &amp;desired, &amp;result, <span class="function">__to_gcc_order</span>(order));
+        <span class="keyword">return</span> result;
+    }
+    
+    <span class="keyword">bool</span> <span class="function">compare_exchange_weak</span>(T&amp; expected, T desired,
+                               memory_order success,
+                               memory_order failure) <span class="keyword">noexcept</span> {
+        <span class="keyword">return</span> __atomic_compare_exchange(&amp;_value, &amp;expected, &amp;desired,
+                                            <span class="keyword">true</span>,
+                                            <span class="function">__to_gcc_order</span>(success),
+                                            <span class="function">__to_gcc_order</span>(failure));
+    }
+    
+<span class="keyword">private</span>:
+    T _value;
+};
+
+<span class="comment">// 内存序转换</span>
+<span class="keyword">static</span> <span class="keyword">constexpr</span> <span class="keyword">int</span> <span class="function">__to_gcc_order</span>(memory_order order) {
+    <span class="keyword">switch</span> (order) {
+        <span class="keyword">case</span> memory_order_relaxed: <span class="keyword">return</span> __ATOMIC_RELAXED;
+        <span class="keyword">case</span> memory_order_acquire: <span class="keyword">return</span> __ATOMIC_ACQUIRE;
+        <span class="keyword">case</span> memory_order_release: <span class="keyword">return</span> __ATOMIC_RELEASE;
+        <span class="keyword">case</span> memory_order_acq_rel: <span class="keyword">return</span> __ATOMIC_ACQ_REL;
+        <span class="keyword">case</span> memory_order_seq_cst: <span class="keyword">return</span> __ATOMIC_SEQ_CST;
+    }
+}</code></pre>
+
+                <h4>2.4.2 编译器内置函数</h4>
+                <p>GCC/Clang提供的内置原子操作：</p>
+                <pre><code><span class="comment">// __atomic builtins (C++11标准映射)</span>
+__atomic_load_n(&amp;var, __ATOMIC_ACQUIRE);
+__atomic_store_n(&amp;var, value, __ATOMIC_RELEASE);
+__atomic_exchange_n(&amp;var, value, __ATOMIC_ACQ_REL);
+__atomic_compare_exchange_n(&amp;var, &amp;expected, desired, 
+                            <span class="keyword">false</span>, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+__atomic_fetch_add(&amp;var, <span class="number">1</span>, __ATOMIC_RELAXED);
+
+<span class="comment">// 线程栅栏</span>
+__atomic_thread_fence(__ATOMIC_SEQ_CST);
+__atomic_signal_fence(__ATOMIC_SEQ_CST);  <span class="comment">// 仅编译器屏障</span>
+
+<span class="comment">// GCC旧版本__sync builtins (不推荐)</span>
+__sync_fetch_and_add(&amp;var, <span class="number">1</span>);  <span class="comment">// 等价于seq_cst</span>
+__sync_bool_compare_and_swap(&amp;var, old, <span class="keyword">new</span>);</code></pre>
+
+                <h3 id="kernel-implementation">2.5 内核atomic实现</h3>
+                
+                <h4>2.5.1 Linux内核的atomic_t（x86-64）</h4>
+                <pre><code><span class="comment">// arch/x86/include/asm/atomic.h (简化)</span>
+<span class="keyword">typedef</span> <span class="keyword">struct</span> {
+    <span class="keyword">int</span> counter;
+} atomic_t;
+
+<span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">void</span> <span class="function">atomic_add</span>(<span class="keyword">int</span> i, atomic_t *v) {
+    <span class="keyword">asm</span> <span class="keyword">volatile</span>(LOCK_PREFIX <span class="string">"addl %1,%0"</span>
+                     : <span class="string">"+m"</span> (v-&gt;counter)
+                     : <span class="string">"ir"</span> (i));
+}
+
+<span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">int</span> <span class="function">atomic_read</span>(<span class="keyword">const</span> atomic_t *v) {
+    <span class="keyword">return</span> READ_ONCE(v-&gt;counter);  <span class="comment">// 防止编译器优化</span>
+}
+
+<span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">void</span> <span class="function">atomic_set</span>(atomic_t *v, <span class="keyword">int</span> i) {
+    WRITE_ONCE(v-&gt;counter, i);
+}
+
+<span class="comment">// READ_ONCE/WRITE_ONCE定义</span>
+<span class="preprocessor">#define READ_ONCE(x) \
+    ({ \
+        typeof(x) __val; \
+        __asm__ volatile("" : "=r" (__val) : "0" (x)); \
+        __val; \
+    })
+
+#define WRITE_ONCE(x, val) \
+    ({ \
+        typeof(x) __val = (val); \
+        __asm__ volatile("" : "=m" (x) : "r" (__val)); \
+    })</span></code></pre>
+
+                <h4>2.5.2 内核内存屏障</h4>
+                <pre><code><span class="comment">// include/asm-generic/barrier.h</span>
+<span class="preprocessor">#define mb()    asm volatile("mfence" ::: "memory")  </span><span class="comment">// 全屏障</span>
+<span class="preprocessor">#define rmb()   asm volatile("lfence" ::: "memory")  </span><span class="comment">// 读屏障</span>
+<span class="preprocessor">#define wmb()   asm volatile("sfence" ::: "memory")  </span><span class="comment">// 写屏障</span>
+
+<span class="comment">// SMP条件屏障（x86-64的TSO模型较强，编译器屏障即可）</span>
+<span class="preprocessor">#define smp_mb()    barrier()
+#define smp_rmb()   barrier()
+#define smp_wmb()   barrier()
+#define barrier()   asm volatile("" ::: "memory")</span>
+
+<span class="comment">// acquire/release语义</span>
+<span class="preprocessor">#define smp_load_acquire(p) \
+    ({ \
+        typeof(*p) ___p1 = READ_ONCE(*p); \
+        barrier(); \
+        ___p1; \
+    })
+
+#define smp_store_release(p, v) \
+    ({ \
+        barrier(); \
+        WRITE_ONCE(*p, v); \
+    })</span>
+
+<span class="comment">// RCU相关屏障</span>
+<span class="preprocessor">#define rcu_dereference(p) \
+    ({ \
+        typeof(p) _p1 = READ_ONCE(p); \
+        smp_read_barrier_depends(); \
+        _p1; \
+    })</span></code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 为什么Linux内核需要这么多屏障？</strong>
+                    <ul>
+                        <li><strong>多架构支持</strong>：x86强模型，ARM/POWER弱模型</li>
+                        <li><strong>性能优化</strong>：根据具体场景选择最小开销的屏障</li>
+                        <li><strong>RCU优化</strong>：利用数据依赖避免完整屏障（consume语义）</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 第三层：应用场景 -->
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="spinlock">3.1 自旋锁实现</h3>
+                
+                <h4>3.1.1 基础版本（TAS锁）</h4>
+                <pre><code><span class="comment">// Test-And-Set自旋锁</span>
+<span class="keyword">class</span> <span class="type">SpinLock</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; locked{<span class="keyword">false</span>};
+    
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">lock</span>() {
+        <span class="keyword">while</span> (locked.<span class="function">exchange</span>(<span class="keyword">true</span>, std::memory_order_acquire)) {
+            <span class="comment">// 自旋等待</span>
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">unlock</span>() {
+        locked.<span class="function">store</span>(<span class="keyword">false</span>, std::memory_order_release);
+    }
+};</code></pre>
+
+                <div class="info-box warning">
+                    <strong>⚠️ 问题：缓存颠簸（Cache Thrashing）</strong>
+                    <p>TAS锁的问题：每次自旋都会执行exchange，导致：</p>
+                    <ul>
+                        <li>大量的MESI协议消息（缓存一致性协议）</li>
+                        <li>总线占用率高</li>
+                        <li>性能下降明显</li>
+                    </ul>
+                </div>
+
+                <h4>3.1.2 优化版本（TTAS锁 + 指数退避）</h4>
+                <pre><code><span class="comment">// Test-Test-And-Set + Exponential Backoff</span>
+<span class="keyword">class</span> <span class="type">OptimizedSpinLock</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; locked{<span class="keyword">false</span>};
+    
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">lock</span>() {
+        <span class="keyword">int</span> spin_count = <span class="number">0</span>;
+        <span class="keyword">constexpr</span> <span class="keyword">int</span> MAX_SPINS = <span class="number">1000</span>;
+        
+        <span class="keyword">while</span> (<span class="keyword">true</span>) {
+            <span class="comment">// 先用relaxed测试，减少缓存一致性流量</span>
+            <span class="keyword">if</span> (!locked.<span class="function">load</span>(std::memory_order_relaxed) &amp;&amp;
+                !locked.<span class="function">exchange</span>(<span class="keyword">true</span>, std::memory_order_acquire)) {
+                <span class="keyword">return</span>;
+            }
+            
+            <span class="comment">// 指数退避：减少竞争</span>
+            <span class="keyword">if</span> (spin_count &lt; MAX_SPINS) {
+                <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; (<span class="number">1</span> &lt;&lt; spin_count); ++i) {
+                    __builtin_ia32_pause();  <span class="comment">// x86 PAUSE指令</span>
+                }
+                ++spin_count;
+            } <span class="keyword">else</span> {
+                std::this_thread::<span class="function">yield</span>();  <span class="comment">// 让出CPU</span>
+            }
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">unlock</span>() {
+        locked.<span class="function">store</span>(<span class="keyword">false</span>, std::memory_order_release);
+    }
+};</code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 PAUSE指令的作用</strong>
+                    <ul>
+                        <li><strong>降低功耗</strong>：减少自旋等待时的能量消耗</li>
+                        <li><strong>提高性能</strong>：给Store Buffer更多时间刻新数据</li>
+                        <li><strong>避免管道混乱</strong>：防止内存顺序违反检测</li>
+                    </ul>
+                </div>
+
+                <h4>3.1.3 Ticket锁（公平锁）</h4>
+                <pre><code><span class="comment">// Linux内核风格的Ticket Spinlock</span>
+<span class="keyword">class</span> <span class="type">TicketLock</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">uint32_t</span>&gt; ticket{<span class="number">0</span>};
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">uint32_t</span>&gt; serving{<span class="number">0</span>};
+    
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">lock</span>() {
+        <span class="keyword">uint32_t</span> my_ticket = ticket.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);
+        <span class="keyword">while</span> (serving.<span class="function">load</span>(std::memory_order_acquire) != my_ticket) {
+            __builtin_ia32_pause();
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">unlock</span>() {
+        serving.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_release);
+    }
+};
+
+<span class="comment">// 优点：FIFO顺序，公平性好，没有饥饿问题
+// 缺点：缓存同步开销较大（所有等待者都读serving）</span></code></pre>
+
+                <h4>3.1.4 MCS锁（可扩展锁）</h4>
+                <pre><code><span class="comment">// Mellor-Crummey and Scott Lock</span>
+<span class="keyword">class</span> <span class="type">MCSLock</span> {
+    <span class="keyword">struct</span> <span class="type">Node</span> {
+        <span class="keyword">std::atomic</span>&lt;Node*&gt; next{<span class="keyword">nullptr</span>};
+        <span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; locked{<span class="keyword">false</span>};
+    };
+    
+    <span class="keyword">std::atomic</span>&lt;Node*&gt; tail{<span class="keyword">nullptr</span>};
+    
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">lock</span>(Node* my_node) {
+        my_node-&gt;next.<span class="function">store</span>(<span class="keyword">nullptr</span>, std::memory_order_relaxed);
+        my_node-&gt;locked.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_relaxed);
+        
+        Node* pred = tail.<span class="function">exchange</span>(my_node, std::memory_order_acq_rel);
+        <span class="keyword">if</span> (pred != <span class="keyword">nullptr</span>) {
+            pred-&gt;next.<span class="function">store</span>(my_node, std::memory_order_release);
+            <span class="keyword">while</span> (my_node-&gt;locked.<span class="function">load</span>(std::memory_order_acquire)) {
+                __builtin_ia32_pause();
+            }
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">unlock</span>(Node* my_node) {
+        Node* succ = my_node-&gt;next.<span class="function">load</span>(std::memory_order_acquire);
+        <span class="keyword">if</span> (succ == <span class="keyword">nullptr</span>) {
+            Node* expected = my_node;
+            <span class="keyword">if</span> (tail.<span class="function">compare_exchange_strong</span>(expected, <span class="keyword">nullptr</span>,
+                                                  std::memory_order_release,
+                                                  std::memory_order_relaxed)) {
+                <span class="keyword">return</span>;
+            }
+            <span class="keyword">while</span> ((succ = my_node-&gt;next.<span class="function">load</span>(std::memory_order_acquire)) == <span class="keyword">nullptr</span>) {
+                __builtin_ia32_pause();
+            }
+        }
+        succ-&gt;locked.<span class="function">store</span>(<span class="keyword">false</span>, std::memory_order_release);
+    }
+};
+
+<span class="comment">// 优点：每个等待者自旋在自己的节点上，缓存友好
+// 适用：NUMA架构和高竞争场景</span></code></pre>
+
+                <h3 id="lockfree-queue">3.2 无锁队列设计</h3>
+                
+                <h4>3.2.1 单生产者-单消费者队列（SPSC）</h4>
+                <pre><code><span class="comment">// 无锁环形缓冲区</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">size_t</span> N&gt;
+<span class="keyword">class</span> <span class="type">SPSCQueue</span> {
+    <span class="keyword">static_assert</span>((N &amp; (N - <span class="number">1</span>)) == <span class="number">0</span>, <span class="string">"N must be power of 2"</span>);
+    
+    T buffer[N];
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;<span class="keyword">size_t</span>&gt; write_pos{<span class="number">0</span>};
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;<span class="keyword">size_t</span>&gt; read_pos{<span class="number">0</span>};
+    
+<span class="keyword">public</span>:
+    <span class="keyword">bool</span> <span class="function">push</span>(T item) {
+        <span class="keyword">size_t</span> w = write_pos.<span class="function">load</span>(std::memory_order_relaxed);
+        <span class="keyword">size_t</span> r = read_pos.<span class="function">load</span>(std::memory_order_acquire);
+        
+        <span class="keyword">if</span> ((w + <span class="number">1</span>) % N == r) {
+            <span class="keyword">return</span> <span class="keyword">false</span>;  <span class="comment">// 队列满</span>
+        }
+        
+        buffer[w] = std::<span class="function">move</span>(item);
+        write_pos.<span class="function">store</span>((w + <span class="number">1</span>) % N, std::memory_order_release);
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+    
+    <span class="keyword">bool</span> <span class="function">pop</span>(T&amp; item) {
+        <span class="keyword">size_t</span> r = read_pos.<span class="function">load</span>(std::memory_order_relaxed);
+        <span class="keyword">size_t</span> w = write_pos.<span class="function">load</span>(std::memory_order_acquire);
+        
+        <span class="keyword">if</span> (r == w) {
+            <span class="keyword">return</span> <span class="keyword">false</span>;  <span class="comment">// 队列空</span>
+        }
+        
+        item = std::<span class="function">move</span>(buffer[r]);
+        read_pos.<span class="function">store</span>((r + <span class="number">1</span>) % N, std::memory_order_release);
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+};</code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 为什么这里可以用relaxed？</strong>
+                    <ul>
+                        <li><strong>生产者</strong>：只写 <code>write_pos</code>，读取 <code>read_pos</code></li>
+                        <li><strong>消费者</strong>：只写 <code>read_pos</code>，读取 <code>write_pos</code></li>
+                        <li><strong>acquire-release对</strong>：保证了正确的同步</li>
+                        <li><strong>自己的位置</strong>：可以用relaxed读取（无竞争）</li>
+                    </ul>
+                </div>
+
+                <div class="info-box note">
+                    <strong>📌 伪共享问题（False Sharing）</strong>
+                    <p>使用 <code>alignas(64)</code> 确保 <code>write_pos</code> 和 <code>read_pos</code> 位于不同的缓存行，避免不必要的缓存一致性流量。</p>
+                </div>
+
+                <h4>3.2.2 多生产者-单消费者队列（MPSC）</h4>
+                <pre><code><span class="comment">// Intrusive MPSC Queue (Dmitry Vyukov)</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">MPSCQueue</span> {
+    <span class="keyword">struct</span> <span class="type">Node</span> {
+        <span class="keyword">std::atomic</span>&lt;Node*&gt; next{<span class="keyword">nullptr</span>};
+        T data;
+    };
+    
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;Node*&gt; head;
+    <span class="keyword">alignas</span>(<span class="number">64</span>) Node* tail;
+    Node stub;
+    
+<span class="keyword">public</span>:
+    <span class="function">MPSCQueue</span>() : head(&amp;stub), tail(&amp;stub) {}
+    
+    <span class="keyword">void</span> <span class="function">push</span>(T value) {
+        Node* node = <span class="keyword">new</span> Node{<span class="keyword">nullptr</span>, std::<span class="function">move</span>(value)};
+        Node* prev = head.<span class="function">exchange</span>(node, std::memory_order_acq_rel);
+        prev-&gt;next.<span class="function">store</span>(node, std::memory_order_release);
+    }
+    
+    <span class="keyword">bool</span> <span class="function">pop</span>(T&amp; result) {
+        Node* t = tail;
+        Node* next = t-&gt;next.<span class="function">load</span>(std::memory_order_acquire);
+        
+        <span class="keyword">if</span> (next == <span class="keyword">nullptr</span>) {
+            <span class="keyword">return</span> <span class="keyword">false</span>;
+        }
+        
+        result = std::<span class="function">move</span>(next-&gt;data);
+        tail = next;
+        <span class="keyword">delete</span> t;
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+    
+    ~<span class="function">MPSCQueue</span>() {
+        <span class="keyword">while</span> (tail != <span class="keyword">nullptr</span>) {
+            Node* next = tail-&gt;next.<span class="function">load</span>(std::memory_order_relaxed);
+            <span class="keyword">delete</span> tail;
+            tail = next;
+        }
+    }
+};</code></pre>
+
+                <h4>3.2.3 多生产者-多消费者队列（MPMC）</h4>
+                <pre><code><span class="comment">// Michael-Scott Queue (经典无锁队列)</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">MPMCQueue</span> {
+    <span class="keyword">struct</span> <span class="type">Node</span> {
+        <span class="keyword">std::atomic</span>&lt;Node*&gt; next;
+        <span class="keyword">std::optional</span>&lt;T&gt; data;
+        
+        <span class="function">Node</span>() : next(<span class="keyword">nullptr</span>) {}
+        <span class="function">Node</span>(T val) : next(<span class="keyword">nullptr</span>), data(std::<span class="function">move</span>(val)) {}
+    };
+    
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;Node*&gt; head;
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;Node*&gt; tail;
+    
+<span class="keyword">public</span>:
+    <span class="function">MPMCQueue</span>() {
+        Node* dummy = <span class="keyword">new</span> Node();
+        head.<span class="function">store</span>(dummy, std::memory_order_relaxed);
+        tail.<span class="function">store</span>(dummy, std::memory_order_relaxed);
+    }
+    
+    <span class="keyword">void</span> <span class="function">enqueue</span>(T value) {
+        Node* node = <span class="keyword">new</span> Node(std::<span class="function">move</span>(value));
+        
+        <span class="keyword">while</span> (<span class="keyword">true</span>) {
+            Node* last = tail.<span class="function">load</span>(std::memory_order_acquire);
+            Node* next = last-&gt;next.<span class="function">load</span>(std::memory_order_acquire);
+            
+            <span class="comment">// 检查tail是否被修改</span>
+            <span class="keyword">if</span> (last == tail.<span class="function">load</span>(std::memory_order_acquire)) {
+                <span class="keyword">if</span> (next == <span class="keyword">nullptr</span>) {
+                    <span class="comment">// 尝试插入</span>
+                    Node* expected = <span class="keyword">nullptr</span>;
+                    <span class="keyword">if</span> (last-&gt;next.<span class="function">compare_exchange_weak</span>(
+                            expected, node,
+                            std::memory_order_release,
+                            std::memory_order_relaxed)) {
+                        <span class="comment">// 更新tail</span>
+                        tail.<span class="function">compare_exchange_strong</span>(
+                            last, node,
+                            std::memory_order_release,
+                            std::memory_order_relaxed);
+                        <span class="keyword">return</span>;
+                    }
+                } <span class="keyword">else</span> {
+                    <span class="comment">// 帮助其他线程移动tail</span>
+                    tail.<span class="function">compare_exchange_strong</span>(
+                        last, next,
+                        std::memory_order_release,
+                        std::memory_order_relaxed);
+                }
+            }
+        }
+    }
+    
+    <span class="keyword">bool</span> <span class="function">dequeue</span>(T&amp; result) {
+        <span class="keyword">while</span> (<span class="keyword">true</span>) {
+            Node* first = head.<span class="function">load</span>(std::memory_order_acquire);
+            Node* last = tail.<span class="function">load</span>(std::memory_order_acquire);
+            Node* next = first-&gt;next.<span class="function">load</span>(std::memory_order_acquire);
+            
+            <span class="keyword">if</span> (first == head.<span class="function">load</span>(std::memory_order_acquire)) {
+                <span class="keyword">if</span> (first == last) {
+                    <span class="keyword">if</span> (next == <span class="keyword">nullptr</span>) {
+                        <span class="keyword">return</span> <span class="keyword">false</span>;  <span class="comment">// 队列空</span>
+                    }
+                    <span class="comment">// 帮助移动tail</span>
+                    tail.<span class="function">compare_exchange_strong</span>(
+                        last, next,
+                        std::memory_order_release,
+                        std::memory_order_relaxed);
+                } <span class="keyword">else</span> {
+                    result = std::<span class="function">move</span>(*next-&gt;data);
+                    <span class="keyword">if</span> (head.<span class="function">compare_exchange_strong</span>(
+                            first, next,
+                            std::memory_order_release,
+                            std::memory_order_relaxed)) {
+                        <span class="keyword">delete</span> first;
+                        <span class="keyword">return</span> <span class="keyword">true</span>;
+                    }
+                }
+            }
+        }
+    }
+};
+
+<span class="comment">// 注意：这是经典的Michael-Scott算法，存在ABA问题
+// 生产环境需要使用hazard pointer或epoch-based回收</span></code></pre>
+
+                <h3 id="dclp">3.3 双重检查锁定（DCLP）</h3>
+                
+                <h4>3.3.1 错误的实现</h4>
+                <pre><code><span class="comment">// 错误！不要这样写</span>
+<span class="keyword">class</span> <span class="type">Singleton</span> {
+    <span class="keyword">static</span> Singleton* instance;
+    <span class="keyword">static</span> std::mutex mtx;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">static</span> Singleton* <span class="function">getInstance</span>() {
+        <span class="keyword">if</span> (instance == <span class="keyword">nullptr</span>) {           <span class="comment">// 第1次检查（数据竞争！）</span>
+            std::lock_guard lock(mtx);
+            <span class="keyword">if</span> (instance == <span class="keyword">nullptr</span>) {       <span class="comment">// 第2次检查</span>
+                instance = <span class="keyword">new</span> Singleton();  <span class="comment">// 可能重排序！</span>
+            }
+        }
+        <span class="keyword">return</span> instance;
+    }
+};</code></pre>
+
+                <div class="info-box important">
+                    <strong>⚠️ 为什么错误？</strong>
+                    <p><code>new Singleton()</code> 实际分为3步：</p>
+                    <ol>
+                        <li>分配内存</li>
+                        <li>调用构造函数</li>
+                        <li>将指针赋给instance</li>
+                    </ol>
+                    <p>编译器可能重排为 1→3→2，导致其他线程看到未初始化的对象！</p>
+                </div>
+
+                <h4>3.3.2 正确的实现（C++11）</h4>
+                <pre><code><span class="comment">// 方法1：使用atomic</span>
+<span class="keyword">class</span> <span class="type">Singleton</span> {
+    <span class="keyword">static</span> <span class="keyword">std::atomic</span>&lt;Singleton*&gt; instance;
+    <span class="keyword">static</span> std::mutex mtx;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">static</span> Singleton* <span class="function">getInstance</span>() {
+        Singleton* tmp = instance.<span class="function">load</span>(std::memory_order_acquire);
+        <span class="keyword">if</span> (tmp == <span class="keyword">nullptr</span>) {
+            std::lock_guard lock(mtx);
+            tmp = instance.<span class="function">load</span>(std::memory_order_relaxed);
+            <span class="keyword">if</span> (tmp == <span class="keyword">nullptr</span>) {
+                tmp = <span class="keyword">new</span> Singleton();
+                instance.<span class="function">store</span>(tmp, std::memory_order_release);
+            }
+        }
+        <span class="keyword">return</span> tmp;
+    }
+};
+
+<span class="comment">// 方法2：最简单的方法（推荐）</span>
+<span class="keyword">class</span> <span class="type">Singleton</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">static</span> Singleton&amp; <span class="function">getInstance</span>() {
+        <span class="keyword">static</span> Singleton instance;  <span class="comment">// C++11保证线程安全初始化</span>
+        <span class="keyword">return</span> instance;
+    }
+};
+
+<span class="comment">// 方法3：使用call_once</span>
+<span class="keyword">class</span> <span class="type">Singleton</span> {
+    <span class="keyword">static</span> std::unique_ptr&lt;Singleton&gt; instance;
+    <span class="keyword">static</span> std::once_flag flag;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">static</span> Singleton* <span class="function">getInstance</span>() {
+        std::<span class="function">call_once</span>(flag, []() {
+            instance.<span class="function">reset</span>(<span class="keyword">new</span> Singleton());
+        });
+        <span class="keyword">return</span> instance.<span class="function">get</span>();
+    }
+};</code></pre>
+
+                <h3 id="reference-counting">3.4 引用计数（Reference Counting）</h3>
+                <pre><code><span class="comment">// 智能指针风格的引用计数</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">SharedPtr</span> {
+    <span class="keyword">struct</span> <span class="type">ControlBlock</span> {
+        T* ptr;
+        <span class="keyword">std::atomic</span>&lt;<span class="keyword">uint32_t</span>&gt; ref_count;
+        
+        <span class="function">ControlBlock</span>(T* p) : ptr(p), ref_count(<span class="number">1</span>) {}
+    };
+    
+    ControlBlock* ctrl;
+    
+    <span class="keyword">void</span> <span class="function">acquire</span>() {
+        <span class="keyword">if</span> (ctrl) {
+            ctrl-&gt;ref_count.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">release</span>() {
+        <span class="keyword">if</span> (ctrl &amp;&amp; ctrl-&gt;ref_count.<span class="function">fetch_sub</span>(<span class="number">1</span>, std::memory_order_acq_rel) == <span class="number">1</span>) {
+            <span class="comment">// 最后一个引用，需要acquire语义确保看到所有之前的修改</span>
+            <span class="keyword">delete</span> ctrl-&gt;ptr;
+            <span class="keyword">delete</span> ctrl;
+        }
+    }
+    
+<span class="keyword">public</span>:
+    <span class="keyword">explicit</span> <span class="function">SharedPtr</span>(T* p = <span class="keyword">nullptr</span>) 
+        : ctrl(p ? <span class="keyword">new</span> ControlBlock(p) : <span class="keyword">nullptr</span>) {}
+    
+    <span class="function">SharedPtr</span>(<span class="keyword">const</span> SharedPtr&amp; other) : ctrl(other.ctrl) {
+        <span class="function">acquire</span>();
+    }
+    
+    SharedPtr&amp; <span class="keyword">operator</span>=(<span class="keyword">const</span> SharedPtr&amp; other) {
+        <span class="keyword">if</span> (<span class="keyword">this</span> != &amp;other) {
+            <span class="function">release</span>();
+            ctrl = other.ctrl;
+            <span class="function">acquire</span>();
+        }
+        <span class="keyword">return</span> *<span class="keyword">this</span>;
+    }
+    
+    ~<span class="function">SharedPtr</span>() { <span class="function">release</span>(); }
+    
+    T* <span class="function">get</span>() <span class="keyword">const</span> { <span class="keyword">return</span> ctrl ? ctrl-&gt;ptr : <span class="keyword">nullptr</span>; }
+};</code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 为什么递增用relaxed，递减用acq_rel？</strong>
+                    <ul>
+                        <li><strong>递增</strong>：不需要同步（只是表示新的引用）</li>
+                        <li><strong>递减</strong>：最后一次递减需要acquire，确保看到所有线程对对象的修改</li>
+                        <li><strong>release语义</strong>：确保之前的修改对最后一个释放者可见</li>
+                    </ul>
+                </div>
+
+                <h3 id="rcu">3.5 RCU（Read-Copy-Update）</h3>
+                <p>RCU是Linux内核中广泛使用的同步机制，特别适合读多写少的场景。</p>
+                
+                <pre><code><span class="comment">// 简化的RCU示例</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">RCUPointer</span> {
+    <span class="keyword">std::atomic</span>&lt;T*&gt; ptr;
+    
+<span class="keyword">public</span>:
+    <span class="function">RCUPointer</span>(T* p = <span class="keyword">nullptr</span>) : ptr(p) {}
+    
+    <span class="comment">// 读者：无锁读取</span>
+    T* <span class="function">read</span>() {
+        <span class="keyword">return</span> ptr.<span class="function">load</span>(std::memory_order_acquire);
+    }
+    
+    <span class="comment">// 写者：复制-更新</span>
+    <span class="keyword">void</span> <span class="function">update</span>(T* new_ptr) {
+        T* old = ptr.<span class="function">exchange</span>(new_ptr, std::memory_order_release);
+        
+        <span class="comment">// 需要等待所有读者完成（实际中使用grace period）</span>
+        <span class="function">synchronize_rcu</span>();  <span class="comment">// 等待所有读者</span>
+        
+        <span class="keyword">delete</span> old;  <span class="comment">// 安全删除旧数据</span>
+    }
+    
+    <span class="comment">// 简化版的synchronize_rcu（实际更复杂）</span>
+    <span class="keyword">void</span> <span class="function">synchronize_rcu</span>() {
+        <span class="comment">// 等待所有CPU经历一次上下文切换</span>
+        std::this_thread::<span class="function">sleep_for</span>(std::chrono::<span class="function">milliseconds</span>(<span class="number">10</span>));
+    }
+};
+
+<span class="comment">// 使用示例</span>
+<span class="keyword">struct</span> <span class="type">Config</span> {
+    <span class="keyword">int</span> setting1;
+    <span class="keyword">int</span> setting2;
+};
+
+RCUPointer&lt;Config&gt; global_config(<span class="keyword">new</span> Config{<span class="number">10</span>, <span class="number">20</span>});
+
+<span class="comment">// 读者线程：无锁读取</span>
+<span class="keyword">void</span> <span class="function">reader</span>() {
+    Config* cfg = global_config.<span class="function">read</span>();
+    <span class="keyword">if</span> (cfg) {
+        <span class="keyword">int</span> s1 = cfg-&gt;setting1;  <span class="comment">// 安全读取</span>
+        <span class="keyword">int</span> s2 = cfg-&gt;setting2;
+    }
+}
+
+<span class="comment">// 写者线程：更新配置</span>
+<span class="keyword">void</span> <span class="function">writer</span>() {
+    Config* new_cfg = <span class="keyword">new</span> Config{<span class="number">30</span>, <span class="number">40</span>};
+    global_config.<span class="function">update</span>(new_cfg);  <span class="comment">// 安全更新</span>
+}</code></pre>
+
+                <div class="info-box note">
+                    <strong>📌 RCU的优势</strong>
+                    <ul>
+                        <li><strong>读操作几乎无开销</strong>：仅一次acquire load</li>
+                        <li><strong>可扩展性</strong>：读者之间完全并行</li>
+                        <li><strong>适用场景</strong>：读多写少（如90%以上是读）</li>
+                        <li><strong>Linux内核</strong>：路由表、进程列表等大量使用</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 第四层：高级技巧 -->
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧与最佳实践</h2>
+                
+                <h3 id="optimization">4.1 性能优化策略</h3>
+                
+                <h4>4.1.1 选择最弱的内存序</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>场景</th>
+                            <th>推荐内存序</th>
+                            <th>原因</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>计数器递增</td>
+                            <td><code>relaxed</code></td>
+                            <td>只需原子性，不需同步</td>
+                        </tr>
+                        <tr>
+                            <td>标志位同步</td>
+                            <td><code>acquire/release</code></td>
+                            <td>需要同步但不需全局顺序</td>
+                        </tr>
+                        <tr>
+                            <td>全局顺序保证</td>
+                            <td><code>seq_cst</code></td>
+                            <td>需要所有线程看到相同顺序</td>
+                        </tr>
+                        <tr>
+                            <td>引用计数递增</td>
+                            <td><code>relaxed</code></td>
+                            <td>不需同步</td>
+                        </tr>
+                        <tr>
+                            <td>引用计数递减</td>
+                            <td><code>acq_rel</code></td>
+                            <td>最后一次需要acquire</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>4.1.2 批处理优化</h4>
+                <pre><code><span class="comment">// 不好：频繁的原子操作</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; counter{<span class="number">0</span>};
+<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000000</span>; ++i) {
+    counter.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_seq_cst);  <span class="comment">// 很慢！</span>
+}
+
+<span class="comment">// 好：批处理</span>
+<span class="keyword">thread_local</span> <span class="keyword">int</span> local_counter = <span class="number">0</span>;
+<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000000</span>; ++i) {
+    ++local_counter;  <span class="comment">// 本地累加</span>
+}
+counter.<span class="function">fetch_add</span>(local_counter, std::memory_order_relaxed);  <span class="comment">// 一次性提交</span></code></pre>
+
+                <h4>4.1.3 缓存对齐优化</h4>
+                <pre><code><span class="comment">// 避免伪共享 (False Sharing)</span>
+<span class="keyword">struct</span> <span class="type">BadCounter</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count1{<span class="number">0</span>};  <span class="comment">// 可能与 count2 在同一缓存行</span>
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count2{<span class="number">0</span>};
+};
+
+<span class="comment">// 好：缓存行对齐</span>
+<span class="keyword">struct</span> <span class="type">GoodCounter</span> {
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count1{<span class="number">0</span>};
+    <span class="keyword">alignas</span>(<span class="number">64</span>) <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count2{<span class="number">0</span>};
+};
+
+<span class="comment">// C++17 更好的方法</span>
+<span class="keyword">struct</span> <span class="type">BestCounter</span> {
+    <span class="keyword">alignas</span>(std::hardware_destructive_interference_size) 
+        <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count1{<span class="number">0</span>};
+    <span class="keyword">alignas</span>(std::hardware_destructive_interference_size) 
+        <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; count2{<span class="number">0</span>};
+};</code></pre>
+
+                <h3 id="pitfalls">4.2 常见陷阱与调试技巧</h3>
+                
+                <h4>4.2.1 陷阱1：混用relaxed和非原子操作</h4>
+                <pre><code><span class="comment">// 错误！</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">bool</span>&gt; ready{<span class="keyword">false</span>};
+<span class="keyword">int</span> data = <span class="number">0</span>;  <span class="comment">// 非原子变量</span>
+
+<span class="comment">// Thread 1</span>
+data = <span class="number">42</span>;
+ready.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_relaxed);  <span class="comment">// 错误！relaxed不同步</span>
+
+<span class="comment">// Thread 2</span>
+<span class="keyword">if</span> (ready.<span class="function">load</span>(std::memory_order_relaxed)) {
+    <span class="keyword">int</span> x = data;  <span class="comment">// 数据竞争！</span>
+}
+
+<span class="comment">// 正确：使用release/acquire</span>
+ready.<span class="function">store</span>(<span class="keyword">true</span>, std::memory_order_release);
+<span class="keyword">if</span> (ready.<span class="function">load</span>(std::memory_order_acquire)) { ... }</code></pre>
+
+                <h4>4.2.2 陷阱2：ABA问题</h4>
+                <pre><code><span class="comment">// ABA问题示例</span>
+<span class="keyword">std::atomic</span>&lt;Node*&gt; head;
+
+<span class="comment">// Thread 1: 删除节点</span>
+Node* old_head = head.<span class="function">load</span>();
+Node* new_head = old_head-&gt;next;
+
+<span class="comment">// 此时Thread 2删除old_head，再分配一个新节点，正好地址相同！</span>
+
+head.<span class="function">compare_exchange_strong</span>(old_head, new_head);  <span class="comment">// 成功，但是错的！</span>
+
+<span class="comment">// 解决方案1：使用版本号</span>
+<span class="keyword">struct</span> <span class="type">TaggedPointer</span> {
+    Node* ptr;
+    <span class="keyword">uint64_t</span> version;
+};
+<span class="keyword">std::atomic</span>&lt;TaggedPointer&gt; head;
+
+<span class="comment">// 解决方案2：Hazard Pointers</span>
+<span class="comment">// 解决方案3：Epoch-based Reclamation</span></code></pre>
+
+                <h4>4.2.3 调试工具</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>工具</th>
+                            <th>用途</th>
+                            <th>使用方法</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ThreadSanitizer</td>
+                            <td>检测数据竞争</td>
+                            <td><code>clang++ -fsanitize=thread</code></td>
+                        </tr>
+                        <tr>
+                            <td>Valgrind Helgrind</td>
+                            <td>检测数据竞争和死锁</td>
+                            <td><code>valgrind --tool=helgrind</code></td>
+                        </tr>
+                        <tr>
+                            <td>Intel Inspector</td>
+                            <td>线程分析</td>
+                            <td>GUI工具</td>
+                        </tr>
+                        <tr>
+                            <td>perf</td>
+                            <td>性能分析</td>
+                            <td><code>perf record/report</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="verification">4.3 形式化验证方法</h3>
+                
+                <h4>4.3.1 压力测试</h4>
+                <pre><code><span class="comment">// 并发测试框架</span>
+<span class="keyword">void</span> <span class="function">test_spinlock</span>() {
+    SpinLock lock;
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; counter{<span class="number">0</span>};
+    <span class="keyword">constexpr</span> <span class="keyword">int</span> NUM_THREADS = <span class="number">8</span>;
+    <span class="keyword">constexpr</span> <span class="keyword">int</span> ITERATIONS = <span class="number">1000000</span>;
+    
+    <span class="keyword">std::vector</span>&lt;std::thread&gt; threads;
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; NUM_THREADS; ++i) {
+        threads.<span class="function">emplace_back</span>([&amp;]() {
+            <span class="keyword">for</span> (<span class="keyword">int</span> j = <span class="number">0</span>; j &lt; ITERATIONS; ++j) {
+                lock.<span class="function">lock</span>();
+                ++counter;
+                lock.<span class="function">unlock</span>();
+            }
+        });
+    }
+    
+    <span class="keyword">for</span> (<span class="keyword">auto</span>&amp; t : threads) t.<span class="function">join</span>();
+    
+    assert(counter == NUM_THREADS * ITERATIONS);
+}</code></pre>
+
+                <h4>4.3.2 模型检查</h4>
+                <p>使用形式化方法验证并发算法：</p>
+                <ul>
+                    <li><strong>CDSChecker</strong>：C/C++内存模型检查器</li>
+                    <li><strong>CBMC</strong>：C Bounded Model Checker</li>
+                    <li><strong>TLA+</strong>：高层次的系统规约语言</li>
+                </ul>
+
+                <h3 id="industrial-code">4.4 工业级代码分析</h3>
+                
+                <h4>4.4.1 Facebook Folly的原子操作</h4>
+                <pre><code><span class="comment">// folly/synchronization/AtomicStruct.h</span>
+<span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="type">AtomicStruct</span> {
+    <span class="keyword">static_assert</span>(<span class="keyword">sizeof</span>(T) &lt;= <span class="keyword">sizeof</span>(<span class="keyword">uint64_t</span>));
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">uint64_t</span>&gt; data_;
+    
+<span class="keyword">public</span>:
+    T <span class="function">load</span>(std::memory_order order = std::memory_order_seq_cst) {
+        <span class="keyword">uint64_t</span> raw = data_.<span class="function">load</span>(order);
+        T result;
+        std::<span class="function">memcpy</span>(&amp;result, &amp;raw, <span class="keyword">sizeof</span>(T));
+        <span class="keyword">return</span> result;
+    }
+    
+    <span class="keyword">void</span> <span class="function">store</span>(T desired, std::memory_order order = std::memory_order_seq_cst) {
+        <span class="keyword">uint64_t</span> raw;
+        std::<span class="function">memcpy</span>(&amp;raw, &amp;desired, <span class="keyword">sizeof</span>(T));
+        data_.<span class="function">store</span>(raw, order);
+    }
+};</code></pre>
+
+                <h4>4.4.2 Google Abseil的无锁结构</h4>
+                <pre><code><span class="comment">// abseil-cpp 的 Mutex 实现片段</span>
+<span class="keyword">class</span> <span class="type">Mutex</span> {
+    <span class="keyword">std::atomic</span>&lt;<span class="keyword">intptr_t</span>&gt; mu_;  <span class="comment">// 用一个原子变量存储状态</span>
+    
+    <span class="keyword">void</span> <span class="function">Lock</span>() {
+        <span class="keyword">intptr_t</span> v = mu_.<span class="function">load</span>(std::memory_order_relaxed);
+        <span class="keyword">if</span> ((v &amp; kMuWait) == <span class="number">0</span> &amp;&amp;  <span class="comment">// 快速路径</span>
+            mu_.<span class="function">compare_exchange_strong</span>(v, v | kMuWait,
+                                           std::memory_order_acquire,
+                                           std::memory_order_relaxed)) {
+            <span class="keyword">return</span>;
+        }
+        <span class="function">LockSlow</span>();  <span class="comment">// 慢速路径</span>
+    }
+};</code></pre>
+
+                <h3 id="cpp20">4.5 C++20改进</h3>
+                
+                <h4>4.5.1 atomic wait/notify</h4>
+                <pre><code><span class="comment">// C++20 新增的等待/通知机制</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">int</span>&gt; data{<span class="number">0</span>};
+
+<span class="comment">// 线程1：等待</span>
+<span class="keyword">void</span> <span class="function">waiter</span>() {
+    <span class="keyword">int</span> old = data.<span class="function">load</span>(std::memory_order_acquire);
+    <span class="keyword">while</span> (old != <span class="number">42</span>) {
+        data.<span class="function">wait</span>(old, std::memory_order_acquire);  <span class="comment">// 睡眠等待</span>
+        old = data.<span class="function">load</span>(std::memory_order_acquire);
+    }
+}
+
+<span class="comment">// 线程2：通知</span>
+<span class="keyword">void</span> <span class="function">notifier</span>() {
+    data.<span class="function">store</span>(<span class="number">42</span>, std::memory_order_release);
+    data.<span class="function">notify_one</span>();  <span class="comment">// 或 notify_all()</span>
+}
+
+<span class="comment">// 优势：相比自旋更节省CPU</span></code></pre>
+
+                <h4>4.5.2 atomic_ref</h4>
+                <pre><code><span class="comment">// C++20 atomic_ref：对非原子变量提供原子操作</span>
+<span class="keyword">int</span> x = <span class="number">0</span>;
+<span class="keyword">std::atomic_ref</span>&lt;<span class="keyword">int</span>&gt; ax(x);
+
+ax.<span class="function">fetch_add</span>(<span class="number">1</span>, std::memory_order_relaxed);  <span class="comment">// 原子操作</span>
+ax.<span class="function">store</span>(<span class="number">42</span>, std::memory_order_release);
+
+<span class="comment">// 用途：处理遗留代码中的普通变量</span></code></pre>
+
+                <h4>4.5.3 atomic的浮点类型支持</h4>
+                <pre><code><span class="comment">// C++20 支持浮点类型的原子操作</span>
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">float</span>&gt; f{<span class="number">0.0f</span>};
+<span class="keyword">std::atomic</span>&lt;<span class="keyword">double</span>&gt; d{<span class="number">0.0</span>};
+
+f.<span class="function">fetch_add</span>(<span class="number">1.5f</span>, std::memory_order_relaxed);
+d.<span class="function">fetch_sub</span>(<span class="number">2.5</span>, std::memory_order_relaxed);
+
+<span class="comment">// 注意：浮点运算不满足结合律，多线程结果可能不同</span></code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 最佳实践总结</strong>
+                    <ul>
+                        <li><strong>默认用seq_cst</strong>，确认性能问题再优化</li>
+                        <li><strong>使用ThreadSanitizer</strong>在开发阶段检测问题</li>
+                        <li><strong>充分测试</strong>：并发bug难以复现</li>
+                        <li><strong>学习工业级库</strong>：folly、abseil、内核代码</li>
+                        <li><strong>避免过度优化</strong>：正确性 &gt; 性能</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 参考资料 -->
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                
+                <h3>📖 经典论文</h3>
+                <ul>
+                    <li>Lamport, L. (1979). "How to Make a Multiprocessor Computer That Correctly Executes Multiprocess Programs"</li>
+                    <li>Boehm, H. & Adve, S. (2008). "Foundations of the C++ Concurrency Memory Model"</li>
+                    <li>Herlihy, M. & Shavit, N. "The Art of Multiprocessor Programming"</li>
+                </ul>
+
+                <h3>📘 书籍</h3>
+                <ul>
+                    <li><strong>C++ Concurrency in Action (2nd Edition)</strong> - Anthony Williams</li>
+                    <li><strong>The C++ Programming Language (4th Edition)</strong> - Bjarne Stroustrup</li>
+                    <li><strong>Linux Kernel Development (3rd Edition)</strong> - Robert Love</li>
+                </ul>
+
+                <h3>🔗 在线资源</h3>
+                <ul>
+                    <li><a href="https://en.cppreference.com/w/cpp/atomic/memory_order" target="_blank">cppreference - Memory Order</a></li>
+                    <li><a href="https://www.kernel.org/doc/Documentation/memory-barriers.txt" target="_blank">Linux Kernel Memory Barriers</a></li>
+                    <li><a href="https://preshing.com/20120612/an-introduction-to-lock-free-programming/" target="_blank">Preshing on Programming - Lock-Free</a></li>
+                    <li><a href="https://gcc.gnu.org/wiki/Atomic/GCCMM" target="_blank">GCC Memory Model</a></li>
+                </ul>
+
+                <h3>🛠️ 工具</h3>
+                <ul>
+                    <li><a href="https://github.com/google/sanitizers" target="_blank">ThreadSanitizer</a> - Google的数据竞争检测工具</li>
+                    <li><a href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/inspector.html" target="_blank">Intel Inspector</a> - 线程分析工具</li>
+                    <li><a href="https://valgrind.org/docs/manual/hg-manual.html" target="_blank">Valgrind Helgrind</a> - 数据竞争检测</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        // 自动生成目录
+        function generateTOC() {
+            const toc = document.getElementById('toc');
+            const headings = document.querySelectorAll('main h2, main h3');
+            
+            headings.forEach(heading => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.textContent = heading.textContent;
+                a.href = '#' + heading.id;
+                
+                if (heading.tagName === 'H3') {
+                    li.style.paddingLeft = '1rem';
+                    a.style.fontSize = '0.9em';
+                }
+                
+                li.appendChild(a);
+                toc.appendChild(li);
+            });
+        }
+
+        // 返回顶部
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 高亮当前章节
+        function highlightCurrentSection() {
+            const sections = document.querySelectorAll('section');
+            const tocLinks = document.querySelectorAll('.toc a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.parentElement.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.parentElement.classList.add('active');
+                }
+            });
+        }
+
+        // 显示/隐藏返回顶部按钮
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            if (window.scrollY > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+            
+            highlightCurrentSection();
+        });
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTOC();
+        });
+    </script>
+</body>
+</html>

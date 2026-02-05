@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>移动端 GPU 优化深度技术指南（引擎级 Checklist 版）</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary-color: #0071e3;
+            --secondary-color: #0077ed;
+            --accent-color: #f39c12;
+            --danger-color: #e74c3c;
+            --bg-color: #ffffff;
+            --text-color: #1d1d1f;
+            --code-bg: #f5f5f7;
+            --border-color: #d2d2d7;
+            --shadow: 0 2px 8px rgba(0,0,0,0.07);
+            --max-width: 1200px;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: var(--bg-color);
+        }
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            gap: 2rem;
+        }
+        .sidebar {
+            flex: 0 0 260px;
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        .toc { list-style: none; }
+        .toc li { margin-bottom: 0.4rem; }
+        .toc a {
+            display: block;
+            padding: 0.35rem 0.5rem;
+            border-radius: 6px;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+        .toc a:hover {
+            background: var(--primary-color);
+            color: #fff;
+            transform: translateX(4px);
+        }
+        main { flex: 1; min-width: 0; }
+        section {
+            margin-bottom: 2.5rem;
+            background: #fff;
+            padding: 1.75rem 1.75rem 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+        h2 {
+            font-size: 1.7rem;
+            color: var(--primary-color);
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        h3 {
+            font-size: 1.3rem;
+            color: var(--secondary-color);
+            margin: 1.5rem 0 0.8rem;
+        }
+        h4 {
+            font-size: 1.05rem;
+            margin: 1rem 0 0.4rem;
+        }
+        p { margin-bottom: 0.8rem; text-align: justify; }
+        ul, ol { margin: 0 0 0.8rem 1.5rem; }
+        li { margin-bottom: 0.35rem; }
+        code {
+            font-family: "Menlo", "Monaco", "Consolas", monospace;
+            background: var(--code-bg);
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #282c34;
+            color: #dcdfe4;
+            padding: 1.1rem 1.2rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 0.9rem 0 1.2rem;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 1.2rem;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        thead { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: #fff; }
+        th, td { padding: 0.6rem 0.7rem; font-size: 0.9rem; }
+        th { text-align: left; }
+        tbody tr:nth-child(even) { background: #f7f8fa; }
+        tbody tr:hover { background: #eef4ff; }
+        .info-box {
+            margin: 0.9rem 0;
+            padding: 0.85rem 0.9rem;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-color);
+            background: #e9f2ff;
+            font-size: 0.9rem;
+        }
+        .info-box.danger { border-color: var(--danger-color); background: #ffecec; }
+        .info-box.good { border-color: #27ae60; background: #e9f9f0; }
+        .info-box strong { display: block; margin-bottom: 0.3rem; }
+        .knowledge-tree {
+            margin: 1.2rem 0 1.4rem;
+            padding: 1rem 1.2rem;
+            background: var(--code-bg);
+            border-radius: 8px;
+        }
+        .tree-item {
+            padding: 0.35rem 0.6rem;
+            margin: 0.25rem 0;
+            background: #fff;
+            border-radius: 4px;
+            border-left: 3px solid var(--primary-color);
+        }
+        .tree-node {
+            margin-left: 1.4rem;
+            padding-left: 0.8rem;
+            border-left: 1px dashed var(--border-color);
+        }
+        .checklist-table td:nth-child(1) { white-space: nowrap; }
+        .badge {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            background: #eef4ff;
+            color: var(--primary-color);
+        }
+        @media (max-width: 768px) {
+            .container { flex-direction: column; padding: 1rem; }
+            .sidebar { position: static; max-height: none; }
+            section { padding: 1.25rem 1.1rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <h2>目录</h2>
+        <ul class="toc">
+            <li><a href="#overview">0. 概述</a></li>
+            <li><a href="#tree">1. GPU 优化知识树</a></li>
+            <li><a href="#drawcall">2. Draw Call 与渲染批次</a></li>
+            <li><a href="#shader">3. 着色器优化</a></li>
+            <li><a href="#texture">4. 纹理与采样优化</a></li>
+            <li><a href="#memory-bandwidth">5. 内存与带宽</a></li>
+            <li><a href="#arch">6. 移动 GPU 架构差异</a></li>
+            <li><a href="#perf-debug">7. 性能目标与调试流程</a></li>
+            <li><a href="#checklist">8. 引擎级 GPU 优化 Checklist</a></li>
+        </ul>
+    </aside>
+    <main>
+        <section id="overview">
+            <h1>移动端 GPU 优化深度技术指南</h1>
+            <p class="subtitle">以 OpenGL ES 为背景，从架构到工程实践，构建一套可落地的引擎级 GPU 优化体系</p>
+            <p>
+                本文综合 <code>GPU</code> 目录内既有文档（2D 渲染优化、Shader 优化、数据同步与零拷贝、渲染优化指南）与最新移动 GPU 实践，
+                从 <strong>架构认知 → 优化方向 → 工程落地 → Checklist 评审标准</strong> 四个层面，系统性整理移动端 GPU 优化知识体系。
+            </p>
+            <div class="info-box">
+                <strong>阅读定位</strong>
+                <ul>
+                    <li>目标读者：引擎 / 渲染架构师、高级客户端工程师。</li>
+                    <li>适用场景：移动端游戏与图形应用（OpenGL ES / 部分概念可迁移到 Metal/Vulkan）。</li>
+                    <li>最终产出：一套可直接嵌入项目流程的 <strong>GPU 优化评审 Checklist</strong>。</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="tree">
+            <h2>1. GPU 优化知识树（树形结构）</h2>
+            <p>下图给出一个从引擎视角出发的 GPU 优化知识树，后续各节将沿着这棵树展开：</p>
+            <div class="knowledge-tree">
+                <div class="tree-item"><strong>移动端 GPU 优化总览</strong></div>
+                <div class="tree-node">
+                    <div class="tree-item"><strong>1. 架构与性能模型</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">TBDR / 统一内存 UMA 特性</div>
+                        <div class="tree-item">CPU vs GPU 瓶颈模型</div>
+                        <div class="tree-item">算力 vs 带宽 vs 功耗</div>
+                    </div>
+
+                    <div class="tree-item"><strong>2. Draw Call 与渲染组织</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">状态排序（Shader / 纹理 / Blend）</div>
+                        <div class="tree-item">静态批处理 / 动态批处理</div>
+                        <div class="tree-item">实例化渲染 Instancing</div>
+                        <div class="tree-item">间接渲染 Indirect / GPU 驱动渲染</div>
+                    </div>
+
+                    <div class="tree-item"><strong>3. 着色器优化</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">精度控制（highp / mediump / lowp）</div>
+                        <div class="tree-item">算术优化（除法、pow、sqrt、三角函数）</div>
+                        <div class="tree-item">纹理采样路径与次数</div>
+                        <div class="tree-item">控制流与分支发散</div>
+                        <div class="tree-item">varying / uniform / UBO 布局</div>
+                    </div>
+
+                    <div class="tree-item"><strong>4. 纹理与采样优化</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">压缩格式（ETC2 / ASTC / PVRTC）</div>
+                        <div class="tree-item">纹理图集与 Texture Array</div>
+                        <div class="tree-item">Mipmap 与过滤模式</div>
+                        <div class="tree-item">采样模式与缓存友好性</div>
+                    </div>
+
+                    <div class="tree-item"><strong>5. 内存与带宽</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">VBO/IBO 策略与多缓冲</div>
+                        <div class="tree-item">对象池与资源生命周期管理</div>
+                        <div class="tree-item">PBO 异步上传 / 回读</div>
+                        <div class="tree-item">HardwareBuffer / CVPixelBuffer 零拷贝</div>
+                    </div>
+
+                    <div class="tree-item"><strong>6. 移动 GPU 架构与厂商差异</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">Mali：FP16 友好、Mali Offline Compiler</div>
+                        <div class="tree-item">Adreno：Snapdragon Profiler、instancing 表现</div>
+                        <div class="tree-item">PowerVR：典型 TBDR，对中途 RT 读取极敏感</div>
+                    </div>
+
+                    <div class="tree-item"><strong>7. 实战工程与调试流程</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">性能目标设定（FPS/帧时间/DC/带宽）</div>
+                        <div class="tree-item">CPU/GPU 分离诊断流程</div>
+                        <div class="tree-item">平台工具：Mali/Adreno/Xcode/RenderDoc</div>
+                        <div class="tree-item">常见陷阱与守则</div>
+                    </div>
+
+                    <div class="tree-item"><strong>8. 引擎级 GPU 优化 Checklist</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">渲染管线设计规范</div>
+                        <div class="tree-item">资源管线与配置规范</div>
+                        <div class="tree-item">代码评审与性能门禁规则</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="drawcall">
+            <h2>2. Draw Call 与渲染批次优化</h2>
+            <h3>2.1 为什么 Draw Call 是移动端首要瓶颈</h3>
+            <p>
+                在移动端，单次 <code>glDraw*</code> 的 CPU 成本通常在 <code>10–50µs</code>，包括状态验证、命令打包和驱动调度。
+                对于中低端设备，<strong>50–100 个未优化 Draw Call 就足以占满一半以上 CPU 帧时间</strong>。因此，从引擎层面控制 DC 数量和状态切换，是 GPU 优化的第一优先级。
+            </p>
+            <div class="info-box">
+                <strong>典型目标（60fps）</strong>
+                <ul>
+                    <li>高端机（8 Gen2 级）：≤ 150 DC/帧。</li>
+                    <li>中端机（778G 级）：≤ 80 DC/帧。</li>
+                    <li>低端机（660 级）：≤ 50 DC/帧。</li>
+                    <li>UI / 2D 场景：尽量压到 20–50 DC/帧。</li>
+                </ul>
+            </div>
+
+            <h3>2.2 Bad Case：每对象一条 Draw Call + 频繁状态切换</h3>
+<pre><code>// ❌ 错误：每个精灵单独 Draw，频繁绑定纹理/Shader
+void RenderNaive(const std::vector&lt;Sprite&gt;& sprites) {
+    for (const auto&amp; s : sprites) {
+        glBindTexture(GL_TEXTURE_2D, s.texture);     // 频繁切换
+        glUseProgram(s.program);                    // 频繁切换
+
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * 4,
+                     s.vertices, GL_DYNAMIC_DRAW);  // 每精灵一次上传
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
+    }
+}
+// 100 个精灵 ≈ 100 次 Draw + 100 次纹理绑定 + 100 次 glBufferData
+// 在低端机上可能消耗 5–8ms CPU 时间，仅用于 2D 精灵渲染。</code></pre>
+
+            <h3>2.3 Good Case：按状态排序 + 状态缓存</h3>
+<pre><code>// ✅ 状态缓存：避免冗余 glBindTexture / glUseProgram 调用
+struct StateCache {
+    GLuint curTex = 0;
+    GLuint curProg = 0;
+    void bindTexture(GLuint tex) {
+        if (tex != curTex) { glBindTexture(GL_TEXTURE_2D, tex); curTex = tex; }
+    }
+    void useProgram(GLuint p) {
+        if (p != curProg) { glUseProgram(p); curProg = p; }
+    }
+};
+
+struct DrawCmd {
+    uint32_t sortKey;   // Shader(8) | Texture(16) | Depth(8)
+    Sprite*  sprite;
+};
+
+void RenderSorted(std::vector&lt;DrawCmd&gt;& cmds) {
+    for (auto&amp; c : cmds) {
+        auto&amp; s = *c.sprite;
+        uint32_t shader  = (s.program &amp; 0xFF)   &lt;&lt; 24;
+        uint32_t texture = (s.texture &amp; 0xFFFF) &lt;&lt; 8;
+        uint32_t depth   = (uint32_t)(s.depth * 255.f) &amp; 0xFF;
+        c.sortKey = shader | texture | depth;
+    }
+    std::sort(cmds.begin(), cmds.end(),
+              [](const DrawCmd&amp; a, const DrawCmd&amp; b){ return a.sortKey &lt; b.sortKey; });
+
+    StateCache state;
+    for (auto&amp; c : cmds) {
+        auto&amp; s = *c.sprite;
+        state.useProgram(s.program);
+        state.bindTexture(s.texture);
+        DrawSprite(s);
+    }
+}
+// 改造后：纹理/Shader 切换次数接近“种类数”，而非“物体数”。</code></pre>
+
+            <h3>2.4 Good Case：动态批处理（Dynamic Batching）</h3>
+<pre><code>// ✅ 动态批处理：将同纹理精灵装入一个大 VBO，一次 Draw 画完
+class DynamicBatcher {
+public:
+    static constexpr size_t MAX_SPRITES = 1000;
+    Vertex   verts[MAX_SPRITES * 4];
+    uint16_t idx  [MAX_SPRITES * 6];
+    uint32_t count = 0;
+    GLuint vbo = 0, ibo = 0;
+    GLuint curTex = 0, curProg = 0;
+
+    void init() {
+        glGenBuffers(1, &vbo);
+        glGenBuffers(1, &ibo);
+    }
+
+    void begin(GLuint tex, GLuint prog) {
+        curTex = tex; curProg = prog; count = 0;
+    }
+
+    void addSprite(const Sprite&amp; s) {
+        if (s.texture != curTex || count &gt;= MAX_SPRITES) {
+            flush();
+            begin(s.texture, s.program);
+        }
+        uint32_t baseV = count * 4;
+        memcpy(&verts[baseV], s.vertices, sizeof(Vertex) * 4);
+
+        uint32_t baseI = count * 6;
+        idx[baseI+0] = baseV+0; idx[baseI+1] = baseV+1; idx[baseI+2] = baseV+2;
+        idx[baseI+3] = baseV+2; idx[baseI+4] = baseV+3; idx[baseI+5] = baseV+0;
+        ++count;
+    }
+
+    void flush() {
+        if (!count) return;
+        glUseProgram(curProg);
+        glBindTexture(GL_TEXTURE_2D, curTex);
+
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, count*4*sizeof(Vertex),
+                     verts, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, count*6*sizeof(uint16_t),
+                     idx, GL_DYNAMIC_DRAW);
+
+        setupVertexAttributes();
+        glDrawElements(GL_TRIANGLES, count*6, GL_UNSIGNED_SHORT, nullptr);
+        count = 0;
+    }
+};
+// 实测：100 精灵从 100 个 Draw Call 压缩到 ~5 个，CPU 开销可下降 80–90%。</code></pre>
+        </section>
+
+        <section id="shader">
+            <h2>3. 着色器优化（精度 / 运算 / 控制流 / 采样）</h2>
+            <h3>3.1 精度控制：lowp / mediump / highp</h3>
+            <p>
+                移动 GPU 在 FP16 通路上极具优势：<strong>lowp/mediump 通常是 highp 的两倍以上吞吐</strong>。
+                因此，片元着色器必须遵循“能低不用高”的精度策略。
+            </p>
+            <div class="info-box good">
+                <strong>经验规则</strong>
+                <ul>
+                    <li>颜色（color/alpha）：<code>lowp</code>。</li>
+                    <li>纹理坐标、法线、一般向量：<code>mediump</code>。</li>
+                    <li>位置/深度/大范围距离：<code>highp</code>，且尽量在 VS 计算。</li>
+                </ul>
+            </div>
+
+            <h4>Bad Case：全局 highp 滥用</h4>
+<pre><code>// ❌ 片元着色器中过度使用 highp，浪费寄存器与带宽
+precision highp float;
+
+varying highp vec2 v_texCoord;
+varying highp vec4 v_color;
+uniform highp sampler2D u_tex;
+
+void main() {
+    highp vec4 t = texture2D(u_tex, v_texCoord);
+    gl_FragColor = t * v_color;  // 所有运算都走 FP32 通路
+}
+</code></pre>
+
+            <h4>Good Case：最小精度原则</h4>
+<pre><code>// ✅ 精度划分合理：默认 mediump，颜色 lowp，采样结果 lowp
+precision mediump float;
+
+varying mediump vec2 v_texCoord;
+varying lowp    vec4 v_color;
+uniform sampler2D u_tex;
+
+void main() {
+    lowp vec4 texColor = texture2D(u_tex, v_texCoord);
+    gl_FragColor = texColor * v_color;
+}
+// 实测：在 Mali 上 cycles/pixel 从 ~1.3 降到 ~0.6，功耗降低 ~30–40%。</code></pre>
+
+            <h3>3.2 算术运算：避免昂贵指令</h3>
+            <p>除法、<code>sqrt</code>、<code>pow</code>、三角函数都是移动 GPU 上的重灾区，需用乘法、<code>inversesqrt</code>、查找表等替代。</p>
+
+            <h4>Bad Case：多次除法和 sqrt</h4>
+<pre><code>// ❌ 每像素多次除法和 sqrt
+float len = sqrt(dot(n, n));    // sqrt
+n = n / len;                    // 除法
+float k = pow(brightness, 2.2); // pow
+</code></pre>
+
+            <h4>Good Case：inversesqrt + 乘法近似</h4>
+<pre><code>// ✅ 使用 inversesqrt 和近似幂函数
+float invLen = inversesqrt(dot(n, n));
+n = n * invLen;  // 乘法代替除法
+
+// Gamma 校正用查找表，或拆成简单幂次
+// 例如 pow(x, 2.2) ≈ x * x * sqrt(x) 或查 LUT 纹理</code></pre>
+
+            <h3>3.3 控制流与分支发散</h3>
+            <p>
+                大量 <code>if/else</code> 会使同一 wave 内的像素走不同分支，导致 SIMT 串行化。
+                引擎侧应优先使用 <strong>Shader 变体（编译期分支）</strong> 和 <code>mix/step</code> 等替代简单运行期分支。
+            </p>
+
+            <h4>Bad Case：运行期多分支材质</h4>
+<pre><code>// ❌ 在片元着色器中根据 materialType 切换复杂路径
+if (materialType == 0) {
+    color = CalcPBR();
+} else if (materialType == 1) {
+    color = CalcPhong();
+} else {
+    color = CalcUnlit();
+}
+</code></pre>
+
+            <h4>Good Case：编译期变体 + 简单控制流</h4>
+<pre><code>// ✅ 通过宏生成多个 Shader 变体
+#ifdef USE_PBR
+    vec3 color = CalcPBR();
+#elif defined(USE_PHONG)
+    vec3 color = CalcPhong();
+#else
+    vec3 color = CalcUnlit();
+#endif
+</code></pre>
+        </section>
+
+        <section id="texture">
+            <h2>4. 纹理与采样优化（压缩 / 图集 / Mipmap）</h2>
+            <h3>4.1 压缩格式：ETC2 / ASTC / PVRTC</h3>
+            <p>
+                在统一内存架构上，纹理读写直接抢系统带宽。使用硬件压缩格式可以将同等画质下的纹理带宽压缩到原来的 1/4～1/16。
+                典型策略：Android 以 ETC2/ASTC 为主，iOS 以 ASTC（新）/PVRTC（旧）为主。
+            </p>
+
+            <h3>4.2 纹理图集（Texture Atlas）</h3>
+            <p>UI 与 2D 精灵强烈建议使用纹理图集，配合批处理可将几十上百张小纹理合并为少量 Draw Call。</p>
+
+            <h4>Bad Case：每个 UI 元素单独纹理</h4>
+<pre><code>// ❌ 50 个 UI 元素，50 张纹理，50 次 Draw Call
+for (auto&amp; e : uiElements) {
+    glBindTexture(GL_TEXTURE_2D, e.texture);
+    DrawQuad(e);
+}
+</code></pre>
+
+            <h4>Good Case：纹理图集 + 批处理</h4>
+<pre><code>// ✅ 构建图集后，所有 UI 使用同一纹理，只调整 UV
+struct Region { float u0, v0, u1, v1; };
+Region atlasRegion(int imageId); // 打包阶段生成
+
+void RenderUIOptimized(const std::vector&lt;UIElement&gt;& elements) {
+    glBindTexture(GL_TEXTURE_2D, g_uiAtlasTex);
+    DynamicBatcher batch;
+    batch.begin(g_uiAtlasTex, g_uiShader);
+
+    for (auto&amp; e : elements) {
+        Region uv = atlasRegion(e.imageId);
+        Sprite s = buildSpriteFromUI(e, uv); // 顶点写入图集 UV
+        batch.addSprite(s);
+    }
+    batch.flush();
+}
+// Draw Call 从 50 次收敛到 1–3 次，CPU/GPU 压力大幅降低。</code></pre>
+        </section>
+
+        <section id="memory-bandwidth">
+            <h2>5. 内存与带宽：VBO/IBO、多缓冲与数据同步</h2>
+            <h3>5.1 VBO/IBO 策略与多缓冲</h3>
+            <p>
+                每帧频繁创建/销毁 VBO 或对正在使用的缓冲调用 <code>glBufferData</code>，都会导致驱动插入同步点或产生严重碎片。
+                引擎应：
+            </p>
+            <ul>
+                <li>为动态数据使用<strong>持久化 VBO</strong>，只在帧间 <code>glBufferSubData</code> 更新内容。</li>
+                <li>对高频更新数据采用<strong>双/三缓冲 VBO</strong>，避免 CPU 等待 GPU。</li>
+                <li>为 VBO/FBO/纹理等建立对象池。</li>
+            </ul>
+
+            <h4>Bad Case：每帧重建 VBO</h4>
+<pre><code>// ❌ 每帧删除+创建 VBO，使用 STATIC_DRAW
+void RenderUI_Bad(const UI&amp; ui) {
+    if (vbo) glDeleteBuffers(1, &vbo);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+    std::vector&lt;Vertex&gt; vertices;
+    ui.buildVertices(vertices);
+
+    glBufferData(GL_ARRAY_BUFFER,
+                 vertices.size()*sizeof(Vertex),
+                 vertices.data(), GL_STATIC_DRAW);
+    DrawVBO();
+}
+</code></pre>
+
+            <h4>Good Case：持久化 VBO + SubData</h4>
+<pre><code>// ✅ 初始化时一次性分配，帧间仅更新内容
+class PersistentVBO {
+public:
+    void init(size_t maxBytes) {
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, maxBytes, nullptr, GL_DYNAMIC_DRAW);
+    }
+
+    void updateAndDraw(const std::vector&lt;Vertex&gt;& verts) {
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferSubData(GL_ARRAY_BUFFER, 0,
+                        verts.size()*sizeof(Vertex), verts.data());
+        setupAttribs();
+        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)verts.size());
+    }
+private:
+    GLuint vbo = 0;
+};
+</code></pre>
+
+            <h3>5.2 PBO：异步纹理上传</h3>
+            <p>对于 1080p 视频/大纹理，使用 PBO 可将上传延迟从十几毫秒降到几毫秒，并大幅减少 CPU 阻塞时间。</p>
+
+            <h4>Bad Case：同步 TexSubImage 上传视频帧</h4>
+<pre><code>// ❌ 每帧直接上传 1920x1080 RGBA 像素
+void UploadFrame_Bad(GLuint tex, const void* pixels, int w, int h) {
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h,
+                    GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    // CPU 可能在这一步等待 GPU 使用完上一帧数据
+}
+</code></pre>
+
+            <h4>Good Case：PBO 双缓冲上传</h4>
+<pre><code>// ✅ 通过 PBO 双缓冲实现异步上传
+class AsyncUploader {
+    GLuint pbos[2]; GLuint tex; int frame = 0; int w, h;
+public:
+    void init(int width, int height) {
+        w = width; h = height;
+        glGenBuffers(2, pbos);
+        for (int i = 0; i &lt; 2; ++i) {
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos[i]);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, w*h*4, nullptr, GL_STREAM_DRAW);
+        }
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    }
+
+    void upload(const void* pixels) {
+        int cur = frame % 2;
+        int prev = (frame + 1) % 2;
+
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos[cur]);
+        glBufferData(GL_PIXEL_UNPACK_BUFFER, w*h*4, pixels, GL_STREAM_DRAW);
+
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbos[prev]);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h,
+                        GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        ++frame;
+    }
+};
+</code></pre>
+        </section>
+
+        <section id="arch">
+            <h2>6. 移动 GPU 架构差异（Mali / Adreno / PowerVR）</h2>
+            <p>
+                三大主流移动 GPU（Mali、Adreno、PowerVR）在宏观上都是 TBDR/Tile-based 架构，
+                但在精度、分支处理、工具链上各有偏好，引擎在做跨平台优化时需考虑这些差异。
+            </p>
+            <table>
+                <thead>
+                    <tr><th>架构</th><th>特点</th><th>优化重点</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Mali</td>
+                        <td>FP16 性能极好；Mali Offline Compiler 支持详尽 cycles/pixel 分析。</td>
+                        <td>充分使用 <code>mediump/lowp</code>；避免 overdraw；利用官方工具查看指令与瓶颈。</td>
+                    </tr>
+                    <tr>
+                        <td>Adreno</td>
+                        <td>instancing/批处理表现好；Snapdragon Profiler 提供丰富性能计数器。</td>
+                        <td>积极使用 instancing；关注带宽与 alpha-blend；利用 GPU Counters 校正假设。</td>
+                    </tr>
+                    <tr>
+                        <td>PowerVR</td>
+                        <td>典型 TBDR；对「中途读取当前 RT」极敏感。</td>
+                        <td>避免在同一 RenderPass 内采样当前 RT；减少 FBO 切换；用 discard/invalidate 减少 resolve。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="perf-debug">
+            <h2>7. 性能目标与调试流程</h2>
+            <h3>7.1 推荐性能目标</h3>
+            <table>
+                <thead>
+                    <tr><th>场景类型</th><th>帧率目标</th><th>Draw Call</th><th>备注</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>UI / 2D</td><td>60fps</td><td>&lt; 50（理想 20–30）</td><td>大量图集 + 批处理</td>
+                    </tr>
+                    <tr>
+                        <td>轻度 3D</td><td>60fps</td><td>&lt; 150</td><td>适度 LOD 与 instancing</td>
+                    </tr>
+                    <tr>
+                        <td>重度 3D</td><td>30–60fps</td><td>&lt; 200</td><td>重剔除 + LOD + GPU 驱动渲染</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>7.2 CPU/GPU 分离诊断流程</h3>
+            <ol>
+                <li>用 timer query 或平台 profiler，获取<strong>GPU 帧时间</strong>与<strong>CPU 帧时间</strong>。</li>
+                <li>通过“分辨率测试”：降分辨率，如果帧率大幅提升 → Fragment/带宽瓶颈。</li>
+                <li>通过“着色器测试”：将主要 FS 替换为简单颜色输出，观察变化 → Shader/纹理瓶颈。</li>
+                <li>结合 Draw Call 数、纹理尺寸、overdraw 视图，定位问题模块。</li>
+            </ol>
+        </section>
+
+        <section id="checklist">
+            <h2>8. 引擎级 GPU 优化 Checklist（可嵌入评审流程）</h2>
+            <p>
+                本节给出一套按模块划分的<strong>引擎级 GPU 优化 Checklist</strong>，可直接作为代码评审 / 性能门禁表使用。
+                建议在功能评审与版本打包前，按照 Checklist 逐项勾检。
+            </p>
+            <table class="checklist-table">
+                <thead>
+                    <tr>
+                        <th>编号</th><th>类别</th><th>评审项</th><th>检查要点 / 度量方式</th><th>通过标准</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>DC-01</td>
+                        <td>Draw Call</td>
+                        <td>渲染队列排序</td>
+                        <td>是否按 <code>(Shader, 纹理, RenderState, Depth)</code> 组装 sort key 并排序执行？</td>
+                        <td>主渲染路径中，所有 Mesh/Sprite 通过统一 RenderQueue 排序后再提交。</td>
+                    </tr>
+                    <tr>
+                        <td>DC-02</td>
+                        <td>Draw Call</td>
+                        <td>状态缓存</td>
+                        <td>是否有集中管理的 StateCache，避免冗余 <code>glBindTexture</code>/<code>glUseProgram</code> 调用？</td>
+                        <td>同一帧内，同一资源不会被重复绑定超过 1 次（除上下文丢失）。</td>
+                    </tr>
+                    <tr>
+                        <td>DC-03</td>
+                        <td>Draw Call</td>
+                        <td>批处理</td>
+                        <td>2D/UI/粒子是否使用动态批处理或 instancing，将同材质对象合并 Draw？</td>
+                        <td>常驻场景中，2D/UI Draw Call &le; 50，粒子系统使用 instancing/批处理。</td>
+                    </tr>
+
+                    <tr>
+                        <td>SH-01</td>
+                        <td>Shader</td>
+                        <td>精度规范</td>
+                        <td>Fragment 是否默认 <code>mediump</code>，颜色统一使用 <code>lowp</code>，仅必要位置/深度使用 <code>highp</code>？</td>
+                        <td>离线编译中 FP16 使用率 &gt; 70%；无全局 <code>precision highp float;</code>。</td>
+                    </tr>
+                    <tr>
+                        <td>SH-02</td>
+                        <td>Shader</td>
+                        <td>昂贵函数</td>
+                        <td>是否避免在 FS 中出现多次 <code>pow/exp/log/sin/cos</code>，必要时是否使用 LUT/近似？</td>
+                        <td>主要 FS 中高成本函数出现次数 ≤ 1，且对性能有测量与说明。</td>
+                    </tr>
+                    <tr>
+                        <td>SH-03</td>
+                        <td>Shader</td>
+                        <td>控制流</td>
+                        <td>是否使用 Shader 变体取代运行期材质大分支？</td>
+                        <td>FS 中不出现材质类型大分支；多材质通过宏/编译变体实现。</td>
+                    </tr>
+
+                    <tr>
+                        <td>TX-01</td>
+                        <td>纹理</td>
+                        <td>压缩与 mipmap</td>
+                        <td>所有大纹理是否使用 ETC2/ASTC/PVRTC 等硬件压缩并开启 mipmap？</td>
+                        <td>显存中 ≥ 90% 像素纹理为压缩格式；除 UI 小图外全部启用 mipmap。</td>
+                    </tr>
+                    <tr>
+                        <td>TX-02</td>
+                        <td>纹理</td>
+                        <td>图集与数组</td>
+                        <td>UI/精灵是否打成图集或 Texture Array，以减少纹理切换？</td>
+                        <td>主 UI 体系不使用单图散落纹理；同类图标/精灵打入少数图集。</td>
+                    </tr>
+
+                    <tr>
+                        <td>MB-01</td>
+                        <td>内存</td>
+                        <td>VBO 生命周期</td>
+                        <td>动态几何是否使用持久化 VBO + <code>glBufferSubData</code> 或多缓冲？</td>
+                        <td>渲染帧循环中禁止创建/删除 VBO、禁止频繁 <code>glBufferData</code> 重分配。</td>
+                    </tr>
+                    <tr>
+                        <td>MB-02</td>
+                        <td>带宽</td>
+                        <td>RT 使用</td>
+                        <td>是否避免在同一 RenderPass 内读取当前 RT（打断 TBDR）？是否在不再需要的 depth/stencil 上调用 invalidate？</td>
+                        <td>无「先写 RT 再立即采样 RT」的模式；结束 FBO 时对无用附件进行 discard/invalidate。</td>
+                    </tr>
+                    <tr>
+                        <td>MB-03</td>
+                        <td>带宽</td>
+                        <td>视频/摄像头上传</td>
+                        <td>是否对 1080p 级视频/摄像头流使用 PBO 或 HardwareBuffer/CVPixelBuffer 零拷贝？</td>
+                        <td>1080p 视频上传 GPU 时间 &lt; 3ms；摄像头预览无明显卡顿与大幅 CPU 峰值。</td>
+                    </tr>
+
+                    <tr>
+                        <td>PF-01</td>
+                        <td>流程</td>
+                        <td>性能基线</td>
+                        <td>是否为关键场景配置固定 test case，记录 CPU/GPU 帧时间、DC 数、三角形数、带宽指标？</td>
+                        <td>每次版本迭代均对关键场景做回归；不允许指标无原因回退。</td>
+                    </tr>
+                    <tr>
+                        <td>PF-02</td>
+                        <td>流程</td>
+                        <td>平台工具集成</td>
+                        <td>是否在 CI/日常开发中使用 RenderDoc + Mali/Adreno/Xcode 工具抽查 GPU 状态？</td>
+                        <td>每个大版本至少执行一次全链路 GPU 分析并形成结论文档。</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>
+                将上述 Checklist 嵌入引擎/项目的<strong>渲染模块评审模板</strong>和<strong>性能门禁脚本</strong>中，可以显著降低“性能回退”“上线后过热掉帧”等风险。
+            </p>
+        </section>
+    </main>
+</div>
+</body>
+</html>

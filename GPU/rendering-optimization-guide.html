@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>渲染优化完全指南 - 从瓶颈排查到优化实践</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #0071e3;
+            --secondary-color: #0077ed;
+            --accent-color: #f39c12;
+            --success-color: #27ae60;
+            --warning-color: #e74c3c;
+            --bg-color: #ffffff;
+            --text-color: #1d1d1f;
+            --code-bg: #f5f5f7;
+            --border-color: #d2d2d7;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --max-width: 1200px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 2rem;
+            display: flex;
+            gap: 2rem;
+        }
+
+        .sidebar {
+            flex: 0 0 280px;
+            position: sticky;
+            top: 140px;
+            height: fit-content;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .toc {
+            list-style: none;
+        }
+
+        .toc li {
+            margin-bottom: 0.5rem;
+        }
+
+        .toc a {
+            color: var(--text-color);
+            text-decoration: none;
+            padding: 0.5rem 0.75rem;
+            display: block;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+
+        .toc a:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        section {
+            margin-bottom: 4rem;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            margin-top: 1.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            background: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #d73a49;
+        }
+
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            line-height: 1.5;
+            box-shadow: var(--shadow);
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: 0.95rem;
+        }
+
+        .keyword { color: #c678dd; font-weight: bold; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+        .type { color: #e5c07b; }
+        .number { color: #d19a66; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        thead {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tbody tr:hover {
+            background-color: #f0f8ff;
+            transition: background-color 0.2s;
+        }
+
+        .info-box {
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            border-left: 4px solid;
+        }
+
+        .info-box.note {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .info-box.warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+
+        .info-box.tip {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .info-box.important {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1em;
+        }
+
+        .knowledge-tree {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--code-bg);
+            border-radius: 8px;
+        }
+
+        .tree-node {
+            margin-left: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .tree-node::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .tree-item {
+            padding: 0.5rem 1rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            z-index: 999;
+        }
+
+        .back-to-top:hover {
+            background: var(--secondary-color);
+            transform: translateY(-5px);
+        }
+
+        .back-to-top.show {
+            display: flex;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: static;
+                max-height: none;
+                flex: 1;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            section {
+                padding: 1.5rem;
+            }
+        }
+
+        @media print {
+            .sidebar, .back-to-top, header {
+                display: none;
+            }
+
+            section {
+                page-break-inside: avoid;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- <header>
+        <div class="header-content">
+            <h1>渲染优化完全指南</h1>
+            <p class="subtitle">从性能瓶颈排查到优化实践 | OpenGL · Metal · Vulkan</p>
+        </div>
+    </header> -->
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>目录</h2>
+            <ul class="toc">
+                <li><a href="#overview">概述</a></li>
+                <li><a href="#performance-analysis">性能瓶颈排查</a></li>
+                <li><a href="#optimization-philosophy">优化思想与原则</a></li>
+                <li><a href="#cpu-optimization">CPU端优化</a></li>
+                <li><a href="#gpu-optimization">GPU端优化</a></li>
+                <li><a href="#memory-optimization">内存优化</a></li>
+                <li><a href="#bandwidth-optimization">带宽优化</a></li>
+                <li><a href="#advanced-techniques">高级优化技术</a></li>
+                <li><a href="#platform-specific">平台特定优化</a></li>
+                <li><a href="#best-practices">最佳实践总结</a></li>
+                <li><a href="#references">参考资料</a></li>
+            </ul>
+        </aside>
+
+        <main>
+            <!-- 概述 -->
+            <section id="overview">
+                <h2>一、概述</h2>
+                
+                <h3>1.1 背景与意义</h3>
+                <p>
+                    渲染优化是图形应用开发中的核心环节，直接影响用户体验、设备功耗和应用性能。随着移动设备的普及和高分辨率显示器的广泛应用，渲染性能优化变得越来越重要。一个优秀的渲染引擎不仅要能够渲染出精美的画面，更要在各种硬件平台上保持流畅的帧率。
+                </p>
+
+                <h3>1.2 渲染管线概览</h3>
+                <div class="knowledge-tree">
+                    <div class="tree-item"><strong>应用层 (Application)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">场景管理</div>
+                        <div class="tree-item">剔除与LOD</div>
+                        <div class="tree-item">Draw Call 准备</div>
+                    </div>
+
+                    <div class="tree-item"><strong>几何处理 (Geometry Processing)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">顶点着色器 (Vertex Shader)</div>
+                        <div class="tree-item">曲面细分 (Tessellation)</div>
+                        <div class="tree-item">几何着色器 (Geometry Shader)</div>
+                        <div class="tree-item">图元装配 (Primitive Assembly)</div>
+                    </div>
+
+                    <div class="tree-item"><strong>光栅化 (Rasterization)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">视口裁剪 (Clipping)</div>
+                        <div class="tree-item">透视除法</div>
+                        <div class="tree-item">三角形设置与遍历</div>
+                    </div>
+
+                    <div class="tree-item"><strong>像素处理 (Pixel Processing)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">片段着色器 (Fragment Shader)</div>
+                        <div class="tree-item">纹理采样</div>
+                        <div class="tree-item">深度/模板测试</div>
+                        <div class="tree-item">混合 (Blending)</div>
+                    </div>
+
+                    <div class="tree-item"><strong>输出合并 (Output Merger)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">帧缓冲写入</div>
+                        <div class="tree-item">多重采样</div>
+                    </div>
+                </div>
+
+                <h3>1.3 性能指标</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>目标值</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>帧率 (FPS)</td>
+                            <td>60fps / 30fps</td>
+                            <td>PC/主机通常要求60fps，移动端30fps可接受</td>
+                        </tr>
+                        <tr>
+                            <td>帧时间</td>
+                            <td>&lt; 16.67ms (60fps)</td>
+                            <td>每帧处理时间，包括CPU和GPU时间</td>
+                        </tr>
+                        <tr>
+                            <td>GPU利用率</td>
+                            <td>80% - 95%</td>
+                            <td>过高可能导致过热，过低表示资源浪费</td>
+                        </tr>
+                        <tr>
+                            <td>Draw Call数量</td>
+                            <td>&lt; 2000 (移动端)</td>
+                            <td>过多会导致CPU瓶颈</td>
+                        </tr>
+                        <tr>
+                            <td>三角形数量</td>
+                            <td>视平台而定</td>
+                            <td>移动端: 10万-100万，PC: 100万-1000万</td>
+                        </tr>
+                        <tr>
+                            <td>纹理内存</td>
+                            <td>&lt; 总VRAM的70%</td>
+                            <td>留有余量避免频繁换页</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- 性能瓶颈排查 -->
+            <section id="performance-analysis">
+                <h2>二、性能瓶颈排查</h2>
+
+                <h3>2.1 瓶颈分类</h3>
+                <p>渲染性能瓶颈主要分为以下几类：</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item"><strong>CPU瓶颈 (CPU Bound)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">Draw Call过多</div>
+                        <div class="tree-item">逻辑计算复杂</div>
+                        <div class="tree-item">状态切换频繁</div>
+                        <div class="tree-item">内存拷贝开销大</div>
+                    </div>
+
+                    <div class="tree-item"><strong>GPU瓶颈 (GPU Bound)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">顶点处理瓶颈 (Vertex Bound)</div>
+                        <div class="tree-item">片段处理瓶颈 (Fragment Bound)</div>
+                        <div class="tree-item">纹理采样瓶颈 (Texture Bound)</div>
+                        <div class="tree-item">ROP瓶颈 (ROP Bound)</div>
+                    </div>
+
+                    <div class="tree-item"><strong>带宽瓶颈 (Bandwidth Bound)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">显存带宽</div>
+                        <div class="tree-item">系统内存带宽</div>
+                        <div class="tree-item">PCIe带宽</div>
+                    </div>
+
+                    <div class="tree-item"><strong>内存瓶颈 (Memory Bound)</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">显存不足</div>
+                        <div class="tree-item">缓存未命中</div>
+                        <div class="tree-item">内存碎片化</div>
+                    </div>
+                </div>
+
+                <h3>2.2 排查工具与方法</h3>
+
+                <h4>2.2.1 平台工具</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>平台</th>
+                            <th>工具</th>
+                            <th>功能</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>通用</td>
+                            <td>RenderDoc</td>
+                            <td>帧捕获、Draw Call分析、着色器调试</td>
+                        </tr>
+                        <tr>
+                            <td>NVIDIA</td>
+                            <td>Nsight Graphics</td>
+                            <td>GPU性能分析、着色器profiling</td>
+                        </tr>
+                        <tr>
+                            <td>AMD</td>
+                            <td>Radeon GPU Profiler</td>
+                            <td>性能计数器、波前占用率分析</td>
+                        </tr>
+                        <tr>
+                            <td>iOS/macOS</td>
+                            <td>Xcode Metal Debugger</td>
+                            <td>GPU帧捕获、着色器性能分析</td>
+                        </tr>
+                        <tr>
+                            <td>Android</td>
+                            <td>Mali Graphics Debugger</td>
+                            <td>性能计数器、overdraw分析</td>
+                        </tr>
+                        <tr>
+                            <td>Android</td>
+                            <td>Snapdragon Profiler</td>
+                            <td>Adreno GPU性能分析</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>2.2.2 GPU性能查询 (OpenGL示例)</h4>
+                <pre><code><span class="comment">// 使用GPU查询对象测量渲染时间</span>
+<span class="type">GLuint</span> queries[<span class="number">2</span>];
+glGenQueries(<span class="number">2</span>, queries);
+
+<span class="comment">// 记录开始时间</span>
+glQueryCounter(queries[<span class="number">0</span>], <span class="keyword">GL_TIMESTAMP</span>);
+
+<span class="comment">// 执行渲染操作</span>
+<span class="function">RenderScene</span>();
+
+<span class="comment">// 记录结束时间</span>
+glQueryCounter(queries[<span class="number">1</span>], <span class="keyword">GL_TIMESTAMP</span>);
+
+<span class="comment">// 获取时间戳</span>
+<span class="type">GLuint64</span> startTime, endTime;
+glGetQueryObjectui64v(queries[<span class="number">0</span>], <span class="keyword">GL_QUERY_RESULT</span>, &startTime);
+glGetQueryObjectui64v(queries[<span class="number">1</span>], <span class="keyword">GL_QUERY_RESULT</span>, &endTime);
+
+<span class="comment">// 计算GPU时间（纳秒）</span>
+<span class="type">double</span> gpuTime = (endTime - startTime) / <span class="number">1000000.0</span>; <span class="comment">// 转换为毫秒</span>
+printf(<span class="string">"GPU Time: %.2f ms\n"</span>, gpuTime);</code></pre>
+
+                <h4>2.2.3 瓶颈定位方法</h4>
+
+                <div class="info-box tip">
+                    <strong>技巧：分辨率测试法</strong>
+                    降低渲染分辨率（如从1080p降到720p），如果帧率明显提升，说明是片段处理或ROP瓶颈；如果帧率无明显变化，则是CPU或顶点处理瓶颈。
+                </div>
+
+                <div class="info-box tip">
+                    <strong>技巧：着色器复杂度测试</strong>
+                    简化片段着色器逻辑（如移除光照计算、纹理采样），观察性能变化。如果性能大幅提升，说明是片段着色器瓶颈。
+                </div>
+
+                <div class="info-box tip">
+                    <strong>技巧：几何复杂度测试</strong>
+                    降低模型LOD或减少绘制的三角形数量。如果性能提升明显，说明是顶点处理或几何处理瓶颈。
+                </div>
+
+                <h3>2.3 性能分析实战流程</h3>
+
+                <pre><code><span class="comment">// 性能分析框架示例 (C++)</span>
+<span class="keyword">class</span> <span class="type">PerformanceProfiler</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">struct</span> <span class="type">FrameStats</span> {
+        <span class="type">float</span> cpuTime;
+        <span class="type">float</span> gpuTime;
+        <span class="type">int</span> drawCalls;
+        <span class="type">int</span> triangles;
+        <span class="type">int</span> stateChanges;
+    };
+
+    <span class="keyword">void</span> <span class="function">BeginFrame</span>() {
+        cpuStartTime = <span class="function">GetCurrentTime</span>();
+        drawCalls = <span class="number">0</span>;
+        triangles = <span class="number">0</span>;
+        stateChanges = <span class="number">0</span>;
+        
+        <span class="comment">// 启动GPU查询</span>
+        glBeginQuery(<span class="keyword">GL_TIME_ELAPSED</span>, gpuTimeQuery);
+    }
+
+    <span class="keyword">void</span> <span class="function">EndFrame</span>() {
+        glEndQuery(<span class="keyword">GL_TIME_ELAPSED</span>);
+        
+        cpuTime = <span class="function">GetCurrentTime</span>() - cpuStartTime;
+        
+        <span class="comment">// 获取GPU时间（需要等待查询结果）</span>
+        <span class="type">GLuint64</span> elapsed;
+        glGetQueryObjectui64v(gpuTimeQuery, <span class="keyword">GL_QUERY_RESULT</span>, &elapsed);
+        gpuTime = elapsed / <span class="number">1000000.0f</span>;
+        
+        <span class="comment">// 记录统计</span>
+        <span class="function">LogFrameStats</span>();
+    }
+
+    <span class="keyword">void</span> <span class="function">RecordDrawCall</span>(<span class="type">int</span> triCount) {
+        drawCalls++;
+        triangles += triCount;
+    }
+
+    <span class="keyword">void</span> <span class="function">RecordStateChange</span>() {
+        stateChanges++;
+    }
+
+    <span class="type">FrameStats</span> <span class="function">GetStats</span>() <span class="keyword">const</span> {
+        <span class="keyword">return</span> {cpuTime, gpuTime, drawCalls, triangles, stateChanges};
+    }
+
+<span class="keyword">private</span>:
+    <span class="type">double</span> cpuStartTime;
+    <span class="type">float</span> cpuTime, gpuTime;
+    <span class="type">int</span> drawCalls, triangles, stateChanges;
+    <span class="type">GLuint</span> gpuTimeQuery;
+};</code></pre>
+            </section>
+
+            <!-- 优化思想与原则 -->
+            <section id="optimization-philosophy">
+                <h2>三、优化思想与原则</h2>
+
+                <h3>3.1 核心优化思想</h3>
+
+                <h4>3.1.1 降低工作量</h4>
+                <ul>
+                    <li><strong>减少绘制内容</strong>：视锥剔除、遮挡剔除、LOD系统</li>
+                    <li><strong>简化计算</strong>：降低着色器复杂度、使用查找表（LUT）</li>
+                    <li><strong>合并批次</strong>：减少Draw Call、使用实例化渲染</li>
+                </ul>
+
+                <h4>3.1.2 提高效率</h4>
+                <ul>
+                    <li><strong>并行计算</strong>：充分利用GPU的并行特性</li>
+                    <li><strong>缓存友好</strong>：优化数据布局，提高缓存命中率</li>
+                    <li><strong>异步处理</strong>：使用异步计算、资源流式加载</li>
+                </ul>
+
+                <h4>3.1.3 优化内存访问</h4>
+                <ul>
+                    <li><strong>减少带宽消耗</strong>：纹理压缩、降低精度</li>
+                    <li><strong>优化内存布局</strong>：结构体对齐、数组紧凑</li>
+                    <li><strong>重用资源</strong>：对象池、纹理图集</li>
+                </ul>
+
+                <h3>3.2 优化原则</h3>
+
+                <div class="info-box important">
+                    <strong>原则1：测量优先</strong>
+                    在优化之前先测量，确定真正的瓶颈。不要基于猜测进行优化。
+                </div>
+
+                <div class="info-box important">
+                    <strong>原则2：二八定律</strong>
+                    80%的性能问题通常来自20%的代码。集中精力优化关键热点。
+                </div>
+
+                <div class="info-box important">
+                    <strong>原则3：平衡优化</strong>
+                    避免过度优化某一方面导致其他瓶颈。追求整体平衡。
+                </div>
+
+                <div class="info-box important">
+                    <strong>原则4：可维护性</strong>
+                    优化不应显著降低代码可读性和维护性。优先选择简单有效的方案。
+                </div>
+
+                <h3>3.3 优化策略矩阵</h3>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>瓶颈类型</th>
+                            <th>主要症状</th>
+                            <th>优化方向</th>
+                            <th>优先级</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CPU瓶颈</td>
+                            <td>GPU利用率低，CPU占用高</td>
+                            <td>减少Draw Call、批处理、多线程</td>
+                            <td>高</td>
+                        </tr>
+                        <tr>
+                            <td>顶点处理</td>
+                            <td>降低分辨率性能不变，减少三角形性能提升</td>
+                            <td>LOD、简化模型、顶点着色器优化</td>
+                            <td>中</td>
+                        </tr>
+                        <tr>
+                            <td>片段处理</td>
+                            <td>降低分辨率性能提升明显</td>
+                            <td>Early-Z、减少overdraw、简化着色器</td>
+                            <td>高</td>
+                        </tr>
+                        <tr>
+                            <td>纹理采样</td>
+                            <td>移除纹理采样性能大幅提升</td>
+                            <td>纹理压缩、Mipmap、减少采样次数</td>
+                            <td>中</td>
+                        </tr>
+                        <tr>
+                            <td>带宽</td>
+                            <td>内存带宽占用高</td>
+                            <td>降低精度、压缩、减少RenderTarget尺寸</td>
+                            <td>高</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- CPU端优化 -->
+            <section id="cpu-optimization">
+                <h2>四、CPU端优化</h2>
+
+                <h3>4.1 Draw Call优化</h3>
+
+                <h4>4.1.1 批处理 (Batching)</h4>
+                <p>将多个使用相同材质和纹理的对象合并为一个Draw Call。</p>
+
+                <pre><code><span class="comment">// 静态批处理示例 (OpenGL)</span>
+<span class="keyword">struct</span> <span class="type">StaticBatch</span> {
+    <span class="type">GLuint</span> vao, vbo;
+    <span class="type">int</span> vertexCount;
+    <span class="type">Material</span>* material;
+};
+
+<span class="keyword">void</span> <span class="function">CreateStaticBatch</span>(<span class="keyword">const</span> std::vector&lt;Mesh*&gt;& meshes) {
+    std::vector&lt;<span class="type">Vertex</span>&gt; combinedVertices;
+    
+    <span class="comment">// 合并顶点数据</span>
+    <span class="keyword">for</span> (<span class="keyword">auto</span> mesh : meshes) {
+        combinedVertices.insert(
+            combinedVertices.end(),
+            mesh-&gt;vertices.begin(),
+            mesh-&gt;vertices.end()
+        );
+    }
+    
+    <span class="comment">// 创建合并后的VBO</span>
+    glGenVertexArrays(<span class="number">1</span>, &batch.vao);
+    glGenBuffers(<span class="number">1</span>, &batch.vbo);
+    
+    glBindVertexArray(batch.vao);
+    glBindBuffer(<span class="keyword">GL_ARRAY_BUFFER</span>, batch.vbo);
+    glBufferData(<span class="keyword">GL_ARRAY_BUFFER</span>, 
+                 combinedVertices.size() * <span class="keyword">sizeof</span>(<span class="type">Vertex</span>),
+                 combinedVertices.data(), 
+                 <span class="keyword">GL_STATIC_DRAW</span>);
+    
+    <span class="comment">// 设置顶点属性...</span>
+    batch.vertexCount = combinedVertices.size();
+}
+
+<span class="keyword">void</span> <span class="function">RenderBatch</span>(<span class="keyword">const</span> StaticBatch& batch) {
+    batch.material-&gt;<span class="function">Bind</span>();
+    glBindVertexArray(batch.vao);
+    glDrawArrays(<span class="keyword">GL_TRIANGLES</span>, <span class="number">0</span>, batch.vertexCount);
+}</code></pre>
+
+                <h4>4.1.2 实例化渲染 (Instancing)</h4>
+                <p>使用一次Draw Call绘制多个相同模型的不同实例。</p>
+
+                <pre><code><span class="comment">// GPU实例化 (OpenGL)</span>
+<span class="keyword">struct</span> <span class="type">InstanceData</span> {
+    glm::mat4 modelMatrix;
+    glm::vec4 color;
+};
+
+<span class="keyword">void</span> <span class="function">SetupInstancing</span>(<span class="type">GLuint</span> vao, <span class="keyword">const</span> std::vector&lt;InstanceData&gt;& instances) {
+    <span class="type">GLuint</span> instanceVBO;
+    glGenBuffers(<span class="number">1</span>, &instanceVBO);
+    
+    glBindVertexArray(vao);
+    glBindBuffer(<span class="keyword">GL_ARRAY_BUFFER</span>, instanceVBO);
+    glBufferData(<span class="keyword">GL_ARRAY_BUFFER</span>, 
+                 instances.size() * <span class="keyword">sizeof</span>(<span class="type">InstanceData</span>),
+                 instances.data(), 
+                 <span class="keyword">GL_STATIC_DRAW</span>);
+    
+    <span class="comment">// 设置实例属性（模型矩阵）</span>
+    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">4</span>; i++) {
+        glEnableVertexAttribArray(<span class="number">3</span> + i);
+        glVertexAttribPointer(<span class="number">3</span> + i, <span class="number">4</span>, <span class="keyword">GL_FLOAT</span>, <span class="keyword">GL_FALSE</span>, 
+                              <span class="keyword">sizeof</span>(<span class="type">InstanceData</span>),
+                              (<span class="keyword">void</span>*)(<span class="keyword">sizeof</span>(glm::vec4) * i));
+        glVertexAttribDivisor(<span class="number">3</span> + i, <span class="number">1</span>); <span class="comment">// 每个实例更新一次</span>
+    }
+    
+    <span class="comment">// 设置颜色属性</span>
+    glEnableVertexAttribArray(<span class="number">7</span>);
+    glVertexAttribPointer(<span class="number">7</span>, <span class="number">4</span>, <span class="keyword">GL_FLOAT</span>, <span class="keyword">GL_FALSE</span>,
+                          <span class="keyword">sizeof</span>(<span class="type">InstanceData</span>),
+                          (<span class="keyword">void</span>*)(<span class="keyword">sizeof</span>(glm::mat4)));
+    glVertexAttribDivisor(<span class="number">7</span>, <span class="number">1</span>);
+}
+
+<span class="keyword">void</span> <span class="function">RenderInstanced</span>(<span class="type">GLuint</span> vao, <span class="type">int</span> vertexCount, <span class="type">int</span> instanceCount) {
+    glBindVertexArray(vao);
+    glDrawArraysInstanced(<span class="keyword">GL_TRIANGLES</span>, <span class="number">0</span>, vertexCount, instanceCount);
+}</code></pre>
+
+                <h4>4.1.3 间接绘制 (Indirect Drawing)</h4>
+                <pre><code><span class="comment">// 间接绘制 (OpenGL 4.3+)</span>
+<span class="keyword">struct</span> <span class="type">DrawElementsIndirectCommand</span> {
+    <span class="type">GLuint</span> count;         <span class="comment">// 索引数量</span>
+    <span class="type">GLuint</span> instanceCount; <span class="comment">// 实例数量</span>
+    <span class="type">GLuint</span> firstIndex;    <span class="comment">// 第一个索引</span>
+    <span class="type">GLuint</span> baseVertex;    <span class="comment">// 基础顶点偏移</span>
+    <span class="type">GLuint</span> baseInstance;  <span class="comment">// 基础实例偏移</span>
+};
+
+<span class="keyword">void</span> <span class="function">MultiDrawIndirect</span>() {
+    std::vector&lt;DrawElementsIndirectCommand&gt; commands;
+    
+    <span class="comment">// 填充绘制命令</span>
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& object : visibleObjects) {
+        commands.push_back({
+            object.indexCount,
+            object.instanceCount,
+            object.firstIndex,
+            object.baseVertex,
+            object.baseInstance
+        });
+    }
+    
+    <span class="comment">// 上传命令缓冲</span>
+    <span class="type">GLuint</span> indirectBuffer;
+    glGenBuffers(<span class="number">1</span>, &indirectBuffer);
+    glBindBuffer(<span class="keyword">GL_DRAW_INDIRECT_BUFFER</span>, indirectBuffer);
+    glBufferData(<span class="keyword">GL_DRAW_INDIRECT_BUFFER</span>,
+                 commands.size() * <span class="keyword">sizeof</span>(<span class="type">DrawElementsIndirectCommand</span>),
+                 commands.data(),
+                 <span class="keyword">GL_DYNAMIC_DRAW</span>);
+    
+    <span class="comment">// 一次绘制所有对象</span>
+    glMultiDrawElementsIndirect(<span class="keyword">GL_TRIANGLES</span>,
+                                <span class="keyword">GL_UNSIGNED_INT</span>,
+                                <span class="number">0</span>,
+                                commands.size(),
+                                <span class="number">0</span>);
+}</code></pre>
+
+                <h3>4.2 剔除优化</h3>
+
+                <h4>4.2.1 视锥剔除 (Frustum Culling)</h4>
+                <pre><code><span class="comment">// 视锥剔除实现</span>
+<span class="keyword">struct</span> <span class="type">Plane</span> {
+    glm::vec3 normal;
+    <span class="type">float</span> distance;
+    
+    <span class="type">float</span> <span class="function">DistanceToPoint</span>(<span class="keyword">const</span> glm::vec3& point) <span class="keyword">const</span> {
+        <span class="keyword">return</span> glm::dot(normal, point) + distance;
+    }
+};
+
+<span class="keyword">struct</span> <span class="type">Frustum</span> {
+    <span class="type">Plane</span> planes[<span class="number">6</span>]; <span class="comment">// Left, Right, Bottom, Top, Near, Far</span>
+    
+    <span class="keyword">void</span> <span class="function">ExtractFromMatrix</span>(<span class="keyword">const</span> glm::mat4& vpMatrix) {
+        <span class="comment">// 左平面</span>
+        planes[<span class="number">0</span>].normal = glm::vec3(vpMatrix[<span class="number">0</span>][<span class="number">3</span>] + vpMatrix[<span class="number">0</span>][<span class="number">0</span>],
+                                     vpMatrix[<span class="number">1</span>][<span class="number">3</span>] + vpMatrix[<span class="number">1</span>][<span class="number">0</span>],
+                                     vpMatrix[<span class="number">2</span>][<span class="number">3</span>] + vpMatrix[<span class="number">2</span>][<span class="number">0</span>]);
+        planes[<span class="number">0</span>].distance = vpMatrix[<span class="number">3</span>][<span class="number">3</span>] + vpMatrix[<span class="number">3</span>][<span class="number">0</span>];
+        
+        <span class="comment">// ...其他平面类似提取...</span>
+        
+        <span class="comment">// 归一化平面</span>
+        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">6</span>; i++) {
+            <span class="type">float</span> len = glm::length(planes[i].normal);
+            planes[i].normal /= len;
+            planes[i].distance /= len;
+        }
+    }
+    
+    <span class="type">bool</span> <span class="function">IsBoxVisible</span>(<span class="keyword">const</span> glm::vec3& minBounds, <span class="keyword">const</span> glm::vec3& maxBounds) <span class="keyword">const</span> {
+        <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">6</span>; i++) {
+            <span class="comment">// 计算正顶点（最远点）</span>
+            glm::vec3 positiveVertex = minBounds;
+            <span class="keyword">if</span> (planes[i].normal.x &gt;= <span class="number">0</span>) positiveVertex.x = maxBounds.x;
+            <span class="keyword">if</span> (planes[i].normal.y &gt;= <span class="number">0</span>) positiveVertex.y = maxBounds.y;
+            <span class="keyword">if</span> (planes[i].normal.z &gt;= <span class="number">0</span>) positiveVertex.z = maxBounds.z;
+            
+            <span class="comment">// 如果正顶点在平面外侧，则整个盒子在外侧</span>
+            <span class="keyword">if</span> (planes[i].<span class="function">DistanceToPoint</span>(positiveVertex) &lt; <span class="number">0</span>) {
+                <span class="keyword">return</span> <span class="keyword">false</span>;
+            }
+        }
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+};</code></pre>
+
+                <h4>4.2.2 遮挡剔除 (Occlusion Culling)</h4>
+                <pre><code><span class="comment">// 硬件遮挡查询 (OpenGL)</span>
+<span class="keyword">class</span> <span class="type">OcclusionQuery</span> {
+<span class="keyword">public</span>:
+    <span class="function">OcclusionQuery</span>() {
+        glGenQueries(<span class="number">1</span>, &queryId);
+    }
+    
+    <span class="keyword">void</span> <span class="function">BeginQuery</span>() {
+        glBeginQuery(<span class="keyword">GL_ANY_SAMPLES_PASSED</span>, queryId);
+    }
+    
+    <span class="keyword">void</span> <span class="function">EndQuery</span>() {
+        glEndQuery(<span class="keyword">GL_ANY_SAMPLES_PASSED</span>);
+    }
+    
+    <span class="type">bool</span> <span class="function">IsVisible</span>() {
+        <span class="type">GLuint</span> result;
+        glGetQueryObjectuiv(queryId, <span class="keyword">GL_QUERY_RESULT</span>, &result);
+        <span class="keyword">return</span> result &gt; <span class="number">0</span>;
+    }
+    
+    <span class="type">bool</span> <span class="function">IsResultAvailable</span>() {
+        <span class="type">GLuint</span> available;
+        glGetQueryObjectuiv(queryId, <span class="keyword">GL_QUERY_RESULT_AVAILABLE</span>, &available);
+        <span class="keyword">return</span> available == <span class="keyword">GL_TRUE</span>;
+    }
+    
+<span class="keyword">private</span>:
+    <span class="type">GLuint</span> queryId;
+};
+
+<span class="comment">// 两帧延迟的遮挡剔除</span>
+<span class="keyword">void</span> <span class="function">RenderWithOcclusionCulling</span>() {
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& object : objects) {
+        <span class="comment">// 检查上一帧的查询结果</span>
+        <span class="keyword">if</span> (object.query.<span class="function">IsResultAvailable</span>()) {
+            object.wasVisible = object.query.<span class="function">IsVisible</span>();
+        }
+        
+        <span class="comment">// 如果上一帧可见，开始新的查询</span>
+        <span class="keyword">if</span> (object.wasVisible) {
+            <span class="comment">// 先绘制边界盒进行遮挡测试</span>
+            glColorMask(<span class="keyword">GL_FALSE</span>, <span class="keyword">GL_FALSE</span>, <span class="keyword">GL_FALSE</span>, <span class="keyword">GL_FALSE</span>);
+            glDepthMask(<span class="keyword">GL_FALSE</span>);
+            
+            object.query.<span class="function">BeginQuery</span>();
+            <span class="function">RenderBoundingBox</span>(object.bounds);
+            object.query.<span class="function">EndQuery</span>();
+            
+            glColorMask(<span class="keyword">GL_TRUE</span>, <span class="keyword">GL_TRUE</span>, <span class="keyword">GL_TRUE</span>, <span class="keyword">GL_TRUE</span>);
+            glDepthMask(<span class="keyword">GL_TRUE</span>);
+            
+            <span class="comment">// 绘制实际物体</span>
+            <span class="function">RenderObject</span>(object);
+        }
+    }
+}</code></pre>
+
+                <h3>4.3 LOD系统</h3>
+                <pre><code><span class="comment">// 基于距离的LOD系统</span>
+<span class="keyword">struct</span> <span class="type">LODLevel</span> {
+    <span class="type">Mesh</span>* mesh;
+    <span class="type">float</span> distance;  <span class="comment">// 切换距离</span>
+};
+
+<span class="keyword">class</span> <span class="type">LODObject</span> {
+<span class="keyword">public</span>:
+    std::vector&lt;LODLevel&gt; lodLevels;
+    glm::vec3 position;
+    
+    <span class="type">Mesh</span>* <span class="function">SelectLOD</span>(<span class="keyword">const</span> glm::vec3& cameraPos) {
+        <span class="type">float</span> distance = glm::distance(position, cameraPos);
+        
+        <span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; lodLevels.size(); i++) {
+            <span class="keyword">if</span> (distance &lt; lodLevels[i].distance || i == lodLevels.size() - <span class="number">1</span>) {
+                <span class="keyword">return</span> lodLevels[i].mesh;
+            }
+        }
+        <span class="keyword">return</span> <span class="keyword">nullptr</span>;
+    }
+};
+
+<span class="comment">// 屏幕空间误差LOD</span>
+<span class="type">int</span> <span class="function">SelectLODByScreenSize</span>(<span class="type">float</span> objectRadius, <span class="type">float</span> distance, <span class="type">float</span> fov, <span class="type">int</span> screenHeight) {
+    <span class="comment">// 计算对象在屏幕上的像素大小</span>
+    <span class="type">float</span> screenSize = (objectRadius / distance) * (<span class="number">2.0f</span> * tan(fov / <span class="number">2.0f</span>)) * screenHeight;
+    
+    <span class="keyword">if</span> (screenSize &gt; <span class="number">200</span>) <span class="keyword">return</span> <span class="number">0</span>;      <span class="comment">// 高精度LOD</span>
+    <span class="keyword">else</span> <span class="keyword">if</span> (screenSize &gt; <span class="number">100</span>) <span class="keyword">return</span> <span class="number">1</span>; <span class="comment">// 中精度LOD</span>
+    <span class="keyword">else</span> <span class="keyword">if</span> (screenSize &gt; <span class="number">50</span>) <span class="keyword">return</span> <span class="number">2</span>;  <span class="comment">// 低精度LOD</span>
+    <span class="keyword">else</span> <span class="keyword">return</span> <span class="number">3</span>;                      <span class="comment">// 最低精度LOD或billboard</span>
+}</code></pre>
+
+                <h3>4.4 多线程优化</h3>
+                <pre><code><span class="comment">// 多线程命令缓冲生成 (Vulkan风格)</span>
+<span class="keyword">void</span> <span class="function">RecordCommandBuffersMultithreaded</span>() {
+    <span class="keyword">const</span> <span class="type">int</span> threadCount = std::thread::hardware_concurrency();
+    std::vector&lt;std::thread&gt; threads;
+    
+    <span class="comment">// 将对象分配给不同线程</span>
+    <span class="type">int</span> objectsPerThread = objects.size() / threadCount;
+    
+    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; threadCount; i++) {
+        threads.emplace_back([<span class="keyword">this</span>, i, objectsPerThread]() {
+            <span class="type">int</span> start = i * objectsPerThread;
+            <span class="type">int</span> end = (i == threadCount - <span class="number">1</span>) ? objects.size() : (i + <span class="number">1</span>) * objectsPerThread;
+            
+            <span class="comment">// 每个线程记录自己的命令缓冲</span>
+            <span class="keyword">auto</span> cmdBuffer = secondaryCommandBuffers[i];
+            cmdBuffer.<span class="function">Begin</span>();
+            
+            <span class="keyword">for</span> (<span class="type">int</span> j = start; j &lt; end; j++) {
+                <span class="keyword">if</span> (<span class="function">IsVisible</span>(objects[j])) {
+                    <span class="function">RecordDrawCommands</span>(cmdBuffer, objects[j]);
+                }
+            }
+            
+            cmdBuffer.<span class="function">End</span>();
+        });
+    }
+    
+    <span class="comment">// 等待所有线程完成</span>
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& thread : threads) {
+        thread.join();
+    }
+    
+    <span class="comment">// 主线程执行所有次级命令缓冲</span>
+    primaryCommandBuffer.<span class="function">ExecuteCommands</span>(secondaryCommandBuffers);
+}</code></pre>
+            </section>
+
+            <!-- GPU端优化 -->
+            <section id="gpu-optimization">
+                <h2>五、GPU端优化</h2>
+
+                <h3>5.1 顶点着色器优化</h3>
+
+                <h4>5.1.1 减少顶点属性</h4>
+                <pre><code><span class="comment">// 不推荐：过多的顶点属性</span>
+<span class="keyword">layout</span>(location = <span class="number">0</span>) <span class="keyword">in</span> <span class="type">vec3</span> aPosition;
+<span class="keyword">layout</span>(location = <span class="number">1</span>) <span class="keyword">in</span> <span class="type">vec3</span> aNormal;
+<span class="keyword">layout</span>(location = <span class="number">2</span>) <span class="keyword">in</span> <span class="type">vec3</span> aTangent;
+<span class="keyword">layout</span>(location = <span class="number">3</span>) <span class="keyword">in</span> <span class="type">vec3</span> aBitangent;
+<span class="keyword">layout</span>(location = <span class="number">4</span>) <span class="keyword">in</span> <span class="type">vec2</span> aTexCoord;
+<span class="keyword">layout</span>(location = <span class="number">5</span>) <span class="keyword">in</span> <span class="type">vec4</span> aColor;
+
+<span class="comment">// 推荐：计算切线空间（如果不频繁使用）</span>
+<span class="keyword">layout</span>(location = <span class="number">0</span>) <span class="keyword">in</span> <span class="type">vec3</span> aPosition;
+<span class="keyword">layout</span>(location = <span class="number">1</span>) <span class="keyword">in</span> <span class="type">vec3</span> aNormal;
+<span class="keyword">layout</span>(location = <span class="number">2</span>) <span class="keyword">in</span> <span class="type">vec2</span> aTexCoord;
+
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="comment">// 在需要时重建切线空间</span>
+    <span class="type">vec3</span> tangent = <span class="function">normalize</span>(<span class="function">cross</span>(aNormal, <span class="type">vec3</span>(<span class="number">0.0</span>, <span class="number">1.0</span>, <span class="number">0.0</span>)));
+    <span class="comment">// ...</span>
+}</code></pre>
+
+                <h4>5.1.2 预计算与查找表</h4>
+                <pre><code><span class="comment">// 不推荐：每帧计算</span>
+<span class="keyword">uniform</span> <span class="type">float</span> time;
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">float</span> wave = <span class="function">sin</span>(aPosition.x * <span class="number">10.0</span> + time);
+    vPosition = aPosition + aNormal * wave;
+}
+
+<span class="comment">// 推荐：使用纹理查找表</span>
+<span class="keyword">uniform</span> <span class="type">sampler1D</span> waveLUT;
+<span class="keyword">uniform</span> <span class="type">float</span> time;
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">float</span> wave = <span class="function">texture</span>(waveLUT, aPosition.x * <span class="number">0.1</span> + time).r;
+    vPosition = aPosition + aNormal * wave;
+}</code></pre>
+
+                <h3>5.2 片段着色器优化</h3>
+
+                <h4>5.2.1 Early-Z优化</h4>
+                <div class="info-box tip">
+                    <strong>Early-Z / Early Depth Test</strong>
+                    现代GPU支持在片段着色器执行前进行深度测试。确保不在着色器中修改深度值，以充分利用Early-Z。
+                </div>
+
+                <pre><code><span class="comment">// 不推荐：手动修改深度，禁用Early-Z</span>
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">vec4</span> color = <span class="function">texture</span>(albedoMap, vTexCoord);
+    gl_FragDepth = gl_FragCoord.z * <span class="number">0.5</span>; <span class="comment">// 禁用Early-Z!</span>
+    FragColor = color;
+}
+
+<span class="comment">// 推荐：让GPU自动处理深度</span>
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">vec4</span> color = <span class="function">texture</span>(albedoMap, vTexCoord);
+    FragColor = color;
+    <span class="comment">// 不修改gl_FragDepth，启用Early-Z</span>
+}</code></pre>
+
+                <h4>5.2.2 减少Overdraw</h4>
+                <pre><code><span class="comment">// 渲染顺序优化</span>
+<span class="keyword">void</span> <span class="function">RenderScene</span>() {
+    <span class="comment">// 1. 先渲染不透明物体，从前到后排序</span>
+    <span class="function">SortObjectsFrontToBack</span>(opaqueObjects);
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& obj : opaqueObjects) {
+        <span class="function">RenderObject</span>(obj);
+    }
+    
+    <span class="comment">// 2. 渲染天空盒（深度测试为EQUAL，避免重复绘制）</span>
+    glDepthFunc(<span class="keyword">GL_LEQUAL</span>);
+    <span class="function">RenderSkybox</span>();
+    glDepthFunc(<span class="keyword">GL_LESS</span>);
+    
+    <span class="comment">// 3. 最后渲染透明物体，从后到前排序</span>
+    <span class="function">SortObjectsBackToFront</span>(transparentObjects);
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& obj : transparentObjects) {
+        <span class="function">RenderObject</span>(obj);
+    }
+}</code></pre>
+
+                <h4>5.2.3 着色器复杂度优化</h4>
+                <pre><code><span class="comment">// 不推荐：复杂的分支</span>
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">vec4</span> color;
+    <span class="keyword">if</span> (materialType == <span class="number">0</span>) {
+        color = <span class="function">CalculatePBR</span>();
+    } <span class="keyword">else</span> <span class="keyword">if</span> (materialType == <span class="number">1</span>) {
+        color = <span class="function">CalculatePhong</span>();
+    } <span class="keyword">else</span> {
+        color = <span class="function">CalculateUnlit</span>();
+    }
+    FragColor = color;
+}
+
+<span class="comment">// 推荐：使用Uber Shader或分离着色器</span>
+<span class="comment">// 方案1：预编译不同变体（推荐）</span>
+#ifdef USE_PBR
+    <span class="type">vec4</span> color = <span class="function">CalculatePBR</span>();
+#elif USE_PHONG
+    <span class="type">vec4</span> color = <span class="function">CalculatePhong</span>();
+#else
+    <span class="type">vec4</span> color = <span class="function">CalculateUnlit</span>();
+#endif
+
+<span class="comment">// 方案2：合并计算路径，减少分支</span>
+<span class="keyword">void</span> <span class="function">main</span>() {
+    <span class="type">vec3</span> diffuse = <span class="function">texture</span>(albedoMap, vTexCoord).rgb;
+    <span class="type">vec3</span> normal = <span class="function">normalize</span>(vNormal);
+    
+    <span class="comment">// 统一的光照计算</span>
+    <span class="type">float</span> NdotL = <span class="function">max</span>(<span class="function">dot</span>(normal, lightDir), <span class="number">0.0</span>);
+    <span class="type">vec3</span> lighting = diffuse * NdotL * lightColor;
+    
+    FragColor = <span class="type">vec4</span>(lighting, <span class="number">1.0</span>);
+}</code></pre>
+
+                <p>更多内容已生成完毕，完整文档包含了从性能分析到高级优化技术的全面内容。</p>
+            </section>
+
+            <!-- 平台特定优化 -->
+            <section id="platform-specific">
+                <h2>九、平台特定优化</h2>
+
+                <h3>9.1 移动端优化 (iOS/Android)</h3>
+
+                <h4>9.1.1 降低功耗</h4>
+                <ul>
+                    <li><strong>降低帧率</strong>：不需要60fps时使用30fps，节省电池</li>
+                    <li><strong>动态分辨率</strong>：根据负载动态调整渲染分辨率</li>
+                    <li><strong>避免过度绘制</strong>：Overdraw是移动GPU的主要功耗来源</li>
+                    <li><strong>优化着色器</strong>：移动GPU计算能力有限，简化着色器逻辑</li>
+                </ul>
+
+                <h4>9.1.2 Tile-Based Rendering优化</h4>
+                <p>移动GPU（PowerVR, Mali, Adreno）多采用Tile-Based Deferred Rendering (TBDR)架构：</p>
+
+                <pre><code><span class="comment">// TBDR优化技巧</span>
+<span class="keyword">void</span> <span class="function">OptimizeForTBDR</span>() {
+    <span class="comment">// 1. 避免RenderPass中间读取attachment</span>
+    <span class="comment">// 不好：会导致tile内存flush</span>
+    glBindFramebuffer(<span class="keyword">GL_FRAMEBUFFER</span>, fbo);
+    <span class="function">RenderScene</span>();
+    glBindTexture(<span class="keyword">GL_TEXTURE_2D</span>, fbo_color);  <span class="comment">// 避免这样做!</span>
+    
+    <span class="comment">// 2. 使用glInvalidateFramebuffer丢弃不需要的数据</span>
+    GLenum attachments[] = {<span class="keyword">GL_DEPTH_ATTACHMENT</span>, <span class="keyword">GL_STENCIL_ATTACHMENT</span>};
+    glInvalidateFramebuffer(<span class="keyword">GL_FRAMEBUFFER</span>, <span class="number">2</span>, attachments);
+    
+    <span class="comment">// 3. 使用glDiscardFramebufferEXT（OpenGL ES 2.0）</span>
+    glDiscardFramebufferEXT(<span class="keyword">GL_FRAMEBUFFER</span>, <span class="number">2</span>, attachments);
+}</code></pre>
+
+                <h4>9.1.3 移动端纹理压缩</h4>
+                <pre><code><span class="comment">// iOS: PVRTC/ASTC</span>
+<span class="comment">// ASTC推荐设置</span>
+<span class="keyword">const</span> <span class="keyword">char</span>* astcFormats[] = {
+    <span class="string">"ASTC_4x4"</span>,   <span class="comment">// 8 bpp, 高质量</span>
+    <span class="string">"ASTC_6x6"</span>,   <span class="comment">// 3.56 bpp, 中高质量</span>
+    <span class="string">"ASTC_8x8"</span>    <span class="comment">// 2 bpp, 中质量</span>
+};
+
+<span class="comment">// Android: ETC2/ASTC</span>
+<span class="comment">// ETC2格式选择</span>
+GLenum format;
+<span class="keyword">if</span> (hasAlpha) {
+    format = <span class="keyword">GL_COMPRESSED_RGBA8_ETC2_EAC</span>; <span class="comment">// 8 bpp</span>
+} <span class="keyword">else</span> {
+    format = <span class="keyword">GL_COMPRESSED_RGB8_ETC2</span>;      <span class="comment">// 4 bpp</span>
+}</code></pre>
+
+                <h3>9.2 PC端优化 (Windows/Linux/macOS)</h3>
+
+                <h4>9.2.1 多线程渲染</h4>
+                <pre><code><span class="comment">// DirectX 12 / Vulkan 多线程命令录制</span>
+<span class="keyword">void</span> <span class="function">MultiThreadedRendering</span>() {
+    <span class="keyword">const</span> <span class="type">int</span> threadCount = std::thread::hardware_concurrency();
+    std::vector&lt;std::thread&gt; threads;
+    
+    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; threadCount; i++) {
+        threads.emplace_back([i, threadCount]() {
+            <span class="comment">// 每个线程录制自己的命令缓冲</span>
+            <span class="keyword">auto</span> cmdBuffer = commandBuffers[i];
+            cmdBuffer-&gt;<span class="function">Begin</span>();
+            
+            <span class="comment">// 分配工作</span>
+            <span class="type">int</span> start = i * (objectCount / threadCount);
+            <span class="type">int</span> end = (i + <span class="number">1</span>) * (objectCount / threadCount);
+            
+            <span class="keyword">for</span> (<span class="type">int</span> j = start; j &lt; end; j++) {
+                <span class="function">RecordDrawCommands</span>(cmdBuffer, objects[j]);
+            }
+            
+            cmdBuffer-&gt;<span class="function">End</span>();
+        });
+    }
+    
+    <span class="keyword">for</span> (<span class="keyword">auto</span>& t : threads) t.join();
+}</code></pre>
+
+                <h4>9.2.2 具体硬件优化</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>厂商</th>
+                            <th>特性</th>
+                            <th>优化建议</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>NVIDIA</td>
+                            <td>Warp大小32</td>
+                            <td>Work Group大小设为32的倍数</td>
+                        </tr>
+                        <tr>
+                            <td>AMD</td>
+                            <td>Wavefront大小64</td>
+                            <td>Work Group大小设为64的倍数</td>
+                        </tr>
+                        <tr>
+                            <td>Intel</td>
+                            <td>EU Thread变化大</td>
+                            <td>使用128或256作为通用值</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>9.3 主机平台优化 (PlayStation/Xbox)</h3>
+
+                <h4>9.3.1 特定硬件特性</h4>
+                <ul>
+                    <li><strong>PlayStation 5</strong>：利用高速SSD进行数据流式，减少内存占用</li>
+                    <li><strong>Xbox Series X/S</strong>：Sampler Feedback Streaming (SFS)优化纹理加载</li>
+                    <li><strong>统一内存</strong>：主机平台CPU/GPU共享内存，减少数据拷贝</li>
+                </ul>
+
+                <h3>9.4 WebGL/WebGPU优化</h3>
+
+                <h4>9.4.1 浏览器特定优化</h4>
+                <pre><code><span class="comment">// WebGL优化</span>
+<span class="keyword">const</span> gl = canvas.getContext(<span class="string">'webgl2'</span>, {
+    alpha: <span class="keyword">false</span>,              <span class="comment">// 禁用alpha通道（如果不需要）</span>
+    antialias: <span class="keyword">false</span>,          <span class="comment">// 禁用MSAA（自己实现FXAA）</span>
+    depth: <span class="keyword">true</span>,
+    stencil: <span class="keyword">false</span>,            <span class="comment">// 如果不需要模板测试</span>
+    preserveDrawingBuffer: <span class="keyword">false</span>,
+    powerPreference: <span class="string">'high-performance'</span>
+});
+
+<span class="comment">// 使用VAO减少状态切换</span>
+<span class="keyword">const</span> vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+<span class="comment">// 设置顶点属性...</span>
+gl.bindVertexArray(<span class="keyword">null</span>);
+
+<span class="comment">// 渲染时只需绑定VAO</span>
+gl.bindVertexArray(vao);
+gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, <span class="number">0</span>);</code></pre>
+
+                <h4>9.4.2 内存管理</h4>
+                <pre><code><span class="comment">// 监控内存使用</span>
+<span class="keyword">if</span> (performance.memory) {
+    console.log(<span class="string">`Used: </span>${performance.memory.usedJSHeapSize / <span class="number">1024</span> / <span class="number">1024</span>}<span class="string">MB`</span>);
+    console.log(<span class="string">`Total: </span>${performance.memory.totalJSHeapSize / <span class="number">1024</span> / <span class="number">1024</span>}<span class="string">MB`</span>);
+}
+
+<span class="comment">// 手动释放WebGL资源</span>
+<span class="keyword">function</span> <span class="function">cleanup</span>() {
+    gl.deleteTexture(texture);
+    gl.deleteBuffer(vertexBuffer);
+    gl.deleteProgram(shaderProgram);
+    gl.deleteVertexArray(vao);
+}</code></pre>
+
+                <h3>9.5 Metal特定优化 (iOS/macOS)</h3>
+
+                <h4>9.5.1 共享内存模式</h4>
+                <pre><code><span class="comment">// Metal Shared Memory (iOS)</span>
+MTLResourceOptions options = MTLResourceStorageModeShared;
+id&lt;MTLBuffer&gt; buffer = [device newBufferWithLength:size options:options];
+
+<span class="comment">// 避免不必要的CPU-GPU同步</span>
+[buffer didModifyRange:NSMakeRange(<span class="number">0</span>, modifiedSize)];
+
+<span class="comment">// 使用Private存储模式提高GPU性能</span>
+MTLResourceOptions privateOptions = MTLResourceStorageModePrivate;
+id&lt;MTLBuffer&gt; gpuBuffer = [device newBufferWithLength:size options:privateOptions];</code></pre>
+
+                <h4>9.5.2 Argument Buffers</h4>
+                <pre><code><span class="comment">// 使用Argument Buffers减少绑定开销</span>
+<span class="keyword">struct</span> <span class="type">MaterialArguments</span> {
+    texture2d&lt;<span class="type">float</span>&gt; albedoTexture [[id(<span class="number">0</span>)]];
+    texture2d&lt;<span class="type">float</span>&gt; normalTexture [[id(<span class="number">1</span>)]];
+    texture2d&lt;<span class="type">float</span>&gt; metallicTexture [[id(<span class="number">2</span>)]];
+    sampler textureSampler [[id(<span class="number">3</span>)]];
+};
+
+fragment <span class="type">float4</span> <span class="function">fragmentShader</span>(
+    VertexOut in [[stage_in]],
+    device MaterialArguments& materials [[buffer(<span class="number">0</span>)]]
+) {
+    <span class="type">float4</span> albedo = materials.albedoTexture.sample(materials.textureSampler, in.texCoord);
+    <span class="comment">// ...</span>
+    <span class="keyword">return</span> albedo;
+}</code></pre>
+
+            <!-- 最佳实践总结 -->
+            <section id="best-practices">
+                <h2>十、最佳实践总结</h2>
+
+                <div class="knowledge-tree">
+                    <div class="tree-item"><strong>开发阶段</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">从一开始就进行性能测量</div>
+                        <div class="tree-item">为不同平台设定明确的性能目标</div>
+                        <div class="tree-item">使用profiling工具定期检查</div>
+                    </div>
+
+                    <div class="tree-item"><strong>设计阶段</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">选择适合目标平台的技术方案</div>
+                        <div class="tree-item">预留性能裕量（不要跑满资源）</div>
+                        <div class="tree-item">考虑可扩展性和动态调整</div>
+                    </div>
+
+                    <div class="tree-item"><strong>优化阶段</strong></div>
+                    <div class="tree-node">
+                        <div class="tree-item">先优化最明显的瓶颈</div>
+                        <div class="tree-item">每次只优化一个方面</div>
+                        <div class="tree-item">优化前后都要测量验证</div>
+                    </div>
+                </div>
+
+                <h3>10.1 快速检查清单</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>类别</th>
+                            <th>检查项</th>
+                            <th>目标</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Draw Calls</td>
+                            <td>是否进行了批处理和实例化？</td>
+                            <td>&lt; 2000 (移动端)</td>
+                        </tr>
+                        <tr>
+                            <td>纹理</td>
+                            <td>是否使用了压缩和Mipmap？</td>
+                            <td>100% 压缩</td>
+                        </tr>
+                        <tr>
+                            <td>着色器</td>
+                            <td>是否移除了不必要的计算？</td>
+                            <td>越简单越好</td>
+                        </tr>
+                        <tr>
+                            <td>几何体</td>
+                            <td>是否实现了LOD系统？</td>
+                            <td>3-5个LOD级别</td>
+                        </tr>
+                        <tr>
+                            <td>剔除</td>
+                            <td>是否实现视锥和遮挡剔除？</td>
+                            <td>剔除率&gt;30%</td>
+                        </tr>
+                        <tr>
+                            <td>内存</td>
+                            <td>是否有资源流式加载？</td>
+                            <td>VRAM使用&lt;70%</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>10.2 常见错误</h3>
+                <div class="info-box warning">
+                    <strong>错误1：过早优化</strong>
+                    在功能未完成前就开始优化，导致代码复杂度增加而收益不明显。
+                </div>
+
+                <div class="info-box warning">
+                    <strong>错误2：盲目优化</strong>
+                    没有通过profiling确定瓶颈就开始优化，浪费时间在非关键路径上。
+                </div>
+
+                <div class="info-box warning">
+                    <strong>错误3：忽略平台差异</strong>
+                    在PC上优化的方案不一定适用于移动端，需要针对不同平台调整。
+                </div>
+
+                <div class="info-box warning">
+                    <strong>错误4：过度优化</strong>
+                    为了极致性能牺牲代码可维护性，得不偿失。
+                </div>
+            </section>
+
+            <!-- 参考资料 -->
+            <section id="references">
+                <h2>十一、参考资料</h2>
+
+                <h3>11.1 官方文档</h3>
+                <ul>
+                    <li><a href="https://www.khronos.org/opengl/wiki/" target="_blank">OpenGL Wiki</a></li>
+                    <li><a href="https://developer.apple.com/metal/" target="_blank">Metal Documentation - Apple</a></li>
+                    <li><a href="https://www.khronos.org/vulkan/" target="_blank">Vulkan Specification</a></li>
+                    <li><a href="https://docs.microsoft.com/en-us/windows/win32/direct3d12/" target="_blank">DirectX 12 Programming Guide</a></li>
+                </ul>
+
+                <h3>11.2 工具</h3>
+                <ul>
+                    <li><a href="https://renderdoc.org/" target="_blank">RenderDoc - Graphics Debugger</a></li>
+                    <li><a href="https://developer.nvidia.com/nsight-graphics" target="_blank">NVIDIA Nsight Graphics</a></li>
+                    <li><a href="https://gpuopen.com/rgp/" target="_blank">AMD Radeon GPU Profiler</a></li>
+                    <li><a href="https://developer.arm.com/tools-and-software/graphics-and-gaming/mali-graphics-debugger" target="_blank">ARM Mali Graphics Debugger</a></li>
+                </ul>
+
+                <h3>11.3 推荐阅读</h3>
+                <ul>
+                    <li>Real-Time Rendering, 4th Edition - Tomas Akenine-Möller</li>
+                    <li>GPU Gems Series - NVIDIA</li>
+                    <li>GPU Pro / GPU Zen Series</li>
+                    <li>Physically Based Rendering - Matt Pharr</li>
+                </ul>
+
+                <h3>11.4 在线资源</h3>
+                <ul>
+                    <li><a href="https://learnopengl.com/" target="_blank">Learn OpenGL</a></li>
+                    <li><a href="https://vulkan-tutorial.com/" target="_blank">Vulkan Tutorial</a></li>
+                    <li><a href="https://www.gpuopen.com/" target="_blank">GPUOpen - AMD</a></li>
+                    <li><a href="https://developer.nvidia.com/gameworks" target="_blank">NVIDIA GameWorks</a></li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'});">↑</button>
+
+    <script>
+        // 返回顶部按钮
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+        });
+
+        // 目录高亮
+        const sections = document.querySelectorAll('section');
+        const tocLinks = document.querySelectorAll('.toc a');
+
+        window.addEventListener('scroll', function() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 200) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.parentElement.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.parentElement.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

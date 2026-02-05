@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>线程与协程深度解析 - 从历史演进到C++20协程体系</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        nav {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        nav a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        main {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+
+        h5 {
+            color: #666;
+            font-size: 1.2em;
+            margin: 15px 0 8px 0;
+        }
+
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .code-block {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-title {
+            background: #21252b;
+            color: #61afef;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin: -20px -20px 15px -20px;
+            font-size: 0.9em;
+        }
+
+        .tree-structure {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .tree-structure .node {
+            margin-left: 20px;
+        }
+
+        .tree-structure .root {
+            margin-left: 0;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .demo-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .demo-box h5 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border: 1px solid #dee2e6;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .diagram {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            color: #666;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+
+        .toc h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc ul li {
+            margin-bottom: 10px;
+        }
+
+        .toc ul ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .toc a {
+            color: #333;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .toc a:hover {
+            color: #667eea;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        .keyword { color: #c678dd; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+        .number { color: #d19a66; }
+        .class-name { color: #e5c07b; }
+        .type { color: #56b6c2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ 线程与协程深度解析</h1>
+            <p>从历史演进到 C++20 协程体系 - 多线程痛点与协程解决方案</p>
+        </header>
+
+        <main>
+            <!-- 目录 -->
+            <div class="toc">
+                <h3>📑 文章目录</h3>
+                <ul>
+                    <li><a href="#history">一、历史演进：为何需要协程</a>
+                        <ul>
+                            <li><a href="#history-problems">1.1 多线程编程的痛点</a></li>
+                            <li><a href="#history-evolution">1.2 并发模型演进历程</a></li>
+                            <li><a href="#history-motivation">1.3 协程的诞生动机</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#concepts">二、概念与背景</a>
+                        <ul>
+                            <li><a href="#concepts-definition">2.1 协程基本概念</a></li>
+                            <li><a href="#concepts-vs-thread">2.2 协程 vs 线程对比</a></li>
+                            <li><a href="#concepts-types">2.3 协程分类</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#cpp20">三、C++20 协程体系</a>
+                        <ul>
+                            <li><a href="#cpp20-overview">3.1 C++20 协程概览</a></li>
+                            <li><a href="#cpp20-keywords">3.2 协程关键字</a></li>
+                            <li><a href="#cpp20-promise">3.3 Promise 类型</a></li>
+                            <li><a href="#cpp20-awaitable">3.4 Awaitable 对象</a></li>
+                            <li><a href="#cpp20-handle">3.5 Coroutine Handle</a></li>
+                            <li><a href="#cpp20-examples">3.6 完整示例</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#mechanism">四、核心机制与实现原理</a>
+                        <ul>
+                            <li><a href="#mechanism-suspend">4.1 挂起函数原理</a></li>
+                            <li><a href="#mechanism-lifecycle">4.2 生命周期管理</a></li>
+                            <li><a href="#mechanism-state-machine">4.3 状态机转换</a></li>
+                            <li><a href="#mechanism-memory">4.4 内存管理</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#comparison">五、跨语言协程对比</a>
+                        <ul>
+                            <li><a href="#comparison-kotlin">5.1 Kotlin 协程</a></li>
+                            <li><a href="#comparison-swift">5.2 Swift 协程</a></li>
+                            <li><a href="#comparison-table">5.3 三语言对比</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#dispatcher">六、调度器机制</a>
+                        <ul>
+                            <li><a href="#dispatcher-concept">6.1 调度器概念</a></li>
+                            <li><a href="#dispatcher-implementation">6.2 调度器实现</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#structured">七、结构化并发</a>
+                        <ul>
+                            <li><a href="#structured-concept">7.1 结构化并发概念</a></li>
+                            <li><a href="#structured-scope">7.2 协程作用域</a></li>
+                            <li><a href="#structured-cancellation">7.3 取消与异常处理</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#practices">八、应用场景与最佳实践</a>
+                        <ul>
+                            <li><a href="#practices-scenarios">8.1 典型使用场景</a></li>
+                            <li><a href="#practices-patterns">8.2 设计模式</a></li>
+                            <li><a href="#practices-performance">8.3 性能优化</a></li>
+                            <li><a href="#practices-pitfalls">8.4 常见陷阱</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#cases">九、实战案例</a></li>
+                    <li><a href="#references">十、参考资料</a></li>
+                </ul>
+            </div>
+
+            <!-- 第一部分：历史演进 -->
+            <section id="history">
+                <h2>一、历史演进：为何需要协程</h2>
+
+                <div id="history-problems">
+                    <h3>1.1 多线程编程的痛点</h3>
+
+                    <p>在理解协程的价值之前，我们需要深入认识传统多线程编程面临的挑战：</p>
+
+                    <div class="tree-structure">
+                        <div class="root">多线程编程的核心痛点</div>
+                        <div class="node">├─ 资源开销问题</div>
+                        <div class="node">│  ├─ 线程创建成本高（内存：数MB，时间：毫秒级）</div>
+                        <div class="node">│  ├─ 上下文切换开销大（保存/恢复寄存器、TLB刷新）</div>
+                        <div class="node">│  ├─ 线程数量受限（受系统资源限制）</div>
+                        <div class="node">│  └─ 内存占用大（每个线程独立栈空间）</div>
+                        <div class="node">├─ 复杂性问题</div>
+                        <div class="node">│  ├─ 竞态条件（Race Condition）</div>
+                        <div class="node">│  ├─ 死锁（Deadlock）</div>
+                        <div class="node">│  ├─ 活锁（Livelock）</div>
+                        <div class="node">│  ├─ 数据竞争（Data Race）</div>
+                        <div class="node">│  └─ 调试困难（非确定性行为）</div>
+                        <div class="node">├─ 可扩展性问题</div>
+                        <div class="node">│  ├─ C10K 问题（万级并发连接）</div>
+                        <div class="node">│  ├─ 线程池管理复杂</div>
+                        <div class="node">│  ├─ 负载均衡困难</div>
+                        <div class="node">│  └─ 资源利用率低</div>
+                        <div class="node">└─ 编程模型问题</div>
+                        <div class="node">   ├─ 回调地狱（Callback Hell）</div>
+                        <div class="node">   ├─ 异步代码可读性差</div>
+                        <div class="node">   ├─ 错误处理复杂</div>
+                        <div class="node">   └─ 难以组合异步操作</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">多线程编程的典型问题示例</div>
+                        <pre><span class="comment">// 问题1：资源开销 - 创建大量线程</span>
+<span class="keyword">void</span> <span class="function">handleConnections</span>() {
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">10000</span>; ++i) {
+        <span class="comment">// 每个连接创建一个线程 - 资源耗尽！</span>
+        std::thread t([i]() {
+            <span class="function">handleClient</span>(i);
+        });
+        t.detach();
+    }
+}
+
+<span class="comment">// 问题2：回调地狱</span>
+<span class="keyword">void</span> <span class="function">fetchUserData</span>(<span class="keyword">int</span> userId) {
+    <span class="function">asyncReadDatabase</span>(userId, [](<span class="keyword">auto</span> user) {
+        <span class="function">asyncFetchProfile</span>(user.profileId, [](<span class="keyword">auto</span> profile) {
+            <span class="function">asyncLoadImages</span>(profile.images, [](<span class="keyword">auto</span> imgs) {
+                <span class="function">asyncProcessImages</span>(imgs, [](<span class="keyword">auto</span> result) {
+                    <span class="comment">// 四层嵌套，难以理解和维护</span>
+                    <span class="function">displayResult</span>(result);
+                });
+            });
+        });
+    });
+}
+
+<span class="comment">// 问题3：竞态条件</span>
+<span class="keyword">class</span> <span class="class-name">BankAccount</span> {
+    <span class="keyword">int</span> balance = <span class="number">1000</span>;
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">withdraw</span>(<span class="keyword">int</span> amount) {
+        <span class="comment">// 没有同步保护 - 数据竞争！</span>
+        <span class="keyword">if</span> (balance &gt;= amount) {
+            <span class="comment">// 线程可能在这里被切换</span>
+            balance -= amount;
+        }
+    }
+};
+
+<span class="comment">// 问题4：死锁</span>
+std::mutex m1, m2;
+
+<span class="keyword">void</span> <span class="function">thread1</span>() {
+    std::lock_guard lock1(m1);
+    std::this_thread::sleep_for(<span class="number">100ms</span>);
+    std::lock_guard lock2(m2); <span class="comment">// 等待 m2</span>
+}
+
+<span class="keyword">void</span> <span class="function">thread2</span>() {
+    std::lock_guard lock2(m2);
+    std::this_thread::sleep_for(<span class="number">100ms</span>);
+    std::lock_guard lock1(m1); <span class="comment">// 等待 m1 - 死锁！</span>
+}</pre>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 传统多线程的核心矛盾</strong>
+                        <p>在处理高并发场景时，我们面临一个根本性矛盾：</p>
+                        <ul>
+                            <li><strong>需要：</strong>大量并发任务（如10万个网络连接）</li>
+                            <li><strong>限制：</strong>系统线程数量有限（通常几千个）</li>
+                            <li><strong>开销：</strong>每个线程占用数MB内存 + 上下文切换成本</li>
+                            <li><strong>结果：</strong>资源耗尽、性能下降、系统崩溃</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="history-evolution">
+                    <h3>1.2 并发模型演进历程</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">并发编程模型演进</div>
+                        <div class="node">├─ 第一代：单线程阻塞 I/O（1970s-1990s）</div>
+                        <div class="node">│  ├─ 特点：简单、同步、阻塞</div>
+                        <div class="node">│  ├─ 问题：无法充分利用 CPU</div>
+                        <div class="node">│  └─ 适用：简单单任务程序</div>
+                        <div class="node">├─ 第二代：多线程 + 阻塞 I/O（1990s-2000s）</div>
+                        <div class="node">│  ├─ 技术：pthread、std::thread</div>
+                        <div class="node">│  ├─ 优点：充分利用多核</div>
+                        <div class="node">│  ├─ 问题：C10K 问题、资源开销大</div>
+                        <div class="node">│  └─ 代表：Apache（每连接一线程）</div>
+                        <div class="node">├─ 第三代：事件驱动 + 非阻塞 I/O（2000s-2010s）</div>
+                        <div class="node">│  ├─ 技术：epoll、kqueue、IOCP</div>
+                        <div class="node">│  ├─ 优点：高并发、低资源占用</div>
+                        <div class="node">│  ├─ 问题：回调地狱、状态机复杂</div>
+                        <div class="node">│  └─ 代表：Nginx、Node.js</div>
+                        <div class="node">├─ 第四代：协程 + 异步 I/O（2010s-至今）</div>
+                        <div class="node">│  ├─ 技术：C++20 Coroutines、async/await</div>
+                        <div class="node">│  ├─ 优点：同步写法、异步执行</div>
+                        <div class="node">│  ├─ 特性：轻量级、可扩展、易维护</div>
+                        <div class="node">│  └─ 代表：Go、Kotlin、Rust、C++20</div>
+                        <div class="node">└─ 第五代：结构化并发（2020s-）</div>
+                        <div class="node">   ├─ 概念：Structured Concurrency</div>
+                        <div class="node">   ├─ 特点：生命周期管理、异常传播</div>
+                        <div class="node">   ├─ 优势：可预测性、资源安全</div>
+                        <div class="node">   └─ 代表：Kotlin Coroutines、Swift Concurrency</div>
+                    </div>
+
+                    <div class="diagram">
+                        <h4>并发模型性能对比</h4>
+                        <pre style="text-align: left; font-family: monospace;">
+┌─────────────────────────────────────────────────────────────┐
+│              并发连接数 vs 内存占用                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  内存占用                                                    │
+│    (GB)                                                      │
+│     20│                                  ╱ 多线程模型        │
+│       │                              ╱╱╱                    │
+│     15│                          ╱╱╱                        │
+│       │                      ╱╱╱                            │
+│     10│                  ╱╱╱                                │
+│       │              ╱╱╱           ──────── 协程模型        │
+│      5│          ╱╱╱        ───────                         │
+│       │      ╱╱╱    ────────                                │
+│      0│──────────────────────────────────────────────→      │
+│        0    2k   4k   6k   8k  10k  12k  14k  并发连接数    │
+│                                                              │
+│  说明：                                                      │
+│  • 多线程：1000连接 ≈ 2GB（每线程2MB）                      │
+│  • 协程：  10000连接 ≈ 200MB（每协程20KB）                  │
+│  • 协程可支撑 50-100 倍的并发量                              │
+└─────────────────────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                </div>
+
+                <div id="history-motivation">
+                    <h3>1.3 协程的诞生动机</h3>
+
+                    <p>协程的设计目标是解决以下核心问题：</p>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>问题领域</th>
+                                <th>传统方案（线程）</th>
+                                <th>协程方案</th>
+                                <th>改进效果</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>资源开销</strong></td>
+                                <td>每线程 2-8MB 栈</td>
+                                <td>每协程 数KB</td>
+                                <td>内存占用减少 1000 倍</td>
+                            </tr>
+                            <tr>
+                                <td><strong>创建成本</strong></td>
+                                <td>毫秒级（系统调用）</td>
+                                <td>纳秒级（函数调用）</td>
+                                <td>创建速度提升 10000 倍</td>
+                            </tr>
+                            <tr>
+                                <td><strong>切换成本</strong></td>
+                                <td>微秒级（内核态切换）</td>
+                                <td>纳秒级（用户态切换）</td>
+                                <td>切换速度提升 1000 倍</td>
+                            </tr>
+                            <tr>
+                                <td><strong>并发数量</strong></td>
+                                <td>数千个</td>
+                                <td>数百万个</td>
+                                <td>并发能力提升 100-1000 倍</td>
+                            </tr>
+                            <tr>
+                                <td><strong>代码可读性</strong></td>
+                                <td>回调地狱、状态机</td>
+                                <td>同步风格代码</td>
+                                <td>可维护性显著提升</td>
+                            </tr>
+                            <tr>
+                                <td><strong>错误处理</strong></td>
+                                <td>复杂的异步错误传播</td>
+                                <td>try-catch 正常流程</td>
+                                <td>异常处理简化</td>
+                            </tr>
+                            <tr>
+                                <td><strong>调试体验</strong></td>
+                                <td>难以追踪异步调用链</td>
+                                <td>清晰的调用栈</td>
+                                <td>调试效率提升</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="success-box">
+                        <strong>✅ 协程的核心价值主张</strong>
+                        <ul>
+                            <li><strong>高性能：</strong>轻量级、低开销、高并发</li>
+                            <li><strong>高可读性：</strong>同步风格的异步代码</li>
+                            <li><strong>高可维护性：</strong>避免回调地狱和状态机</li>
+                            <li><strong>高可组合性：</strong>易于组合和复用异步操作</li>
+                            <li><strong>资源高效：</strong>充分利用 CPU 和 I/O</li>
+                        </ul>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">同一逻辑：线程 vs 协程对比</div>
+                        <pre><span class="comment">// === 传统线程方式：回调地狱 ===</span>
+<span class="keyword">void</span> <span class="function">fetchUserDataThreads</span>(<span class="keyword">int</span> userId) {
+    <span class="function">asyncDB</span>(userId, [](<span class="keyword">auto</span> user) {
+        <span class="function">asyncAPI</span>(user.id, [](<span class="keyword">auto</span> profile) {
+            <span class="function">asyncCache</span>(profile.data, [](<span class="keyword">auto</span> cached) {
+                <span class="comment">// 三层嵌套，难以阅读</span>
+                <span class="function">processResult</span>(cached);
+            });
+        });
+    });
+}
+
+<span class="comment">// === 协程方式：同步风格 ===</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">fetchUserDataCoroutine</span>(<span class="keyword">int</span> userId) {
+    <span class="comment">// 代码像同步一样清晰，但实际是异步执行</span>
+    <span class="keyword">auto</span> user = <span class="keyword">co_await</span> <span class="function">asyncDB</span>(userId);
+    <span class="keyword">auto</span> profile = <span class="keyword">co_await</span> <span class="function">asyncAPI</span>(user.id);
+    <span class="keyword">auto</span> cached = <span class="keyword">co_await</span> <span class="function">asyncCache</span>(profile.data);
+    <span class="function">processResult</span>(cached);
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第二部分：概念与背景 -->
+            <section id="concepts">
+                <h2>二、概念与背景</h2>
+
+                <div id="concepts-definition">
+                    <h3>2.1 协程基本概念</h3>
+
+                    <div class="info-box">
+                        <strong>📖 协程定义</strong>
+                        <p><strong>协程（Coroutine）</strong> 是一种可以暂停执行并在稍后恢复的函数。与普通函数不同，协程可以在执行过程中主动让出控制权，并在合适的时机恢复执行，而无需操作系统的调度介入。</p>
+                    </div>
+
+                    <div class="tree-structure">
+                        <div class="root">协程核心特性</div>
+                        <div class="node">├─ 可暂停性（Suspendable）</div>
+                        <div class="node">│  ├─ 主动暂停：co_await、co_yield</div>
+                        <div class="node">│  ├─ 保存状态：局部变量、执行位置</div>
+                        <div class="node">│  └─ 非抢占式：不会被强制中断</div>
+                        <div class="node">├─ 可恢复性（Resumable）</div>
+                        <div class="node">│  ├─ 恢复执行：从暂停点继续</div>
+                        <div class="node">│  ├─ 状态恢复：恢复局部变量</div>
+                        <div class="node">│  └─ 控制流连续：逻辑连贯</div>
+                        <div class="node">├─ 轻量级（Lightweight）</div>
+                        <div class="node">│  ├─ 栈占用：数KB（vs 线程数MB）</div>
+                        <div class="node">│  ├─ 创建快：纳秒级</div>
+                        <div class="node">│  ├─ 切换快：用户态切换</div>
+                        <div class="node">│  └─ 数量多：可创建百万级</div>
+                        <div class="node">├─ 协作式调度（Cooperative）</div>
+                        <div class="node">│  ├─ 主动让出：显式 co_await</div>
+                        <div class="node">│  ├─ 无抢占：不会被强制切换</div>
+                        <div class="node">│  └─ 确定性：可预测的行为</div>
+                        <div class="node">└─ 局部性（Locality）</div>
+                        <div class="node">   ├─ 状态局部化：避免共享状态</div>
+                        <div class="node">   ├─ 减少锁竞争：无需频繁加锁</div>
+                        <div class="node">   └─ 缓存友好：减少上下文切换</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">协程 vs 普通函数对比</div>
+                        <pre><span class="comment">// === 普通函数 ===</span>
+<span class="keyword">int</span> <span class="function">normalFunction</span>() {
+    <span class="keyword">int</span> x = <span class="number">10</span>;
+    <span class="keyword">int</span> y = <span class="number">20</span>;
+    <span class="keyword">return</span> x + y;  <span class="comment">// 一次性执行完毕，无法暂停</span>
+}
+
+<span class="comment">// === 协程函数 ===</span>
+Generator&lt;<span class="keyword">int</span>&gt; <span class="function">coroutineFunction</span>() {
+    <span class="keyword">int</span> x = <span class="number">10</span>;
+    <span class="keyword">co_yield</span> x;     <span class="comment">// 暂停，保存状态</span>
+    <span class="keyword">int</span> y = <span class="number">20</span>;
+    <span class="keyword">co_yield</span> x + y;  <span class="comment">// 再次暂停</span>
+    <span class="keyword">co_return</span>;       <span class="comment">// 结束</span>
+}
+
+<span class="comment">// 使用协程</span>
+<span class="keyword">auto</span> gen = <span class="function">coroutineFunction</span>();
+<span class="keyword">int</span> first = gen.next();   <span class="comment">// 10 - 执行到第一个 co_yield</span>
+<span class="keyword">int</span> second = gen.next();  <span class="comment">// 30 - 执行到第二个 co_yield</span></pre>
+                    </div>
+                </div>
+
+                <div id="concepts-vs-thread">
+                    <h3>2.2 协程 vs 线程深度对比</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>对比维度</th>
+                                <th>线程（Thread）</th>
+                                <th>协程（Coroutine）</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>调度方式</strong></td>
+                                <td>抢占式（操作系统内核调度）</td>
+                                <td>协作式（用户态调度）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>切换成本</strong></td>
+                                <td>微秒级（内核态 + 寄存器保存/恢复）</td>
+                                <td>纳秒级（用户态函数调用）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>内存占用</strong></td>
+                                <td>2-8MB（独立栈空间）</td>
+                                <td>数KB-数百KB（堆分配的状态）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>创建销毁</strong></td>
+                                <td>毫秒级（系统调用）</td>
+                                <td>纳秒级（对象分配）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>并发数量</strong></td>
+                                <td>受限（通常数千个）</td>
+                                <td>海量（可达百万级）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>同步原语</strong></td>
+                                <td>Mutex、Semaphore、Condition Variable</td>
+                                <td>Channel、Select、Structured Concurrency</td>
+                            </tr>
+                            <tr>
+                                <td><strong>数据共享</strong></td>
+                                <td>需要同步机制（锁、原子操作）</td>
+                                <td>通常避免共享（消息传递）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>错误处理</strong></td>
+                                <td>复杂（跨线程异常传播困难）</td>
+                                <td>自然（异常正常传播）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>调试难度</strong></td>
+                                <td>困难（非确定性、竞态条件）</td>
+                                <td>相对容易（确定性、可预测）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CPU 利用</strong></td>
+                                <td>充分利用多核</td>
+                                <td>需要配合线程池才能利用多核</td>
+                            </tr>
+                            <tr>
+                                <td><strong>适用场景</strong></td>
+                                <td>CPU 密集型、真正的并行计算</td>
+                                <td>I/O 密集型、高并发网络服务</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="diagram">
+                        <h4>线程 vs 协程执行模型</h4>
+                        <pre style="text-align: left; font-family: monospace;">
+┌─────────────────────────────────────────────────────────────┐
+│                    线程模型（抢占式）                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Thread 1:  ████──────██████────────████                    │
+│  Thread 2:  ──────████──────████──────────██                │
+│  Thread 3:  ████──────────────██████────────                │
+│             │    │    │    │    │    │    │                 │
+│            时间切片（被OS强制切换）                           │
+│                                                              │
+│  特点：                                                      │
+│  • 操作系统决定何时切换                                      │
+│  • 可能在任意时刻被中断                                      │
+│  • 需要锁保护共享数据                                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   协程模型（协作式）                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Coroutine 1:  ████████ (co_await) ──── ████████            │
+│  Coroutine 2:  ──────── ████████ (co_await) ──── ████       │
+│  Coroutine 3:  ──── ████ ──────── ████████ ────────         │
+│                    ↑              ↑                          │
+│                主动让出        主动让出                      │
+│                                                              │
+│  特点：                                                      │
+│  • 协程主动决定何时暂停（co_await/co_yield）                 │
+│  • 只在暂停点切换                                            │
+│  • 无需锁（单线程执行）                                      │
+└─────────────────────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+
+                    <div class="highlight-box">
+                        <strong>💡 关键洞察</strong>
+                        <p>线程和协程并不是互斥的，而是互补的：</p>
+                        <ul>
+                            <li><strong>线程：</strong>用于并行计算，充分利用多核 CPU</li>
+                            <li><strong>协程：</strong>用于并发任务，高效处理 I/O 密集型操作</li>
+                            <li><strong>最佳实践：</strong>线程池 + 协程调度器（M:N 模型）</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="concepts-types">
+                    <h3>2.3 协程分类</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">协程分类体系</div>
+                        <div class="node">├─ 按控制权转移方式</div>
+                        <div class="node">│  ├─ 对称协程（Symmetric Coroutines）</div>
+                        <div class="node">│  │  ├─ 特点：协程之间地位平等</div>
+                        <div class="node">│  │  ├─ 转移：直接转移到另一个协程</div>
+                        <div class="node">│  │  └─ 代表：Lua 协程</div>
+                        <div class="node">│  └─ 非对称协程（Asymmetric Coroutines）</div>
+                        <div class="node">│     ├─ 特点：有调用者和被调用者之分</div>
+                        <div class="node">│     ├─ 转移：返回到调用者</div>
+                        <div class="node">│     └─ 代表：C++20、Python、JavaScript</div>
+                        <div class="node">├─ 按栈使用方式</div>
+                        <div class="node">│  ├─ 有栈协程（Stackful Coroutines）</div>
+                        <div class="node">│  │  ├─ 特点：每个协程有独立栈</div>
+                        <div class="node">│  │  ├─ 优点：可在任意函数暂停</div>
+                        <div class="node">│  │  ├─ 缺点：内存占用较大</div>
+                        <div class="node">│  │  └─ 代表：Go goroutine、libco</div>
+                        <div class="node">│  └─ 无栈协程（Stackless Coroutines）</div>
+                        <div class="node">│     ├─ 特点：共享调用栈，状态存储在堆</div>
+                        <div class="node">│     ├─ 优点：内存占用小、性能高</div>
+                        <div class="node">│     ├─ 缺点：只能在协程函数内暂停</div>
+                        <div class="node">│     └─ 代表：C++20、Rust、async/await</div>
+                        <div class="node">└─ 按实现方式</div>
+                        <div class="node">   ├─ 语言级协程（First-class）</div>
+                        <div class="node">│     ├─ C++20 co_await/co_yield/co_return</div>
+                        <div class="node">│     ├─ Kotlin suspend fun</div>
+                        <div class="node">│     ├─ Swift async/await</div>
+                        <div class="node">│     └─ Python async/await</div>
+                        <div class="node">   └─ 库级协程（Library）</div>
+                        <div class="node">      ├─ Boost.Context</div>
+                        <div class="node">      ├─ libco（微信）</div>
+                        <div class="node">      └─ ucontext（POSIX）</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第三部分：C++20 协程体系 -->
+            <section id="cpp20">
+                <h2>三、C++20 协程体系</h2>
+
+                <div id="cpp20-overview">
+                    <h3>3.1 C++20 协程概览</h3>
+
+                    <p>C++20 引入了无栈协程（Stackless Coroutines），这是一个编译器级别的特性，而不是库实现。</p>
+
+                    <div class="tree-structure">
+                        <div class="root">C++20 协程架构</div>
+                        <div class="node">├─ 语言特性</div>
+                        <div class="node">│  ├─ co_await - 暂停并等待结果</div>
+                        <div class="node">│  ├─ co_yield - 暂停并产生值</div>
+                        <div class="node">│  ├─ co_return - 返回并结束协程</div>
+                        <div class="node">│  └─ 协程函数识别（包含任一关键字）</div>
+                        <div class="node">├─ 核心组件</div>
+                        <div class="node">│  ├─ Promise Type - 协程状态管理</div>
+                        <div class="node">│  ├─ Coroutine Handle - 协程句柄</div>
+                        <div class="node">│  ├─ Awaitable Type - 可等待对象</div>
+                        <div class="node">│  └─ Awaiter - await 表达式求值</div>
+                        <div class="node">├─ 编译器转换</div>
+                        <div class="node">│  ├─ 状态机生成</div>
+                        <div class="node">│  ├─ 堆分配帧（可优化）</div>
+                        <div class="node">│  ├─ 挂起点标记</div>
+                        <div class="node">│  └─ 恢复逻辑生成</div>
+                        <div class="node">└─ 标准库支持</div>
+                        <div class="node">   ├─ <coroutine> 头文件</div>
+                        <div class="node">   ├─ std::coroutine_handle</div>
+                        <div class="node">   ├─ std::suspend_always/never</div>
+                        <div class="node">   └─ std::noop_coroutine</div>
+                    </div>
+                </div>
+
+                <div id="cpp20-keywords">
+                    <h3>3.2 协程关键字详解</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">co_await - 暂停并等待</div>
+                        <pre><span class="comment">// co_await 暂停当前协程，等待异步操作完成</span>
+Task&lt;<span class="keyword">int</span>&gt; <span class="function">fetchData</span>() {
+    <span class="comment">// 暂停协程，等待 I/O 完成</span>
+    <span class="keyword">auto</span> result = <span class="keyword">co_await</span> <span class="function">asyncRead</span>();
+    
+    <span class="comment">// 当 asyncRead 完成后，从这里恢复执行</span>
+    <span class="keyword">co_return</span> <span class="function">process</span>(result);
+}
+
+<span class="comment">// co_await 可用于任何 Awaitable 对象</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">example</span>() {
+    <span class="keyword">co_await</span> std::suspend_always{}; <span class="comment">// 总是暂停</span>
+    <span class="keyword">co_await</span> std::suspend_never{};  <span class="comment">// 从不暂停</span>
+    <span class="keyword">co_await</span> <span class="function">customAwaitable</span>();    <span class="comment">// 自定义等待对象</span>
+}</pre>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">co_yield - 生成器模式</div>
+                        <pre><span class="comment">// co_yield 产生值并暂停，类似于 Python/JavaScript 的 yield</span>
+Generator&lt;<span class="keyword">int</span>&gt; <span class="function">range</span>(<span class="keyword">int</span> start, <span class="keyword">int</span> end) {
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = start; i &lt; end; ++i) {
+        <span class="keyword">co_yield</span> i; <span class="comment">// 产生值，暂停执行</span>
+    }
+}
+
+<span class="comment">// 使用生成器</span>
+<span class="keyword">for</span> (<span class="keyword">int</span> value : <span class="function">range</span>(<span class="number">0</span>, <span class="number">10</span>)) {
+    std::cout &lt;&lt; value &lt;&lt; <span class="string">" "</span>; <span class="comment">// 0 1 2 3 4 5 6 7 8 9</span>
+}
+
+<span class="comment">// 惰性求值示例</span>
+Generator&lt;<span class="keyword">int</span>&gt; <span class="function">fibonacci</span>() {
+    <span class="keyword">int</span> a = <span class="number">0</span>, b = <span class="number">1</span>;
+    <span class="keyword">while</span> (<span class="keyword">true</span>) {
+        <span class="keyword">co_yield</span> a;
+        <span class="keyword">auto</span> next = a + b;
+        a = b;
+        b = next;
+    }
+}</pre>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">co_return - 返回并结束</div>
+                        <pre><span class="comment">// co_return 返回值并结束协程</span>
+Task&lt;<span class="keyword">int</span>&gt; <span class="function">compute</span>() {
+    <span class="keyword">int</span> result = <span class="number">0</span>;
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">100</span>; ++i) {
+        result += i;
+        <span class="keyword">if</span> (i % <span class="number">10</span> == <span class="number">0</span>) {
+            <span class="keyword">co_await</span> std::suspend_always{}; <span class="comment">// 定期让出控制权</span>
+        }
+    }
+    <span class="keyword">co_return</span> result; <span class="comment">// 返回最终结果</span>
+}
+
+<span class="comment">// void 返回类型</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">processData</span>() {
+    <span class="keyword">co_await</span> <span class="function">loadData</span>();
+    <span class="keyword">co_await</span> <span class="function">transformData</span>();
+    <span class="keyword">co_return</span>; <span class="comment">// 无返回值</span>
+}</pre>
+                    </div>
+                </div>
+
+                <div id="cpp20-promise">
+                    <h3>3.3 Promise 类型详解</h3>
+
+                    <p>Promise 类型是协程的核心，负责协程的创建、状态管理和结果传递。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">Promise Type 接口要求</div>
+                        <pre><span class="comment">// Promise 类型必须实现的接口</span>
+<span class="keyword">struct</span> <span class="class-name">MyPromise</span> {
+    <span class="comment">// 1. 获取返回对象</span>
+    MyTask <span class="function">get_return_object</span>();
+    
+    <span class="comment">// 2. 初始挂起点（协程开始时）</span>
+    std::suspend_always <span class="function">initial_suspend</span>() <span class="keyword">noexcept</span>;
+    
+    <span class="comment">// 3. 最终挂起点（协程结束时）</span>
+    std::suspend_always <span class="function">final_suspend</span>() <span class="keyword">noexcept</span>;
+    
+    <span class="comment">// 4. 处理返回值（co_return）</span>
+    <span class="keyword">void</span> <span class="function">return_value</span>(<span class="keyword">int</span> value);     <span class="comment">// 有返回值</span>
+    <span class="keyword">void</span> <span class="function">return_void</span>();               <span class="comment">// 无返回值</span>
+    
+    <span class="comment">// 5. 处理 co_yield</span>
+    std::suspend_always <span class="function">yield_value</span>(<span class="keyword">int</span> value);
+    
+    <span class="comment">// 6. 异常处理</span>
+    <span class="keyword">void</span> <span class="function">unhandled_exception</span>();
+};</pre>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">完整的 Task 实现</div>
+                        <pre><span class="comment">// 简单的 Task 协程类型</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="class-name">Task</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">struct</span> <span class="class-name">promise_type</span> {
+        T value_;
+        std::exception_ptr exception_;
+        
+        Task <span class="function">get_return_object</span>() {
+            <span class="keyword">return</span> Task{std::coroutine_handle&lt;promise_type&gt;::from_promise(*<span class="keyword">this</span>)};
+        }
+        
+        std::suspend_never <span class="function">initial_suspend</span>() { <span class="keyword">return</span> {}; }
+        std::suspend_always <span class="function">final_suspend</span>() <span class="keyword">noexcept</span> { <span class="keyword">return</span> {}; }
+        
+        <span class="keyword">void</span> <span class="function">return_value</span>(T value) {
+            value_ = std::move(value);
+        }
+        
+        <span class="keyword">void</span> <span class="function">unhandled_exception</span>() {
+            exception_ = std::current_exception();
+        }
+    };
+    
+    <span class="keyword">using</span> <span class="class-name">Handle</span> = std::coroutine_handle&lt;promise_type&gt;;
+    
+    <span class="keyword">explicit</span> <span class="function">Task</span>(Handle h) : handle_(h) {}
+    <span class="function">~Task</span>() { <span class="keyword">if</span> (handle_) handle_.destroy(); }
+    
+    <span class="comment">// 禁止拷贝，允许移动</span>
+    <span class="function">Task</span>(<span class="keyword">const</span> Task&) = <span class="keyword">delete</span>;
+    <span class="function">Task</span>(Task&& other) <span class="keyword">noexcept</span> : handle_(other.handle_) {
+        other.handle_ = <span class="keyword">nullptr</span>;
+    }
+    
+    T <span class="function">get</span>() {
+        <span class="keyword">if</span> (!handle_.done()) {
+            handle_.resume();
+        }
+        <span class="keyword">if</span> (handle_.promise().exception_) {
+            std::rethrow_exception(handle_.promise().exception_);
+        }
+        <span class="keyword">return</span> std::move(handle_.promise().value_);
+    }
+    
+<span class="keyword">private</span>:
+    Handle handle_;
+};</pre>
+                    </div>
+                </div>
+
+                <div id="cpp20-awaitable">
+                    <h3>3.4 Awaitable 对象详解</h3>
+
+                    <p>Awaitable 是可以被 <code>co_await</code> 的对象，需要实现特定接口。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">Awaiter 接口</div>
+                        <pre><span class="comment">// Awaiter 需要实现三个方法</span>
+<span class="keyword">struct</span> <span class="class-name">MyAwaiter</span> {
+    <span class="comment">// 1. 是否需要暂停</span>
+    <span class="keyword">bool</span> <span class="function">await_ready</span>() <span class="keyword">const noexcept</span> {
+        <span class="comment">// return true:  不暂停，立即执行</span>
+        <span class="comment">// return false: 暂停协程</span>
+        <span class="keyword">return</span> <span class="keyword">false</span>;
+    }
+    
+    <span class="comment">// 2. 暂停时执行（可选择何时恢复）</span>
+    <span class="keyword">void</span> <span class="function">await_suspend</span>(std::coroutine_handle&lt;&gt; handle) {
+        <span class="comment">// 这里可以：</span>
+        <span class="comment">// - 将 handle 传递给调度器</span>
+        <span class="comment">// - 启动异步操作</span>
+        <span class="comment">// - 立即恢复：handle.resume()</span>
+        <span class="comment">// - 什么都不做（稍后手动恢复）</span>
+    }
+    
+    <span class="comment">// 3. 恢复时的返回值</span>
+    <span class="keyword">int</span> <span class="function">await_resume</span>() {
+        <span class="comment">// 返回 co_await 表达式的值</span>
+        <span class="keyword">return</span> <span class="number">42</span>;
+    }
+};
+
+<span class="comment">// 使用示例</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">example</span>() {
+    <span class="keyword">int</span> value = <span class="keyword">co_await</span> MyAwaiter{};
+    std::cout &lt;&lt; value; <span class="comment">// 42</span>
+}</pre>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">实用的 Awaitable 实现</div>
+                        <pre><span class="comment">// 定时器 Awaitable</span>
+<span class="keyword">class</span> <span class="class-name">TimerAwaiter</span> {
+    std::chrono::milliseconds duration_;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">explicit</span> <span class="function">TimerAwaiter</span>(std::chrono::milliseconds ms) 
+        : duration_(ms) {}
+    
+    <span class="keyword">bool</span> <span class="function">await_ready</span>() <span class="keyword">const noexcept</span> { 
+        <span class="keyword">return</span> duration_.count() == <span class="number">0</span>; 
+    }
+    
+    <span class="keyword">void</span> <span class="function">await_suspend</span>(std::coroutine_handle&lt;&gt; handle) {
+        <span class="comment">// 启动定时器，到期后恢复协程</span>
+        <span class="function">startTimer</span>(duration_, [handle]() {
+            handle.resume();
+        });
+    }
+    
+    <span class="keyword">void</span> <span class="function">await_resume</span>() {}
+};
+
+<span class="comment">// 使用定时器</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">delayedTask</span>() {
+    std::cout &lt;&lt; <span class="string">"开始\n"</span>;
+    <span class="keyword">co_await</span> <span class="function">TimerAwaiter</span>(<span class="number">1000ms</span>); <span class="comment">// 等待 1 秒</span>
+    std::cout &lt;&lt; <span class="string">"1秒后\n"</span>;
+}
+
+<span class="comment">// 异步文件读取 Awaitable</span>
+<span class="keyword">class</span> <span class="class-name">AsyncFileReader</span> {
+    std::string filename_;
+    std::string content_;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">explicit</span> <span class="function">AsyncFileReader</span>(std::string filename)
+        : filename_(std::move(filename)) {}
+    
+    <span class="keyword">bool</span> <span class="function">await_ready</span>() { <span class="keyword">return false</span>; }
+    
+    <span class="keyword">void</span> <span class="function">await_suspend</span>(std::coroutine_handle&lt;&gt; handle) {
+        <span class="comment">// 启动异步读取</span>
+        std::thread([<span class="keyword">this</span>, handle]() {
+            content_ = <span class="function">readFile</span>(filename_);
+            handle.resume(); <span class="comment">// 读取完成，恢复协程</span>
+        }).detach();
+    }
+    
+    std::string <span class="function">await_resume</span>() {
+        <span class="keyword">return</span> std::move(content_);
+    }
+};
+
+<span class="comment">// 使用异步文件读取</span>
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">processFile</span>() {
+    <span class="keyword">auto</span> content = <span class="keyword">co_await</span> <span class="function">AsyncFileReader</span>(<span class="string">"data.txt"</span>);
+    std::cout &lt;&lt; content;
+}</pre>
+                    </div>
+                </div>
+
+                <div id="cpp20-examples">
+                    <h3>3.6 完整示例</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">生成器实现</div>
+                        <pre><span class="comment">// 完整的 Generator 实现</span>
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+<span class="keyword">class</span> <span class="class-name">Generator</span> {
+<span class="keyword">public</span>:
+    <span class="keyword">struct</span> <span class="class-name">promise_type</span> {
+        T current_value;
+        
+        Generator <span class="function">get_return_object</span>() {
+            <span class="keyword">return</span> Generator{Handle::from_promise(*<span class="keyword">this</span>)};
+        }
+        
+        std::suspend_always <span class="function">initial_suspend</span>() { <span class="keyword">return</span> {}; }
+        std::suspend_always <span class="function">final_suspend</span>() <span class="keyword">noexcept</span> { <span class="keyword">return</span> {}; }
+        
+        std::suspend_always <span class="function">yield_value</span>(T value) {
+            current_value = std::move(value);
+            <span class="keyword">return</span> {};
+        }
+        
+        <span class="keyword">void</span> <span class="function">return_void</span>() {}
+        <span class="keyword">void</span> <span class="function">unhandled_exception</span>() { std::terminate(); }
+    };
+    
+    <span class="keyword">using</span> <span class="class-name">Handle</span> = std::coroutine_handle&lt;promise_type&gt;;
+    
+    <span class="keyword">explicit</span> <span class="function">Generator</span>(Handle h) : coro_(h) {}
+    <span class="function">~Generator</span>() { <span class="keyword">if</span> (coro_) coro_.destroy(); }
+    
+    Generator(Generator&& other) <span class="keyword">noexcept</span> : coro_(other.coro_) {
+        other.coro_ = <span class="keyword">nullptr</span>;
+    }
+    
+    <span class="comment">// 迭代器支持</span>
+    <span class="keyword">class</span> <span class="class-name">Iterator</span> {
+        Handle coro_;
+    <span class="keyword">public</span>:
+        <span class="keyword">explicit</span> <span class="function">Iterator</span>(Handle h) : coro_(h) {}
+        
+        <span class="keyword">void</span> <span class="keyword">operator</span>++() { coro_.resume(); }
+        
+        <span class="keyword">bool</span> <span class="keyword">operator</span>!=(<span class="keyword">const</span> Iterator&) <span class="keyword">const</span> {
+            <span class="keyword">return</span> !coro_.done();
+        }
+        
+        T <span class="keyword">operator</span>*() <span class="keyword">const</span> {
+            <span class="keyword">return</span> coro_.promise().current_value;
+        }
+    };
+    
+    Iterator <span class="function">begin</span>() {
+        coro_.resume();
+        <span class="keyword">return</span> Iterator{coro_};
+    }
+    
+    Iterator <span class="function">end</span>() { <span class="keyword">return</span> Iterator{<span class="keyword">nullptr</span>}; }
+    
+<span class="keyword">private</span>:
+    Handle coro_;
+};
+
+<span class="comment">// 使用示例：斐波那契数列</span>
+Generator&lt;<span class="keyword">uint64_t</span>&gt; <span class="function">fibonacci</span>(<span class="keyword">int</span> n) {
+    <span class="keyword">uint64_t</span> a = <span class="number">0</span>, b = <span class="number">1</span>;
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; ++i) {
+        <span class="keyword">co_yield</span> a;
+        <span class="keyword">auto</span> next = a + b;
+        a = b;
+        b = next;
+    }
+}
+
+<span class="comment">// 使用</span>
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="keyword">for</span> (<span class="keyword">auto</span> fib : <span class="function">fibonacci</span>(<span class="number">10</span>)) {
+        std::cout &lt;&lt; fib &lt;&lt; <span class="string">" "</span>;
+    }
+    <span class="comment">// 输出: 0 1 1 2 3 5 8 13 21 34</span>
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第四部分：核心机制 -->
+            <section id="mechanism">
+                <h2>四、核心机制与实现原理</h2>
+
+                <div id="mechanism-suspend">
+                    <h3>4.1 挂起函数原理</h3>
+
+                    <p>编译器将协程函数转换为状态机，每个 <code>co_await</code> 点都是一个状态。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">协程到状态机的转换</div>
+                        <pre><span class="comment">// === 原始协程代码 ===</span>
+Task&lt;<span class="keyword">int</span>&gt; <span class="function">example</span>() {
+    <span class="keyword">int</span> x = <span class="keyword">co_await</span> <span class="function">async_read</span>();  <span class="comment">// 挂起点 1</span>
+    <span class="keyword">int</span> y = <span class="keyword">co_await</span> <span class="function">async_write</span>(x); <span class="comment">// 挂起点 2</span>
+    <span class="keyword">co_return</span> x + y;
+}
+
+<span class="comment">// === 编译器生成的等价状态机 ===</span>
+<span class="keyword">struct</span> <span class="class-name">example_state</span> {
+    <span class="keyword">int</span> state = <span class="number">0</span>;
+    <span class="keyword">int</span> x, y;
+    promise_type promise;
+    
+    <span class="keyword">void</span> <span class="function">resume</span>() {
+        <span class="keyword">switch</span> (state) {
+        <span class="keyword">case</span> <span class="number">0</span>: <span class="comment">// 初始状态</span>
+            <span class="function">async_read</span>([<span class="keyword">this</span>](<span class="keyword">int</span> result) {
+                x = result;
+                state = <span class="number">1</span>;
+                <span class="function">resume</span>();
+            });
+            <span class="keyword">return</span>;
+        
+        <span class="keyword">case</span> <span class="number">1</span>: <span class="comment">// 第一个 co_await 之后</span>
+            <span class="function">async_write</span>(x, [<span class="keyword">this</span>](<span class="keyword">int</span> result) {
+                y = result;
+                state = <span class="number">2</span>;
+                <span class="function">resume</span>();
+            });
+            <span class="keyword">return</span>;
+        
+        <span class="keyword">case</span> <span class="number">2</span>: <span class="comment">// 第二个 co_await 之后</span>
+            promise.return_value(x + y);
+            state = <span class="number">3</span>;
+            <span class="keyword">return</span>;
+        }
+    }
+};</pre>
+                    </div>
+
+                    <div class="diagram">
+                        <h4>协程挂起与恢复流程</h4>
+                        <pre style="text-align: left; font-family: monospace;">
+┌──────────────────────────────────────────────┐
+│          协程执行流程                             │
+├──────────────────────────────────────────────┤
+│                                                   │
+│  [开始]                                          │
+│    │                                             │
+│    │ 1. 创建 Promise                           │
+│    │ 2. 分配协程帧                           │
+│    │ 3. initial_suspend()                       │
+│    ↓                                             │
+│  [状态 0: 执行代码]                          │
+│    │                                             │
+│    │ 遇到 co_await                              │
+│    │ └─> await_ready() == false              │
+│    ↓                                             │
+│  [挂起: 保存状态]                           │
+│    │ • 保存局部变量 (x, y)                   │
+│    │ • 保存挂起点位置 (state = 1)           │
+│    │ • 调用 await_suspend(handle)            │
+│    │                                             │
+│    │ [返回调用者 - 控制权转移]                │
+│    │                                             │
+│    │ ... 异步操作进行中 ...                │
+│    │                                             │
+│    │ [异步操作完成]                         │
+│    │ handle.resume() 被调用                  │
+│    ↓                                             │
+│  [恢复: 恢复执行]                           │
+│    │ • 恢复局部变量                          │
+│    │ • 从挂起点继续 (state = 1)            │
+│    │ • 调用 await_resume()，获取结果      │
+│    ↓                                             │
+│  [状态 1: 继续执行]                        │
+│    │                                             │
+│    │ 遇到 co_return                            │
+│    ↓                                             │
+│  [结束]                                          │
+│    │ 1. return_value()/return_void()          │
+│    │ 2. final_suspend()                        │
+│    │ 3. 销毁协程帧                           │
+│    ↓                                             │
+│  [完成]                                          │
+│                                                   │
+└──────────────────────────────────────────────┘
+                        </pre>
+                    </div>
+                </div>
+
+                <div id="mechanism-lifecycle">
+                    <h3>4.2 生命周期管理</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">协程生命周期</div>
+                        <div class="node">├─ 1. 创建阶段</div>
+                        <div class="node">│  ├─ 分配协程帧（堆内存）</div>
+                        <div class="node">│  ├─ 构造 Promise 对象</div>
+                        <div class="node">│  ├─ 调用 get_return_object()</div>
+                        <div class="node">│  └─ 调用 initial_suspend()</div>
+                        <div class="node">├─ 2. 执行阶段</div>
+                        <div class="node">│  ├─ 正常执行代码</div>
+                        <div class="node">│  ├─ 遇到 co_await → 挂起</div>
+                        <div class="node">│  ├─ resume() → 恢复</div>
+                        <div class="node">│  └─ 反复挂起/恢复循环</div>
+                        <div class="node">├─ 3. 返回阶段</div>
+                        <div class="node">│  ├─ co_return → return_value/return_void</div>
+                        <div class="node">│  ├─ 或者异常 → unhandled_exception()</div>
+                        <div class="node">│  └─ 调用 final_suspend()</div>
+                        <div class="node">└─ 4. 销毁阶段</div>
+                        <div class="node">   ├─ 析构 Promise 对象</div>
+                        <div class="node">   ├─ 析构局部变量</div>
+                        <div class="node">   └─ 释放协程帧内存</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">协程生命周期完整示例</div>
+                        <pre><span class="keyword">struct</span> <span class="class-name">LifecycleDemo</span> {
+    <span class="keyword">struct</span> <span class="class-name">promise_type</span> {
+        <span class="function">promise_type</span>() {
+            std::cout &lt;&lt; <span class="string">"1. Promise 构造\n"</span>;
+        }
+        
+        <span class="function">~promise_type</span>() {
+            std::cout &lt;&lt; <span class="string">"7. Promise 析构\n"</span>;
+        }
+        
+        LifecycleDemo <span class="function">get_return_object</span>() {
+            std::cout &lt;&lt; <span class="string">"2. get_return_object()\n"</span>;
+            <span class="keyword">return</span> LifecycleDemo{Handle::from_promise(*<span class="keyword">this</span>)};
+        }
+        
+        std::suspend_always <span class="function">initial_suspend</span>() {
+            std::cout &lt;&lt; <span class="string">"3. initial_suspend()\n"</span>;
+            <span class="keyword">return</span> {};
+        }
+        
+        std::suspend_always <span class="function">final_suspend</span>() <span class="keyword">noexcept</span> {
+            std::cout &lt;&lt; <span class="string">"6. final_suspend()\n"</span>;
+            <span class="keyword">return</span> {};
+        }
+        
+        <span class="keyword">void</span> <span class="function">return_void</span>() {
+            std::cout &lt;&lt; <span class="string">"5. return_void()\n"</span>;
+        }
+        
+        <span class="keyword">void</span> <span class="function">unhandled_exception</span>() {}
+    };
+    
+    <span class="keyword">using</span> <span class="class-name">Handle</span> = std::coroutine_handle&lt;promise_type&gt;;
+    Handle h_;
+    
+    <span class="keyword">explicit</span> <span class="function">LifecycleDemo</span>(Handle h) : h_(h) {}
+    <span class="function">~LifecycleDemo</span>() { <span class="keyword">if</span> (h_) h_.destroy(); }
+};
+
+LifecycleDemo <span class="function">demo</span>() {
+    std::cout &lt;&lt; <span class="string">"4. 协程体执行\n"</span>;
+    <span class="keyword">co_return</span>;
+}
+
+<span class="comment">// 执行输出：</span>
+<span class="comment">// 1. Promise 构造</span>
+<span class="comment">// 2. get_return_object()</span>
+<span class="comment">// 3. initial_suspend()</span>
+<span class="comment">// 4. 协程体执行</span>
+<span class="comment">// 5. return_void()</span>
+<span class="comment">// 6. final_suspend()</span>
+<span class="comment">// 7. Promise 析构</span></pre>
+                    </div>
+                </div>
+
+                <div id="mechanism-memory">
+                    <h3>4.4 内存管理</h3>
+
+                    <p>协程帧默认在堆上分配，但可以优化。</p>
+
+                    <div class="code-block">
+                        <div class="code-title">协程内存分配自定义</div>
+                        <pre><span class="keyword">struct</span> <span class="class-name">MyPromise</span> {
+    <span class="comment">// 自定义内存分配</span>
+    <span class="keyword">void</span>* <span class="keyword">operator new</span>(std::size_t size) {
+        std::cout &lt;&lt; <span class="string">"分配协程帧: "</span> &lt;&lt; size &lt;&lt; <span class="string">" 字节\n"</span>;
+        <span class="keyword">return</span> <span class="keyword">::operator new</span>(size);
+    }
+    
+    <span class="keyword">void</span> <span class="keyword">operator delete</span>(<span class="keyword">void</span>* ptr) {
+        std::cout &lt;&lt; <span class="string">"释放协程帧\n"</span>;
+        <span class="keyword">::operator delete</span>(ptr);
+    }
+    
+    <span class="comment">// ... 其他 Promise 接口 ...</span>
+};
+
+<span class="comment">// 选择性优化：HALO (Heap Allocation eLision Optimization)</span>
+<span class="comment">// 如果编译器能确定协程生命周期，可能在栈上分配</span>
+Task&lt;<span class="keyword">int</span>&gt; <span class="function">simple</span>() {
+    <span class="keyword">co_return</span> <span class="number">42</span>;
+}
+
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="keyword">auto</span> task = <span class="function">simple</span>();  <span class="comment">// 可能优化为栈分配</span>
+    <span class="keyword">return</span> task.get();
+}</pre>
+                    </div>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 内存管理注意事项</strong>
+                        <ul>
+                            <li><strong>默认堆分配：</strong>协程帧需要在挂起期间保持有效</li>
+                            <li><strong>大小不固定：</strong>取决于局部变量数量和大小</li>
+                            <li><strong>不可移动：</strong>协程帧地址被 Handle 持有，不能移动</li>
+                            <li><strong>自动管理：</strong>通常通过 RAII 自动释放</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第五部分：跨语言对比 -->
+            <section id="comparison">
+                <h2>五、跨语言协程对比</h2>
+
+                <div id="comparison-kotlin">
+                    <h3>5.1 Kotlin 协程</h3>
+
+                    <div class="info-box">
+                        <strong>🎉 Kotlin 协程特点</strong>
+                        <p>Kotlin 协程是目前最成熟、最完善的协程实现之一，强调<strong>结构化并发</strong>和<strong>安全性</strong>。</p>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">Kotlin 协程基本用法</div>
+                        <pre><span class="keyword">import</span> kotlinx.coroutines.*
+
+<span class="comment">// suspend 函数 - 可挂起的函数</span>
+<span class="keyword">suspend fun</span> <span class="function">fetchUser</span>(id: <span class="type">Int</span>): User {
+    delay(<span class="number">1000</span>) <span class="comment">// 挂起 1 秒，不阻塞线程</span>
+    <span class="keyword">return</span> database.query(id)
+}
+
+<span class="comment">// 启动协程</span>
+<span class="keyword">fun</span> <span class="function">main</span>() = runBlocking {
+    <span class="comment">// 方式 1：launch - 启动不返回结果的协程</span>
+    <span class="keyword">val</span> job = launch {
+        <span class="keyword">val</span> user = fetchUser(<span class="number">123</span>)
+        println(user)
+    }
+    
+    <span class="comment">// 方式 2：async - 启动返回结果的协程</span>
+    <span class="keyword">val</span> deferred = async {
+        fetchUser(<span class="number">456</span>)
+    }
+    <span class="keyword">val</span> user = deferred.await() <span class="comment">// 等待结果</span>
+}
+
+<span class="comment">// 结构化并发 - 所有子协程完成后才返回</span>
+<span class="keyword">suspend fun</span> <span class="function">loadData</span>() = coroutineScope {
+    <span class="keyword">val</span> user = async { fetchUser(<span class="number">1</span>) }
+    <span class="keyword">val</span> posts = async { fetchPosts(<span class="number">1</span>) }
+    <span class="keyword">val</span> friends = async { fetchFriends(<span class="number">1</span>) }
+    
+    <span class="comment">// 并发执行，等待所有完成</span>
+    Triple(user.await(), posts.await(), friends.await())
+}
+
+<span class="comment">// 调度器切换</span>
+<span class="keyword">suspend fun</span> <span class="function">updateUI</span>() {
+    withContext(Dispatchers.IO) {
+        <span class="comment">// I/O 线程池</span>
+        <span class="keyword">val</span> data = database.load()
+    }
+    
+    withContext(Dispatchers.Main) {
+        <span class="comment">// 主线程（UI 线程）</span>
+        textView.text = data
+    }
+}
+
+<span class="comment">// Flow - 异步数据流</span>
+<span class="keyword">fun</span> <span class="function">numbers</span>(): Flow&lt;<span class="type">Int</span>&gt; = flow {
+    <span class="keyword">for</span> (i <span class="keyword">in</span> <span class="number">1</span>..<span class="number">5</span>) {
+        delay(<span class="number">100</span>)
+        emit(i) <span class="comment">// 发射值</span>
+    }
+}
+
+<span class="keyword">suspend fun</span> <span class="function">collectFlow</span>() {
+    numbers().collect { value ->
+        println(value)
+    }
+}</pre>
+                    </div>
+                </div>
+
+                <div id="comparison-swift">
+                    <h3>5.2 Swift 协程</h3>
+
+                    <div class="info-box">
+                        <strong>🍎 Swift Concurrency 特点</strong>
+                        <p>Swift 5.5 引入的现代并发模型，强调<strong>类型安全</strong>和<strong>Actor 模型</strong>。</p>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">Swift async/await</div>
+                        <pre><span class="keyword">import</span> Foundation
+
+<span class="comment">// async 函数 - 异步函数</span>
+<span class="keyword">func</span> <span class="function">fetchUser</span>(id: <span class="type">Int</span>) <span class="keyword">async throws</span> -> User {
+    <span class="keyword">try await</span> Task.sleep(nanoseconds: <span class="number">1_000_000_000</span>) <span class="comment">// 1秒</span>
+    <span class="keyword">return try await</span> database.query(id)
+}
+
+<span class="comment">// 使用 await</span>
+<span class="keyword">func</span> <span class="function">loadUserData</span>() <span class="keyword">async</span> {
+    <span class="keyword">do</span> {
+        <span class="keyword">let</span> user = <span class="keyword">try await</span> fetchUser(id: <span class="number">123</span>)
+        print(user)
+    } <span class="keyword">catch</span> {
+        print(<span class="string">"Error: \(error)"</span>)
+    }
+}
+
+<span class="comment">// Task - 启动异步任务</span>
+Task {
+    <span class="keyword">await</span> loadUserData()
+}
+
+<span class="comment">// 并发执行 - async let</span>
+<span class="keyword">func</span> <span class="function">loadAllData</span>() <span class="keyword">async throws</span> {
+    <span class="keyword">async let</span> user = fetchUser(id: <span class="number">1</span>)
+    <span class="keyword">async let</span> posts = fetchPosts(userId: <span class="number">1</span>)
+    <span class="keyword">async let</span> friends = fetchFriends(userId: <span class="number">1</span>)
+    
+    <span class="comment">// 并发执行，等待所有完成</span>
+    <span class="keyword">let</span> (u, p, f) = <span class="keyword">try await</span> (user, posts, friends)
+}
+
+<span class="comment">// Actor - 线程安全的数据封装</span>
+<span class="keyword">actor</span> <span class="class-name">BankAccount</span> {
+    <span class="keyword">private var</span> balance: <span class="type">Double</span> = <span class="number">0</span>
+    
+    <span class="keyword">func</span> <span class="function">deposit</span>(amount: <span class="type">Double</span>) {
+        balance += amount <span class="comment">// 自动线程安全</span>
+    }
+    
+    <span class="keyword">func</span> <span class="function">withdraw</span>(amount: <span class="type">Double</span>) -> <span class="type">Bool</span> {
+        <span class="keyword">guard</span> balance >= amount <span class="keyword">else</span> { <span class="keyword">return false</span> }
+        balance -= amount
+        <span class="keyword">return true</span>
+    }
+}
+
+<span class="comment">// 使用 Actor（跨 actor 访问需要 await）</span>
+<span class="keyword">let</span> account = BankAccount()
+<span class="keyword">await</span> account.deposit(amount: <span class="number">100</span>)
+<span class="keyword">let</span> success = <span class="keyword">await</span> account.withdraw(amount: <span class="number">50</span>)
+
+<span class="comment">// AsyncSequence - 异步序列</span>
+<span class="keyword">func</span> <span class="function">fetchEvents</span>() <span class="keyword">async throws</span> {
+    <span class="keyword">for try await</span> event <span class="keyword">in</span> eventStream {
+        process(event)
+    }
+}</pre>
+                    </div>
+                </div>
+
+                <div id="comparison-table">
+                    <h3>5.3 三语言对比</h3>
+
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>特性</th>
+                                <th>C++20 Coroutines</th>
+                                <th>Kotlin Coroutines</th>
+                                <th>Swift Concurrency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>语法</strong></td>
+                                <td>co_await / co_yield / co_return</td>
+                                <td>suspend fun / delay</td>
+                                <td>async / await</td>
+                            </tr>
+                            <tr>
+                                <td><strong>协程类型</strong></td>
+                                <td>无栈协程</td>
+                                <td>无栈协程</td>
+                                <td>无栈协程</td>
+                            </tr>
+                            <tr>
+                                <td><strong>实现等级</strong></td>
+                                <td>编译器原语（低层）</td>
+                                <td>库 + 编译器（高层）</td>
+                                <td>语言 + 运行时（高层）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>调度器</strong></td>
+                                <td>需要自己实现</td>
+                                <td>内置（Dispatchers）</td>
+                                <td>内置（Executor）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>结构化并发</strong></td>
+                                <td>需要自己实现</td>
+                                <td>✅ coroutineScope</td>
+                                <td>✅ async let / TaskGroup</td>
+                            </tr>
+                            <tr>
+                                <td><strong>取消机制</strong></td>
+                                <td>需要自己实现</td>
+                                <td>✅ Job.cancel()</td>
+                                <td>✅ Task.cancel()</td>
+                            </tr>
+                            <tr>
+                                <td><strong>异常处理</strong></td>
+                                <td>手动处理</td>
+                                <td>✅ 自动传播</td>
+                                <td>✅ try-catch</td>
+                            </tr>
+                            <tr>
+                                <td><strong>数据流</strong></td>
+                                <td>需要自己实现</td>
+                                <td>✅ Flow</td>
+                                <td>✅ AsyncSequence</td>
+                            </tr>
+                            <tr>
+                                <td><strong>线程安全</strong></td>
+                                <td>需要手动保证</td>
+                                <td>部分保证</td>
+                                <td>✅ Actor 模型</td>
+                            </tr>
+                            <tr>
+                                <td><strong>学习曲线</strong></td>
+                                <td>高（需要理解 Promise/Awaitable）</td>
+                                <td>中（概念清晰）</td>
+                                <td>低（语法简洁）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>性能</strong></td>
+                                <td>极高（零开销抽象）</td>
+                                <td>高</td>
+                                <td>高</td>
+                            </tr>
+                            <tr>
+                                <td><strong>灵活性</strong></td>
+                                <td>极高（完全自定义）</td>
+                                <td>中（框架限制）</td>
+                                <td>低（语言规定）</td>
+                            </tr>
+                            <tr>
+                                <td><strong>适用场景</strong></td>
+                                <td>高性能服务、游戏引擎</td>
+                                <td>Android 开发、后端服务</td>
+                                <td>iOS/macOS 开发</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="highlight-box">
+                        <strong>💡 选型建议</strong>
+                        <ul>
+                            <li><strong>C++20：</strong>需要极致性能、完全控制、低层系统编程</li>
+                            <li><strong>Kotlin：</strong>Android 开发、需要完善生态和工具链</li>
+                            <li><strong>Swift：</strong>Apple 平台开发、需要类型安全和 Actor 模型</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 第六部分：调度器机制 -->
+            <section id="dispatcher">
+                <h2>六、调度器机制</h2>
+
+                <div id="dispatcher-concept">
+                    <h3>6.1 调度器概念</h3>
+
+                    <p>调度器负责管理协程的执行，决定协程在哪个线程上执行。</p>
+
+                    <div class="tree-structure">
+                        <div class="root">调度器类型</div>
+                        <div class="node">├─ 单线程调度器</div>
+                        <div class="node">│  ├─ 特点：所有协程在同一线程</div>
+                        <div class="node">│  ├─ 优点：无需同步，简单</div>
+                        <div class="node">│  └─ 缺点：无法利用多核</div>
+                        <div class="node">├─ 线程池调度器</div>
+                        <div class="node">│  ├─ 特点：协程分配到线程池</div>
+                        <div class="node">│  ├─ 优点：充分利用多核</div>
+                        <div class="node">│  └─ 缺点：需要同步机制</div>
+                        <div class="node">├─ I/O 调度器</div>
+                        <div class="node">│  ├─ 特点：专用于 I/O 操作</div>
+                        <div class="node">│  ├─ 优点：高效处理 I/O</div>
+                        <div class="node">│  └─ 实现：epoll/kqueue/IOCP</div>
+                        <div class="node">└─ 工作窃取调度器</div>
+                        <div class="node">   ├─ 特点：窃取其他线程的任务</div>
+                        <div class="node">   ├─ 优点：负载均衡</div>
+                        <div class="node">   └─ 代表：Go runtime、Tokio</div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-title">简单的线程池调度器实现</div>
+                        <pre><span class="keyword">class</span> <span class="class-name">ThreadPoolScheduler</span> {
+    std::vector&lt;std::thread&gt; workers_;
+    std::queue&lt;std::coroutine_handle&lt;&gt;&gt; tasks_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    <span class="keyword">bool</span> stop_ = <span class="keyword">false</span>;
+    
+<span class="keyword">public</span>:
+    <span class="keyword">explicit</span> <span class="function">ThreadPoolScheduler</span>(<span class="keyword">size_t</span> num_threads) {
+        <span class="keyword">for</span> (<span class="keyword">size_t</span> i = <span class="number">0</span>; i &lt; num_threads; ++i) {
+            workers_.emplace_back([<span class="keyword">this</span>] {
+                <span class="keyword">while</span> (<span class="keyword">true</span>) {
+                    std::coroutine_handle&lt;&gt; task;
+                    {
+                        std::unique_lock lock(mutex_);
+                        cv_.wait(lock, [<span class="keyword">this</span>] {
+                            <span class="keyword">return</span> stop_ || !tasks_.empty();
+                        });
+                        <span class="keyword">if</span> (stop_ &amp;&amp; tasks_.empty()) <span class="keyword">return</span>;
+                        task = tasks_.front();
+                        tasks_.pop();
+                    }
+                    <span class="keyword">if</span> (!task.done()) task.resume();
+                }
+            });
+        }
+    }
+    
+    <span class="keyword">void</span> <span class="function">schedule</span>(std::coroutine_handle&lt;&gt; handle) {
+        { std::unique_lock lock(mutex_); tasks_.push(handle); }
+        cv_.notify_one();
+    }
+};</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第七部分：结构化并发 -->
+            <section id="structured">
+                <h2>七、结构化并发</h2>
+
+                <div id="structured-concept">
+                    <h3>7.1 结构化并发概念</h3>
+
+                    <div class="info-box">
+                        <strong>🏛️ 结构化并发（Structured Concurrency）</strong>
+                        <p>结构化并发是一种编程范式，确保并发任务的生命周期可预测、可管理。</p>
+                    </div>
+
+                    <div class="tree-structure">
+                        <div class="root">结构化并发核心原则</div>
+                        <div class="node">├─ 作用域约束</div>
+                        <div class="node">│  ├─ 子协程必须在父作用域内完成</div>
+                        <div class="node">│  ├─ 父协程等待所有子协程</div>
+                        <div class="node">│  └─ 防止协程泄漏</div>
+                        <div class="node">├─ 异常传播</div>
+                        <div class="node">│  ├─ 子协程异常传播到父协程</div>
+                        <div class="node">│  ├─ 一个失败，全部取消</div>
+                        <div class="node">│  └─ 确保错误不会被忽略</div>
+                        <div class="node">├─ 取消传播</div>
+                        <div class="node">│  ├─ 父协程取消→子协程自动取消</div>
+                        <div class="node">│  ├─ 级联取消机制</div>
+                        <div class="node">│  └─ 资源及时释放</div>
+                        <div class="node">└─ 生命周期透明</div>
+                        <div class="node">   ├─ 协程在作用域结束时完成</div>
+                        <div class="node">   ├─ 不会后台默默执行</div>
+                        <div class="node">   └─ 资源清理可预测</div>
+                    </div>
+                </div>
+
+                <div id="structured-cancellation">
+                    <h3>7.3 取消与异常处理</h3>
+
+                    <div class="code-block">
+                        <div class="code-title">可取消协程示例</div>
+                        <pre><span class="keyword">class</span> <span class="class-name">CancellationToken</span> {
+    std::atomic&lt;<span class="keyword">bool</span>&gt; cancelled_{<span class="keyword">false</span>};
+<span class="keyword">public</span>:
+    <span class="keyword">void</span> <span class="function">cancel</span>() { cancelled_ = <span class="keyword">true</span>; }
+    <span class="keyword">bool</span> <span class="function">is_cancelled</span>() <span class="keyword">const</span> { <span class="keyword">return</span> cancelled_; }
+};
+
+Task&lt;<span class="keyword">int</span>&gt; <span class="function">longTask</span>(CancellationToken&amp; token) {
+    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">1000</span>; ++i) {
+        <span class="keyword">if</span> (token.is_cancelled()) <span class="keyword">co_return</span> <span class="number">-1</span>;
+        <span class="keyword">co_await</span> <span class="function">processItem</span>(i);
+    }
+    <span class="keyword">co_return</span> <span class="number">42</span>;
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第八部分：应用场景与最佳实践 -->
+            <section id="practices">
+                <h2>八、应用场景与最佳实践</h2>
+
+                <div id="practices-scenarios">
+                    <h3>8.1 典型使用场景</h3>
+
+                    <div class="tree-structure">
+                        <div class="root">协程适用场景</div>
+                        <div class="node">├─ I/O 密集型场景</div>
+                        <div class="node">│  ├─ 网络服务器（HTTP/WebSocket）</div>
+                        <div class="node">│  ├─ 数据库操作（异步查询）</div>
+                        <div class="node">│  ├─ 文件操作（异步读写）</div>
+                        <div class="node">│  └─ RPC 调用</div>
+                        <div class="node">├─ 并发任务协调</div>
+                        <div class="node">│  ├─ 爬虫爬虫（并发爬取）</div>
+                        <div class="node">│  ├─ 分布式计算</div>
+                        <div class="node">│  ├─ 批量数据处理</div>
+                        <div class="node">│  └─ 流式数据处理</div>
+                        <div class="node">├─ 游戏引擎</div>
+                        <div class="node">│  ├─ AI 行为树</div>
+                        <div class="node">│  ├─ 异步资源加载</div>
+                        <div class="node">│  ├─ 动画系统</div>
+                        <div class="node">│  └─ 任务系统</div>
+                        <div class="node">└─ 微服务架构</div>
+                        <div class="node">   ├─ 服务间通信</div>
+                        <div class="node">   ├─ 请求聚合</div>
+                        <div class="node">   └─ 重试机制</div>
+                    </div>
+                </div>
+
+                <div id="practices-pitfalls">
+                    <h3>8.4 常见陷阱</h3>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 常见错误</strong>
+                        <ul>
+                            <li><strong>悬挂引用：</strong>协程中引用局部变量，生命周期结束后访问</li>
+                            <li><strong>忘记 co_await：</strong>调用异步函数但不等待结果</li>
+                            <li><strong>阻塞操作：</strong>在协程中执行长时间同步操作</li>
+                            <li><strong>共享状态：</strong>多个协程访问共享数据不同步</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第九部分：实战案例 -->
+            <section id="cases">
+                <h2>九、实战案例</h2>
+
+                <div class="demo-box">
+                    <h5>案例 1：异步 HTTP 服务器</h5>
+                    <div class="code-block">
+                        <div class="code-title">基于协程的 HTTP 服务器</div>
+                        <pre><span class="keyword">using</span> asio::ip::tcp;
+
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">handleRequest</span>(tcp::socket socket) {
+    <span class="keyword">try</span> {
+        <span class="keyword">char</span> buffer[<span class="number">1024</span>];
+        <span class="keyword">size_t</span> n = <span class="keyword">co_await</span> <span class="function">asyncRead</span>(socket, buffer, <span class="keyword">sizeof</span>(buffer));
+        std::string request(buffer, n);
+        
+        <span class="keyword">auto</span> [method, path] = <span class="function">parseRequest</span>(request);
+        std::string response;
+        <span class="keyword">if</span> (path == <span class="string">"/api/users"</span>) {
+            <span class="keyword">auto</span> users = <span class="keyword">co_await</span> <span class="function">db</span>.query(<span class="string">"SELECT * FROM users"</span>);
+            response = <span class="function">jsonEncode</span>(users);
+        }
+        <span class="keyword">co_await</span> <span class="function">asyncWrite</span>(socket, response);
+    } <span class="keyword">catch</span> (<span class="keyword">const</span> std::exception&amp; e) {
+        std::cerr &lt;&lt; <span class="string">"Error: "</span> &lt;&lt; e.what();
+    }
+}
+
+Task&lt;<span class="keyword">void</span>&gt; <span class="function">runServer</span>(<span class="keyword">int</span> port) {
+    tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), port));
+    <span class="keyword">while</span> (<span class="keyword">true</span>) {
+        tcp::socket socket = <span class="keyword">co_await</span> acceptor.async_accept();
+        <span class="function">handleRequest</span>(std::move(socket));
+    }
+}</pre>
+                    </div>
+                </div>
+
+                <div class="demo-box">
+                    <h5>案例 2：数据处理管道</h5>
+                    <div class="code-block">
+                        <div class="code-title">流式数据处理</div>
+                        <pre><span class="keyword">template</span>&lt;<span class="keyword">typename</span> T&gt;
+Generator&lt;T&gt; <span class="function">readData</span>(<span class="keyword">const</span> std::string&amp; filename) {
+    std::ifstream file(filename);
+    T item;
+    <span class="keyword">while</span> (file &gt;&gt; item) {
+        <span class="keyword">co_yield</span> item;
+    }
+}
+
+<span class="keyword">template</span>&lt;<span class="keyword">typename</span> T, <span class="keyword">typename</span> Func&gt;
+Generator&lt;<span class="keyword">auto</span>&gt; <span class="function">transform</span>(Generator&lt;T&gt; source, Func f) {
+    <span class="keyword">for</span> (<span class="keyword">auto</span> item : source) {
+        <span class="keyword">co_yield</span> <span class="function">f</span>(item);
+    }
+}
+
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="keyword">auto</span> data = <span class="function">readData</span>&lt;<span class="keyword">int</span>&gt;(<span class="string">"numbers.txt"</span>);
+    <span class="keyword">auto</span> doubled = <span class="function">transform</span>(data, [](<span class="keyword">int</span> x) { <span class="keyword">return</span> x * <span class="number">2</span>; });
+    <span class="keyword">for</span> (<span class="keyword">auto</span> value : doubled) {
+        std::cout &lt;&lt; value &lt;&lt; <span class="string">"\n"</span>;
+    }
+}</pre>
+                    </div>
+                </div>
+
+                <div class="success-box">
+                    <strong>✅ 实战总结</strong>
+                    <ul>
+                        <li><strong>HTTP 服务器：</strong>单线程处理万级并发连接</li>
+                        <li><strong>数据管道：</strong>惰性求值，内存高效</li>
+                        <li><strong>核心：</strong>co_await 使异步代码像同步一样易读</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="references">
+                <h2>十、参考资料</h2>
+                <ul>
+                    <li><a href="https://en.cppreference.com/w/cpp/language/coroutines">C++ Coroutines - cppreference</a></li>
+                    <li><a href="https://lewissbaker.github.io/">Lewis Baker's Coroutine Theory</a></li>
+                    <li><a href="https://kotlinlang.org/docs/coroutines-overview.html">Kotlin Coroutines Guide</a></li>
+                    <li><a href="https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html">Swift Concurrency</a></li>
+                    <li><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/n4775.pdf">C++ Coroutines TS</a></li>
+                    <li>《C++20 高级编程》- 协程章节</li>
+                    <li>《深入理解协程》- 云风</li>
+                </ul>
+            </section>
+            
+        </main>
+
+        <footer>
+            <p>© 2025 线程与协程深度解析 | C++ 并发编程指南</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDP 协议深度解析</title>
+    <link rel="stylesheet" href="../CPP/common-styles.css">
+</head>
+<body>
+    <!-- <header>
+        <div class="header-content">
+            <h1>📡 UDP 协议深度解析</h1>
+            <p class="subtitle">User Datagram Protocol · 无连接传输层协议的核心技术</p>
+        </div>
+    </header> -->
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>📚 目录导航</h2>
+            <ul class="toc" id="toc"></ul>
+        </aside>
+
+        <main id="main-content">
+            <section id="overview">
+                <h2>📖 知识体系总览</h2>
+                <p>UDP是TCP/IP协议族中的重要传输层协议，以简单、高效、低延迟著称。</p>
+                
+                <div class="knowledge-tree">
+                    <div class="tree-item" style="border-left-color: #3498db; font-weight: bold;">🎯 第一层：概念与背景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">UDP设计哲学</div>
+                        <div class="tree-item">UDP vs TCP核心差异</div>
+                        <div class="tree-item">优势与劣势</div>
+                        <div class="tree-item">报文格式</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #f39c12; font-weight: bold;">⚙️ 第二层：核心机制</div>
+                    <div class="tree-node">
+                        <div class="tree-item">头部结构</div>
+                        <div class="tree-item">校验和计算</div>
+                        <div class="tree-item">端口多路复用</div>
+                        <div class="tree-item">Socket编程</div>
+                        <div class="tree-item">内核实现</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #27ae60; font-weight: bold;">🛠️ 第三层：应用场景</div>
+                    <div class="tree-node">
+                        <div class="tree-item">DNS域名解析</div>
+                        <div class="tree-item">DHCP配置</div>
+                        <div class="tree-item">流媒体传输</div>
+                        <div class="tree-item">在线游戏</div>
+                        <div class="tree-item">QUIC/KCP</div>
+                    </div>
+                    
+                    <div class="tree-item" style="border-left-color: #e74c3c; font-weight: bold;">🚀 第四层：高级技巧</div>
+                    <div class="tree-node">
+                        <div class="tree-item">性能优化</div>
+                        <div class="tree-item">NAT穿透</div>
+                        <div class="tree-item">攻击防御</div>
+                        <div class="tree-item">可靠UDP设计</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="layer1">
+                <h2>🎯 第一层：概念与背景</h2>
+                
+                <h3 id="history">1.1 UDP设计哲学</h3>
+                <div class="info-box note">
+                    <strong>📌 历史背景</strong>
+                    <ul>
+                        <li><strong>1980年</strong>：RFC 768发布（仅3页）</li>
+                        <li><strong>设计者</strong>：David P. Reed</li>
+                        <li><strong>目标</strong>：最简单的传输层协议</li>
+                        <li><strong>核心</strong>：端到端原则</li>
+                    </ul>
+                </div>
+
+                <h3 id="comparison">1.2 UDP vs TCP</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>UDP</th>
+                            <th>TCP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>连接</td>
+                            <td>无连接</td>
+                            <td>面向连接</td>
+                        </tr>
+                        <tr>
+                            <td>可靠性</td>
+                            <td>不可靠</td>
+                            <td>可靠</td>
+                        </tr>
+                        <tr>
+                            <td>头部</td>
+                            <td>8字节</td>
+                            <td>20-60字节</td>
+                        </tr>
+                        <tr>
+                            <td>速度</td>
+                            <td>快</td>
+                            <td>较慢</td>
+                        </tr>
+                        <tr>
+                            <td>消息边界</td>
+                            <td>保留</td>
+                            <td>字节流</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 id="format">1.3 UDP报文格式</h3>
+                <pre><code><span class="comment">/* UDP头部（8字节）*/</span>
+ <span class="number">0</span>      <span class="number">15</span> <span class="number">16</span>    <span class="number">31</span>
+┌──────────┬──────────┐
+│ 源端口    │ 目的端口  │
+├──────────┼──────────┤
+│ 长度      │ 校验和   │
+├──────────┴──────────┤
+│  数据                │
+└─────────────────────┘</code></pre>
+            </section>
+
+            <section id="layer2">
+                <h2>⚙️ 第二层：核心机制</h2>
+                
+                <h3 id="header">2.1 头部结构</h3>
+                <pre><code><span class="comment">/* C结构体定义 */</span>
+<span class="keyword">struct</span> <span class="type">udphdr</span> {
+    <span class="type">__be16</span> source;   <span class="comment">// 源端口</span>
+    <span class="type">__be16</span> dest;     <span class="comment">// 目的端口</span>
+    <span class="type">__be16</span> len;      <span class="comment">// 长度</span>
+    <span class="type">__sum16</span> check;   <span class="comment">// 校验和</span>
+};</code></pre>
+
+                <h3 id="socket">2.2 Socket编程</h3>
+                
+                <h4>2.2.1 UDP服务器实现</h4>
+                <pre><code><span class="comment">/* UDP Echo服务器 */</span>
+<span class="preprocessor">#include &lt;sys/socket.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdio.h&gt;</span>
+
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="comment">// 1. 创建UDP套接字</span>
+    <span class="keyword">int</span> sockfd = <span class="function">socket</span>(AF_INET, SOCK_DGRAM, <span class="number">0</span>);
+    <span class="keyword">if</span> (sockfd &lt; <span class="number">0</span>) {
+        <span class="function">perror</span>(<span class="string">"socket"</span>);
+        <span class="keyword">return</span> <span class="number">1</span>;
+    }
+    
+    <span class="comment">// 2. 绑定地址和端口</span>
+    <span class="keyword">struct sockaddr_in</span> server_addr;
+    <span class="function">memset</span>(&amp;server_addr, <span class="number">0</span>, <span class="keyword">sizeof</span>(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = <span class="function">htons</span>(<span class="number">8888</span>);
+    server_addr.sin_addr.s_addr = INADDR_ANY;  <span class="comment">// 监听所有接口</span>
+    
+    <span class="keyword">if</span> (<span class="function">bind</span>(sockfd, (<span class="keyword">struct sockaddr</span>*)&amp;server_addr, 
+             <span class="keyword">sizeof</span>(server_addr)) &lt; <span class="number">0</span>) {
+        <span class="function">perror</span>(<span class="string">"bind"</span>);
+        <span class="keyword">return</span> <span class="number">1</span>;
+    }
+    
+    <span class="function">printf</span>(<span class="string">"UDP Server listening on port 8888...\n"</span>);
+    
+    <span class="comment">// 3. 接收和发送数据</span>
+    <span class="keyword">char</span> buffer[<span class="number">1024</span>];
+    <span class="keyword">struct sockaddr_in</span> client_addr;
+    <span class="keyword">socklen_t</span> client_len;
+    
+    <span class="keyword">while</span>(<span class="number">1</span>) {
+        client_len = <span class="keyword">sizeof</span>(client_addr);
+        
+        <span class="comment">// recvfrom: 接收数据并获取发送者地址</span>
+        <span class="keyword">int</span> n = <span class="function">recvfrom</span>(sockfd, buffer, <span class="keyword">sizeof</span>(buffer) - <span class="number">1</span>, <span class="number">0</span>,
+                          (<span class="keyword">struct sockaddr</span>*)&amp;client_addr, &amp;client_len);
+        
+        <span class="keyword">if</span> (n &gt; <span class="number">0</span>) {
+            buffer[n] = <span class="string">'\0'</span>;
+            <span class="function">printf</span>(<span class="string">"Received from %s:%d - %s\n"</span>,
+                   <span class="function">inet_ntoa</span>(client_addr.sin_addr),
+                   <span class="function">ntohs</span>(client_addr.sin_port),
+                   buffer);
+            
+            <span class="comment">// sendto: 发送数据到指定地址</span>
+            <span class="function">sendto</span>(sockfd, buffer, n, <span class="number">0</span>,
+                   (<span class="keyword">struct sockaddr</span>*)&amp;client_addr, client_len);
+        }
+    }
+    
+    <span class="keyword">return</span> <span class="number">0</span>;
+}</code></pre>
+
+                <h4>2.2.2 UDP客户端实现</h4>
+                <pre><code><span class="comment">/* UDP客户端 */</span>
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="comment">// 1. 创建UDP套接字</span>
+    <span class="keyword">int</span> sockfd = <span class="function">socket</span>(AF_INET, SOCK_DGRAM, <span class="number">0</span>);
+    
+    <span class="comment">// 2. 设置服务器地址</span>
+    <span class="keyword">struct sockaddr_in</span> server_addr;
+    <span class="function">memset</span>(&amp;server_addr, <span class="number">0</span>, <span class="keyword">sizeof</span>(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = <span class="function">htons</span>(<span class="number">8888</span>);
+    <span class="function">inet_pton</span>(AF_INET, <span class="string">"127.0.0.1"</span>, &amp;server_addr.sin_addr);
+    
+    <span class="comment">// 3. 发送数据（无需connect）</span>
+    <span class="keyword">const char</span>* msg = <span class="string">"Hello UDP!"</span>;
+    <span class="function">sendto</span>(sockfd, msg, <span class="function">strlen</span>(msg), <span class="number">0</span>,
+           (<span class="keyword">struct sockaddr</span>*)&amp;server_addr, <span class="keyword">sizeof</span>(server_addr));
+    
+    <span class="comment">// 4. 接收响应</span>
+    <span class="keyword">char</span> buffer[<span class="number">1024</span>];
+    <span class="keyword">struct sockaddr_in</span> from_addr;
+    <span class="keyword">socklen_t</span> from_len = <span class="keyword">sizeof</span>(from_addr);
+    
+    <span class="keyword">int</span> n = <span class="function">recvfrom</span>(sockfd, buffer, <span class="keyword">sizeof</span>(buffer), <span class="number">0</span>,
+                      (<span class="keyword">struct sockaddr</span>*)&amp;from_addr, &amp;from_len);
+    
+    buffer[n] = <span class="string">'\0'</span>;
+    <span class="function">printf</span>(<span class="string">"Received: %s\n"</span>, buffer);
+    
+    <span class="function">close</span>(sockfd);
+    <span class="keyword">return</span> <span class="number">0</span>;
+}</code></pre>
+
+                <h4>2.2.3 UDP套接字选项</h4>
+                <pre><code><span class="comment">/* 重要的套接字选项 */</span>
+
+<span class="comment">// 1. 设置接收缓冲区大小</span>
+<span class="keyword">int</span> rcvbuf_size = <span class="number">256</span> * <span class="number">1024</span>;  <span class="comment">// 256KB</span>
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_RCVBUF,
+           &amp;rcvbuf_size, <span class="keyword">sizeof</span>(rcvbuf_size));
+
+<span class="comment">// 2. 设置发送缓冲区大小</span>
+<span class="keyword">int</span> sndbuf_size = <span class="number">256</span> * <span class="number">1024</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_SNDBUF,
+           &amp;sndbuf_size, <span class="keyword">sizeof</span>(sndbuf_size));
+
+<span class="comment">// 3. 允许端口复用</span>
+<span class="keyword">int</span> reuse = <span class="number">1</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_REUSEADDR,
+           &amp;reuse, <span class="keyword">sizeof</span>(reuse));
+
+<span class="comment">// 4. 设置接收超时</span>
+<span class="keyword">struct timeval</span> timeout;
+timeout.tv_sec = <span class="number">5</span>;
+timeout.tv_usec = <span class="number">0</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_RCVTIMEO,
+           &amp;timeout, <span class="keyword">sizeof</span>(timeout));
+
+<span class="comment">// 5. 启用广播</span>
+<span class="keyword">int</span> broadcast = <span class="number">1</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_BROADCAST,
+           &amp;broadcast, <span class="keyword">sizeof</span>(broadcast));
+
+<span class="comment">// 6. 设置TTL（组播）</span>
+<span class="keyword">int</span> ttl = <span class="number">64</span>;
+<span class="function">setsockopt</span>(sockfd, IPPROTO_IP, IP_MULTICAST_TTL,
+           &amp;ttl, <span class="keyword">sizeof</span>(ttl));</code></pre>
+
+                <h3 id="kernel">2.3 Linux内核UDP实现</h3>
+                
+                <h4>2.3.1 UDP套接字结构</h4>
+                <pre><code><span class="comment">/* net/ipv4/udp.c - Linux内核UDP实现 */</span>
+
+<span class="keyword">struct</span> <span class="type">udp_sock</span> {
+    <span class="keyword">struct</span> <span class="type">inet_sock</span> inet;
+    <span class="keyword">int</span> pending;           <span class="comment">// 待处理的数据</span>
+    <span class="keyword">unsigned int</span> corkflag;  <span class="comment">// Cork标志</span>
+    <span class="type">__u16</span> encap_type;       <span class="comment">// 封装类型</span>
+    <span class="comment">/* 其他字段 */</span>
+};
+
+<span class="comment">/* UDP接收路径 */</span>
+<span class="keyword">int</span> <span class="function">udp_rcv</span>(<span class="keyword">struct</span> <span class="type">sk_buff</span> *skb) {
+    <span class="comment">// 1. 获取UDP头部</span>
+    <span class="keyword">struct</span> <span class="type">udphdr</span> *uh = <span class="function">udp_hdr</span>(skb);
+    
+    <span class="comment">// 2. 校验和检查</span>
+    <span class="keyword">if</span> (<span class="function">udp_checksum_complete</span>(skb))
+        <span class="keyword">goto</span> csum_error;
+    
+    <span class="comment">// 3. 查找对应的socket</span>
+    <span class="keyword">struct</span> <span class="type">sock</span> *sk = <span class="function">__udp4_lib_lookup</span>(skb);
+    
+    <span class="comment">// 4. 将数据放入socket接收队列</span>
+    <span class="keyword">if</span> (sk)
+        <span class="keyword">return</span> <span class="function">udp_queue_rcv_skb</span>(sk, skb);
+    
+    <span class="comment">// 5. 没有匹配的socket，发送ICMP端口不可达</span>
+    <span class="function">icmp_send</span>(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, <span class="number">0</span>);
+    <span class="keyword">return</span> <span class="number">0</span>;
+}
+
+<span class="comment">/* UDP发送路径 */</span>
+<span class="keyword">int</span> <span class="function">udp_sendmsg</span>(<span class="keyword">struct</span> <span class="type">sock</span> *sk, <span class="keyword">struct</span> <span class="type">msghdr</span> *msg, <span class="keyword">size_t</span> len) {
+    <span class="comment">// 1. 构造UDP头部</span>
+    <span class="keyword">struct</span> <span class="type">udphdr</span> *uh;
+    uh-&gt;source = <span class="function">inet_sk</span>(sk)-&gt;inet_sport;
+    uh-&gt;dest = dport;
+    uh-&gt;len = <span class="function">htons</span>(len);
+    
+    <span class="comment">// 2. 计算校验和</span>
+    uh-&gt;check = <span class="function">udp_csum</span>(skb);
+    
+    <span class="comment">// 3. 调用IP层发送</span>
+    <span class="keyword">return</span> <span class="function">ip_send_skb</span>(net, skb);
+}</code></pre>
+            </section>
+
+            <section id="layer3">
+                <h2>🛠️ 第三层：应用场景</h2>
+                
+                <h3 id="dns">3.1 DNS域名解析</h3>
+                
+                <h4>3.1.1 DNS查询流程</h4>
+                <pre><code><span class="comment">/* DNS查询使用UDP 53端口 */</span>
+
+Client                    DNS Server
+  |                            |
+  |  Query: www.google.com?   |
+  | -------------------------&gt; |
+  |                            | <span class="comment">// UDP快速响应</span>
+  | Response: <span class="number">142.250.185.68</span>    |
+  | &lt;------------------------- |
+  |                            |
+
+<span class="comment">/* DNS报文结构 */</span>
+<span class="keyword">struct</span> <span class="type">dns_header</span> {
+    <span class="type">uint16_t</span> id;           <span class="comment">// 事务ID</span>
+    <span class="type">uint16_t</span> flags;        <span class="comment">// 标志位</span>
+    <span class="type">uint16_t</span> qdcount;      <span class="comment">// 问题数</span>
+    <span class="type">uint16_t</span> ancount;      <span class="comment">// 答案数</span>
+    <span class="type">uint16_t</span> nscount;      <span class="comment">// 授权数</span>
+    <span class="type">uint16_t</span> arcount;      <span class="comment">// 额外信息数</span>
+};</code></pre>
+
+                <div class="info-box tip">
+                    <strong>💡 为什么DNS使用UDP？</strong>
+                    <ul>
+                        <li><strong>快速响应</strong>：无需三次握手，减少延迟</li>
+                        <li><strong>开销小</strong>：大量查询不会消耗大量连接资源</li>
+                        <li><strong>简单高效</strong>：查询-响应模式完美匹配</li>
+                        <li><strong>限制</strong>：响应超过512字节时转用TCP（TC标志）</li>
+                    </ul>
+                </div>
+
+                <h4>3.1.2 DNS实现示例</h4>
+                <pre><code><span class="comment">/* 简化的DNS查询 */</span>
+<span class="keyword">void</span> <span class="function">dns_query</span>(<span class="keyword">const char</span>* hostname) {
+    <span class="keyword">int</span> sockfd = <span class="function">socket</span>(AF_INET, SOCK_DGRAM, <span class="number">0</span>);
+    
+    <span class="comment">// DNS服务器地址 (8.8.8.8:53)</span>
+    <span class="keyword">struct sockaddr_in</span> dns_server;
+    dns_server.sin_family = AF_INET;
+    dns_server.sin_port = <span class="function">htons</span>(<span class="number">53</span>);
+    <span class="function">inet_pton</span>(AF_INET, <span class="string">"8.8.8.8"</span>, &amp;dns_server.sin_addr);
+    
+    <span class="comment">// 构造DNS查询报文</span>
+    <span class="keyword">unsigned char</span> query[<span class="number">512</span>];
+    <span class="keyword">int</span> query_len = <span class="function">build_dns_query</span>(query, hostname);
+    
+    <span class="comment">// 发送查询</span>
+    <span class="function">sendto</span>(sockfd, query, query_len, <span class="number">0</span>,
+           (<span class="keyword">struct sockaddr</span>*)&amp;dns_server, <span class="keyword">sizeof</span>(dns_server));
+    
+    <span class="comment">// 接收响应</span>
+    <span class="keyword">unsigned char</span> response[<span class="number">512</span>];
+    <span class="keyword">int</span> n = <span class="function">recvfrom</span>(sockfd, response, <span class="keyword">sizeof</span>(response), <span class="number">0</span>, 
+                      NULL, NULL);
+    
+    <span class="comment">// 解析响应</span>
+    <span class="function">parse_dns_response</span>(response, n);
+    
+    <span class="function">close</span>(sockfd);
+}</code></pre>
+
+                <h3 id="dhcp">3.2 DHCP动态主机配置</h3>
+                
+                <h4>3.2.1 DHCP工作流程</h4>
+                <pre><code><span class="comment">/* DHCP四步走 (DORA) */</span>
+
+Client                    DHCP Server
+  |                            |
+  | 1. DISCOVER (Broadcast)    |
+  | -------------------------&gt; | <span class="comment">// 客户端广播发现消息</span>
+  |    (0.0.0.0 -&gt; 255.255.255.255:67)
+  |                            |
+  | 2. OFFER                   |
+  | &lt;------------------------- | <span class="comment">// 服务器提供IP地址</span>
+  |                            |
+  | 3. REQUEST (Broadcast)     |
+  | -------------------------&gt; | <span class="comment">// 客户端请求分配</span>
+  |                            |
+  | 4. ACK                     |
+  | &lt;------------------------- | <span class="comment">// 服务器确认分配</span>
+  |                            |
+
+<span class="comment">/* DHCP端口 */</span>
+<span class="comment">// 客户端: UDP 68</span>
+<span class="comment">// 服务器: UDP 67</span>
+
+<span class="comment">/* DHCP报文结构 */</span>
+<span class="keyword">struct</span> <span class="type">dhcp_packet</span> {
+    <span class="type">uint8_t</span>  op;          <span class="comment">// 操作类型 (1=请求, 2=回复)</span>
+    <span class="type">uint8_t</span>  htype;       <span class="comment">// 硬件类型 (1=Ethernet)</span>
+    <span class="type">uint8_t</span>  hlen;        <span class="comment">// 硬件地址长度 (6)</span>
+    <span class="type">uint8_t</span>  hops;        <span class="comment">// 跳数</span>
+    <span class="type">uint32_t</span> xid;         <span class="comment">// 事务ID</span>
+    <span class="type">uint16_t</span> secs;        <span class="comment">// 秒数</span>
+    <span class="type">uint16_t</span> flags;       <span class="comment">// 标志</span>
+    <span class="type">uint32_t</span> ciaddr;      <span class="comment">// 客户端IP</span>
+    <span class="type">uint32_t</span> yiaddr;      <span class="comment">// 你的IP</span>
+    <span class="type">uint32_t</span> siaddr;      <span class="comment">// 服务器IP</span>
+    <span class="type">uint32_t</span> giaddr;      <span class="comment">// 网关IP</span>
+    <span class="type">uint8_t</span>  chaddr[<span class="number">16</span>]; <span class="comment">// 客户端MAC地址</span>
+    <span class="comment">/* 其他字段... */</span>
+};</code></pre>
+
+                <div class="info-box note">
+                    <strong>📌 为什么DHCP使用UDP？</strong>
+                    <ul>
+                        <li><strong>广播支持</strong>：UDP支持广播，TCP不支持</li>
+                        <li><strong>无需连接</strong>：客户端没有IP时无法建立TCP连接</li>
+                        <li><strong>简单高效</strong>：配置过程简单，无需复杂协议</li>
+                    </ul>
+                </div>
+
+                <h3 id="streaming">3.3 流媒体传输（RTP/RTSP）</h3>
+                
+                <h4>3.3.1 RTP协议（实时传输协议）</h4>
+                <pre><code><span class="comment">/* RTP头部结构 */</span>
+<span class="keyword">struct</span> <span class="type">rtp_header</span> {
+    <span class="type">uint8_t</span>  vpxcc;       <span class="comment">// V(2) + P(1) + X(1) + CC(4)</span>
+    <span class="type">uint8_t</span>  mpt;         <span class="comment">// M(1) + PT(7)</span>
+    <span class="type">uint16_t</span> seq;         <span class="comment">// 序列号</span>
+    <span class="type">uint32_t</span> timestamp;   <span class="comment">// 时间戳</span>
+    <span class="type">uint32_t</span> ssrc;        <span class="comment">// 同步源标识</span>
+};
+
+<span class="comment">/* RTP的优势 */</span>
+<span class="comment">// 1. 实时性：低延迟优先于可靠性</span>
+<span class="comment">// 2. 丢包容忍：音视频可以容忍少量丢包</span>
+<span class="comment">// 3. 顺序控制：通过序列号重排序</span>
+<span class="comment">// 4. 时间戳：同步播放</span>
+
+<span class="comment">/* 示例：视频流传输 */</span>
+Video Encoder -> RTP Packetizer -> UDP Socket -> Network
+                      |
+                      v
+                  <span class="comment">// 每个视频帧分割为多个RTP包</span>
+                  <span class="comment">// 每个包带有序列号和时间戳</span></code></pre>
+
+                <h4>3.3.2 RTCP（RTP控制协议）</h4>
+                <pre><code><span class="comment">/* RTCP的作用 */</span>
+<span class="comment">// 1. QoS反馈：报告丢包率、延迟、抖动</span>
+<span class="comment">// 2. 同步信息：媒体间同步</span>
+<span class="comment">// 3. 会话控制：成员加入/离开</span>
+
+<span class="comment">/* RTCP报告示例 */</span>
+<span class="keyword">struct</span> <span class="type">rtcp_sr</span> {  <span class="comment">// Sender Report</span>
+    <span class="type">uint32_t</span> ssrc;
+    <span class="type">uint64_t</span> ntp_timestamp;
+    <span class="type">uint32_t</span> rtp_timestamp;
+    <span class="type">uint32_t</span> packet_count;   <span class="comment">// 发送包数</span>
+    <span class="type">uint32_t</span> octet_count;    <span class="comment">// 发送字节数</span>
+};</code></pre>
+
+                <h3 id="gaming">3.4 在线游戏与实时通信</h3>
+                <pre><code><span class="comment">/* 游戏状态同步 */</span>
+
+<span class="comment">// 为什么游戏选择UDP？</span>
+<span class="comment">// 1. 低延迟：20-50ms延迟 vs TCP的50-200ms</span>
+<span class="comment">// 2. 丢包容忍：失去一个位置更新包，下个包会更新</span>
+<span class="comment">// 3. 无队头阻塞：TCP的顺序交付会导致延迟</span>
+
+<span class="comment">/* 游戏状态包结构 */</span>
+<span class="keyword">struct</span> <span class="type">game_state_packet</span> {
+    <span class="type">uint32_t</span> seq;           <span class="comment">// 序列号</span>
+    <span class="type">uint32_t</span> timestamp;     <span class="comment">// 时间戳</span>
+    <span class="type">uint32_t</span> player_id;     <span class="comment">// 玩家ID</span>
+    <span class="type">float</span>    pos_x, pos_y;  <span class="comment">// 位置</span>
+    <span class="type">float</span>    vel_x, vel_y;  <span class="comment">// 速度</span>
+    <span class="type">uint16_t</span> action;        <span class="comment">// 动作</span>
+};
+
+<span class="comment">/* 客户端预测 + 服务器校正 */</span>
+<span class="comment">// 客户端立即响应操作（本地预测）</span>
+<span class="comment">// 服务器收到后验证并广播给所有玩家</span>
+<span class="comment">// 如果预测错误，客户端回滚并重放</span></code></pre>
+
+                <h3 id="quic">3.5 基于UDP的可靠传输（QUIC/KCP）</h3>
+                
+                <h4>3.5.1 QUIC协议（HTTP/3基础）</h4>
+                <pre><code><span class="comment">/* QUIC的优势 */</span>
+
+<span class="comment">// 1. 0-RTT连接建立</span>
+<span class="comment">//    TCP+TLS: 3次握手 + TLS协商 = 2-3 RTT</span>
+<span class="comment">//    QUIC: 0-1 RTT（缓存凭据时为0-RTT）</span>
+
+<span class="comment">// 2. 多路复用无队头阻塞</span>
+TCP: Stream1[<span class="number">1</span>,<span class="number">2</span>,X,<span class="number">4</span>] Stream2[等待...]  <span class="comment">// Stream2被Stream1阻塞</span>
+QUIC: Stream1[<span class="number">1</span>,<span class="number">2</span>,X,<span class="number">4</span>] Stream2[<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>]  <span class="comment">// 各自独立</span>
+
+<span class="comment">// 3. 连接迁移</span>
+<span class="comment">//    Wi-Fi -> 4G切换时，TCP连接断开</span>
+<span class="comment">//    QUIC使用Connection ID，不受IP变化影响</span>
+
+<span class="comment">// 4. 内置加密</span>
+<span class="comment">//    TLS 1.3集成到协议内部</span>
+
+<span class="comment">// 5. 用户空间实现</span>
+<span class="comment">//    不依赖内核，升级更快</span>
+
+<span class="comment">/* QUIC包结构 */</span>
+<span class="keyword">struct</span> <span class="type">quic_header</span> {
+    <span class="type">uint8_t</span>  flags;         <span class="comment">// 标志</span>
+    <span class="type">uint64_t</span> conn_id;       <span class="comment">// 连接ID</span>
+    <span class="type">uint32_t</span> packet_num;    <span class="comment">// 包序列号</span>
+    <span class="comment">/* 加密的payload */</span>
+};</code></pre>
+
+                <h4>3.5.2 KCP协议</h4>
+                <pre><code><span class="comment">/* KCP - 一个快速可靠协议 */</span>
+
+<span class="comment">// KCP特点：</span>
+<span class="comment">// 1. RTO更新更激进：更快发现丢包</span>
+<span class="comment">// 2. 选择性重传：只重传丢失的包</span>
+<span class="comment">// 3. 快速重传：单次ACK触发</span>
+<span class="comment">// 4. 非延迟 ACK：立即发送ACK</span>
+<span class="comment">// 5. UNA vs ACK：多种ACK机制</span>
+
+<span class="comment">/* KCP使用示例 */</span>
+ikcpcb *kcp = <span class="function">ikcp_create</span>(conv, user);
+<span class="function">ikcp_wndsize</span>(kcp, <span class="number">128</span>, <span class="number">128</span>);  <span class="comment">// 设置窗口</span>
+<span class="function">ikcp_nodelay</span>(kcp, <span class="number">1</span>, <span class="number">10</span>, <span class="number">2</span>, <span class="number">1</span>);  <span class="comment">// 极速模式</span>
+
+<span class="comment">// 发送数据</span>
+<span class="function">ikcp_send</span>(kcp, data, len);
+
+<span class="comment">// 接收数据</span>
+<span class="function">ikcp_recv</span>(kcp, buffer, len);
+
+<span class="comment">// 定时调用update</span>
+<span class="function">ikcp_update</span>(kcp, <span class="function">iclock</span>());</code></pre>
+            </section>
+
+            <section id="layer4">
+                <h2>🚀 第四层：高级技巧</h2>
+                
+                <h3 id="optimization">4.1 性能优化</h3>
+                
+                <h4>4.1.1 缓冲区调优</h4>
+                <pre><code><span class="comment">/* 调整UDP缓冲区 */</span>
+
+<span class="comment">// 1. 套接字级别</span>
+<span class="keyword">int</span> rcvbuf = <span class="number">8</span> * <span class="number">1024</span> * <span class="number">1024</span>;  <span class="comment">// 8MB</span>
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_RCVBUF, 
+           &amp;rcvbuf, <span class="keyword">sizeof</span>(rcvbuf));
+
+<span class="keyword">int</span> sndbuf = <span class="number">8</span> * <span class="number">1024</span> * <span class="number">1024</span>;  <span class="comment">// 8MB</span>
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_SNDBUF,
+           &amp;sndbuf, <span class="keyword">sizeof</span>(sndbuf));
+
+<span class="comment">// 2. 系统级别调优</span>
+<span class="comment"># /etc/sysctl.conf</span>
+
+<span class="comment"># UDP接收缓冲区</span>
+net.core.rmem_max = <span class="number">16777216</span>        <span class="comment"># 16MB</span>
+net.core.rmem_default = <span class="number">262144</span>     <span class="comment"># 256KB</span>
+
+<span class="comment"># UDP发送缓冲区</span>
+net.core.wmem_max = <span class="number">16777216</span>
+net.core.wmem_default = <span class="number">262144</span>
+
+<span class="comment"># 增大UDP收包队列</span>
+net.core.netdev_max_backlog = <span class="number">5000</span>
+
+<span class="comment"># 应用生效</span>
+sysctl -p</code></pre>
+
+                <h4>4.1.2 并发处理</h4>
+                <pre><code><span class="comment">/* 多线程UDP服务器 */</span>
+
+<span class="preprocessor">#include &lt;pthread.h&gt;</span>
+
+<span class="comment">// SO_REUSEPORT: 多个线程/进程绑定同一端口</span>
+<span class="keyword">int</span> reuse = <span class="number">1</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_REUSEPORT,
+           &amp;reuse, <span class="keyword">sizeof</span>(reuse));
+
+<span class="comment">// 创建多个工作线程，每个线程独立处理</span>
+<span class="keyword">void</span>* <span class="function">worker_thread</span>(<span class="keyword">void</span>* arg) {
+    <span class="keyword">int</span> sockfd = <span class="function">create_udp_socket</span>(<span class="number">8888</span>);
+    
+    <span class="keyword">while</span>(<span class="number">1</span>) {
+        <span class="comment">// 内核自动负载均衡到不同socket</span>
+        <span class="function">recvfrom</span>(sockfd, ...);
+        <span class="function">process_packet</span>(...);
+        <span class="function">sendto</span>(sockfd, ...);
+    }
+}
+
+<span class="keyword">int</span> <span class="function">main</span>() {
+    <span class="keyword">pthread_t</span> threads[<span class="number">4</span>];
+    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">4</span>; i++) {
+        <span class="function">pthread_create</span>(&amp;threads[i], NULL, worker_thread, NULL);
+    }
+    
+    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">4</span>; i++) {
+        <span class="function">pthread_join</span>(threads[i], NULL);
+    }
+}</code></pre>
+
+                <h4>4.1.3 零拷贝技术</h4>
+                <pre><code><span class="comment">/* sendmmsg/recvmmsg - 批量收发 */</span>
+
+<span class="comment">// recvmmsg: 一次系统调用接收多个消息</span>
+<span class="keyword">struct</span> <span class="type">mmsghdr</span> msgs[<span class="number">10</span>];
+<span class="keyword">struct</span> <span class="type">iovec</span> iovecs[<span class="number">10</span>];
+<span class="keyword">char</span> buffers[<span class="number">10</span>][<span class="number">2048</span>];
+
+<span class="comment">// 准备缓冲区</span>
+<span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) {
+    iovecs[i].iov_base = buffers[i];
+    iovecs[i].iov_len = <span class="number">2048</span>;
+    msgs[i].msg_hdr.msg_iov = &amp;iovecs[i];
+    msgs[i].msg_hdr.msg_iovlen = <span class="number">1</span>;
+}
+
+<span class="comment">// 批量接收</span>
+<span class="keyword">int</span> n = <span class="function">recvmmsg</span>(sockfd, msgs, <span class="number">10</span>, <span class="number">0</span>, NULL);
+
+<span class="comment">// 处理n个消息</span>
+<span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; i++) {
+    <span class="function">process_packet</span>(buffers[i], msgs[i].msg_len);
+}</code></pre>
+
+                <h3 id="nat">4.2 UDP打洞（NAT穿透）</h3>
+                
+                <h4>4.2.1 NAT类型</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NAT类型</th>
+                            <th>特点</th>
+                            <th>穿透难度</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>全锥型</strong></td>
+                            <td>内外网IP:Port一对一映射</td>
+                            <td>易</td>
+                        </tr>
+                        <tr>
+                            <td><strong>限制锥型</strong></td>
+                            <td>仅允许曾通信过的对端</td>
+                            <td>中</td>
+                        </tr>
+                        <tr>
+                            <td><strong>端口限制锥型</strong></td>
+                            <td>限制IP和端口</td>
+                            <td>难</td>
+                        </tr>
+                        <tr>
+                            <td><strong>对称NAT</strong></td>
+                            <td>不同IP使用不同映射</td>
+                            <td>极难</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>4.2.2 UDP打洞原理</h4>
+                <pre><code><span class="comment">/* UDP Hole Punching */</span>
+
+<span class="comment">// 场景：Client A和Client B都在NAT后，想要直连</span>
+
+Step <span class="number">1</span>: A和B分别向Server发送UDP包
+        A(private: <span class="number">192.168.1.10</span>:<span class="number">5000</span>)
+        NAT-A分配: A_public(<span class="number">1.2.3.4</span>:<span class="number">10000</span>)
+        
+        B(private: <span class="number">192.168.2.20</span>:<span class="number">6000</span>)
+        NAT-B分配: B_public(<span class="number">5.6.7.8</span>:<span class="number">20000</span>)
+
+Step <span class="number">2</span>: Server告诉A，B的公网地址是<span class="number">5.6.7.8</span>:<span class="number">20000</span>
+        Server告诉B，A的公网地址是<span class="number">1.2.3.4</span>:<span class="number">10000</span>
+
+Step <span class="number">3</span>: A向<span class="number">5.6.7.8</span>:<span class="number">20000</span>发送UDP包
+        - NAT-A建立映射：<span class="number">192.168.1.10</span>:<span class="number">5000</span> &lt;-&gt; <span class="number">1.2.3.4</span>:<span class="number">10000</span>
+        - 包到达NAT-B，被丢弃（因为NAT-B不知道这个包）
+
+Step <span class="number">4</span>: B向<span class="number">1.2.3.4</span>:<span class="number">10000</span>发送UDP包
+        - NAT-B建立映射：<span class="number">192.168.2.20</span>:<span class="number">6000</span> &lt;-&gt; <span class="number">5.6.7.8</span>:<span class="number">20000</span>
+        - 包通过NAT-A，到达A！
+
+Step <span class="number">5</span>: A再次向<span class="number">5.6.7.8</span>:<span class="number">20000</span>发送
+        - 这次可以通过NAT-B，到达B！
+
+Step <span class="number">6</span>: 洞已打开，A和B可以直接通信
+
+<span class="comment">/* 实现代码 */</span>
+<span class="keyword">void</span> <span class="function">udp_hole_punch</span>(<span class="keyword">const char</span>* peer_ip, <span class="keyword">int</span> peer_port) {
+    <span class="keyword">int</span> sockfd = <span class="function">socket</span>(AF_INET, SOCK_DGRAM, <span class="number">0</span>);
+    
+    <span class="comment">// 绑定本地端口</span>
+    <span class="keyword">struct sockaddr_in</span> local_addr;
+    local_addr.sin_port = <span class="function">htons</span>(<span class="number">5000</span>);
+    <span class="function">bind</span>(sockfd, ...);
+    
+    <span class="comment">// 向对端发送打洞包</span>
+    <span class="keyword">struct sockaddr_in</span> peer_addr;
+    <span class="function">inet_pton</span>(AF_INET, peer_ip, &amp;peer_addr.sin_addr);
+    peer_addr.sin_port = <span class="function">htons</span>(peer_port);
+    
+    <span class="comment">// 多次发送（增加成功率）</span>
+    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">5</span>; i++) {
+        <span class="function">sendto</span>(sockfd, <span class="string">"PUNCH"</span>, <span class="number">5</span>, <span class="number">0</span>,
+               (<span class="keyword">struct sockaddr</span>*)&amp;peer_addr, <span class="keyword">sizeof</span>(peer_addr));
+        <span class="function">usleep</span>(<span class="number">100000</span>);  <span class="comment">// 100ms</span>
+    }
+    
+    <span class="comment">// 开始正常通信</span>
+    <span class="comment">// ...</span>
+}</code></pre>
+
+                <h3 id="defense">4.3 UDP洪水攻击与防御</h3>
+                
+                <h4>4.3.1 攻击类型</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>攻击</th>
+                            <th>原理</th>
+                            <th>防御</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>UDP Flood</strong></td>
+                            <td>大量UDP包耗尽带宽</td>
+                            <td>速率限制、防火墙</td>
+                        </tr>
+                        <tr>
+                            <td><strong>放大政击</strong></td>
+                            <td>利用DNS/NTP放大流量</td>
+                            <td>源地址验证</td>
+                        </tr>
+                        <tr>
+                            <td><strong>碎片攻击</strong></td>
+                            <td>发送大量IP碎片</td>
+                            <td>限制碎片重组</td>
+                        </tr>
+                        <tr>
+                            <td><strong>DNS放大</strong></td>
+                            <td>小请求大响应</td>
+                            <td>Response Rate Limiting</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>4.3.2 防御策略</h4>
+                <pre><code><span class="comment">/* iptables防御规则 */</span>
+
+<span class="comment"># 1. 限制UDP连接速率</span>
+iptables -A INPUT -p udp --dport <span class="number">53</span> -m limit \
+         --limit <span class="number">25</span>/minute --limit-burst <span class="number">100</span> -j ACCEPT
+
+<span class="comment"># 2. 阻止IP欺骗 (ingress过滤)</span>
+iptables -A INPUT -i eth0 -s <span class="number">192.168.0.0</span>/<span class="number">16</span> -j DROP
+iptables -A INPUT -i eth0 -s <span class="number">10.0.0.0</span>/<span class="number">8</span> -j DROP
+
+<span class="comment"># 3. 防止碎片攻击</span>
+iptables -A INPUT -f -j DROP
+
+<span class="comment">/* 应用层限速 */</span>
+<span class="keyword">struct</span> <span class="type">rate_limit</span> {
+    <span class="keyword">time_t</span> last_time;
+    <span class="keyword">int</span> count;
+};
+
+<span class="keyword">bool</span> <span class="function">check_rate_limit</span>(<span class="keyword">const char</span>* client_ip) {
+    <span class="keyword">static</span> <span class="keyword">std::map</span>&lt;<span class="keyword">std::string</span>, rate_limit&gt; limits;
+    
+    <span class="keyword">time_t</span> now = <span class="function">time</span>(NULL);
+    <span class="keyword">auto</span>&amp; limit = limits[client_ip];
+    
+    <span class="keyword">if</span> (now - limit.last_time &gt; <span class="number">1</span>) {  <span class="comment">// 1秒窗口</span>
+        limit.last_time = now;
+        limit.count = <span class="number">1</span>;
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+    
+    <span class="keyword">if</span> (limit.count &lt; <span class="number">100</span>) {  <span class="comment">// 每秒100个包</span>
+        limit.count++;
+        <span class="keyword">return</span> <span class="keyword">true</span>;
+    }
+    
+    <span class="keyword">return</span> <span class="keyword">false</span>;  <span class="comment">// 超限，拒绝服务</span>
+}</code></pre>
+
+                <h3 id="reliable">4.4 可靠UDP协议设计</h3>
+                
+                <h4>4.4.1 基本可靠性机制</h4>
+                <pre><code><span class="comment">/* 自定义可靠UDP协议 */</span>
+
+<span class="comment">// 1. 序列号机制</span>
+<span class="keyword">struct</span> <span class="type">rudp_header</span> {
+    <span class="type">uint32_t</span> seq;         <span class="comment">// 序列号</span>
+    <span class="type">uint32_t</span> ack;         <span class="comment">// 确认号</span>
+    <span class="type">uint16_t</span> flags;       <span class="comment">// 标志 (ACK/SYN/FIN)</span>
+    <span class="type">uint16_t</span> window;      <span class="comment">// 窗口大小</span>
+};
+
+<span class="comment">// 2. 超时重传</span>
+<span class="keyword">struct</span> <span class="type">pending_packet</span> {
+    <span class="type">uint32_t</span> seq;
+    <span class="keyword">char</span> data[<span class="number">1024</span>];
+    <span class="keyword">int</span> len;
+    <span class="keyword">time_t</span> send_time;
+    <span class="keyword">int</span> retry_count;
+};
+
+<span class="keyword">void</span> <span class="function">check_timeout</span>() {
+    <span class="keyword">time_t</span> now = <span class="function">time</span>(NULL);
+    
+    <span class="keyword">for</span>(<span class="keyword">auto</span>&amp; pkt : pending_packets) {
+        <span class="keyword">if</span> (now - pkt.send_time &gt; RTO) {
+            <span class="keyword">if</span> (pkt.retry_count &lt; MAX_RETRY) {
+                <span class="comment">// 重传</span>
+                <span class="function">sendto</span>(sockfd, pkt.data, pkt.len, ...);
+                pkt.send_time = now;
+                pkt.retry_count++;
+            } <span class="keyword">else</span> {
+                <span class="comment">// 连接失败</span>
+                <span class="function">handle_connection_loss</span>();
+            }
+        }
+    }
+}
+
+<span class="comment">// 3. ACK机制</span>
+<span class="keyword">void</span> <span class="function">on_receive_packet</span>(<span class="type">uint32_t</span> seq) {
+    <span class="keyword">if</span> (seq == expected_seq) {
+        expected_seq++;
+        <span class="function">send_ack</span>(seq);
+        <span class="function">deliver_to_app</span>();
+    } <span class="keyword">else</span> <span class="keyword">if</span> (seq &gt; expected_seq) {
+        <span class="comment">// 乱序，缓存并发送重复ACK</span>
+        <span class="function">buffer_packet</span>(seq);
+        <span class="function">send_ack</span>(expected_seq - <span class="number">1</span>);
+    }
+}</code></pre>
+
+                <h3 id="broadcast">4.5 UDP广播与组播</h3>
+                
+                <h4>4.5.1 广播</h4>
+                <pre><code><span class="comment">/* UDP广播 */</span>
+
+<span class="comment">// 1. 启用广播</span>
+<span class="keyword">int</span> broadcast = <span class="number">1</span>;
+<span class="function">setsockopt</span>(sockfd, SOL_SOCKET, SO_BROADCAST,
+           &amp;broadcast, <span class="keyword">sizeof</span>(broadcast));
+
+<span class="comment">// 2. 发送广播</span>
+<span class="keyword">struct sockaddr_in</span> broadcast_addr;
+broadcast_addr.sin_family = AF_INET;
+broadcast_addr.sin_port = <span class="function">htons</span>(<span class="number">8888</span>);
+<span class="function">inet_pton</span>(AF_INET, <span class="string">"255.255.255.255"</span>, &amp;broadcast_addr.sin_addr);
+
+<span class="function">sendto</span>(sockfd, data, len, <span class="number">0</span>,
+       (<span class="keyword">struct sockaddr</span>*)&amp;broadcast_addr, <span class="keyword">sizeof</span>(broadcast_addr));
+
+<span class="comment">// 3. 接收广播</span>
+<span class="function">bind</span>(sockfd, INADDR_ANY, <span class="number">8888</span>);
+<span class="function">recvfrom</span>(sockfd, buffer, len, ...);</code></pre>
+
+                <h4>4.5.2 组播</h4>
+                <pre><code><span class="comment">/* UDP组播 (Multicast) */</span>
+
+<span class="comment">// 组播IP范围: 224.0.0.0 - 239.255.255.255</span>
+
+<span class="comment">// 1. 发送端</span>
+<span class="keyword">struct sockaddr_in</span> mcast_addr;
+mcast_addr.sin_family = AF_INET;
+mcast_addr.sin_port = <span class="function">htons</span>(<span class="number">8888</span>);
+<span class="function">inet_pton</span>(AF_INET, <span class="string">"239.0.0.1"</span>, &amp;mcast_addr.sin_addr);
+
+<span class="comment">// 设置TTL</span>
+<span class="keyword">int</span> ttl = <span class="number">64</span>;
+<span class="function">setsockopt</span>(sockfd, IPPROTO_IP, IP_MULTICAST_TTL,
+           &amp;ttl, <span class="keyword">sizeof</span>(ttl));
+
+<span class="function">sendto</span>(sockfd, data, len, <span class="number">0</span>,
+       (<span class="keyword">struct sockaddr</span>*)&amp;mcast_addr, <span class="keyword">sizeof</span>(mcast_addr));
+
+<span class="comment">// 2. 接收端</span>
+<span class="comment">// 加入组播组</span>
+<span class="keyword">struct ip_mreq</span> mreq;
+<span class="function">inet_pton</span>(AF_INET, <span class="string">"239.0.0.1"</span>, &amp;mreq.imr_multiaddr);
+mreq.imr_interface.s_addr = INADDR_ANY;
+
+<span class="function">setsockopt</span>(sockfd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+           &amp;mreq, <span class="keyword">sizeof</span>(mreq));
+
+<span class="comment">// 绑定端口</span>
+<span class="function">bind</span>(sockfd, INADDR_ANY, <span class="number">8888</span>);
+
+<span class="comment">// 接收组播数据</span>
+<span class="function">recvfrom</span>(sockfd, buffer, len, ...);
+
+<span class="comment">// 离开组播组</span>
+<span class="function">setsockopt</span>(sockfd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+           &amp;mreq, <span class="keyword">sizeof</span>(mreq));</code></pre>
+            </section>
+
+            <section id="references">
+                <h2>📚 参考资料</h2>
+                
+                <h3>📖 RFC文档</h3>
+                <ul>
+                    <li><a href="https://tools.ietf.org/html/rfc768">RFC 768 - UDP</a></li>
+                    <li><a href="https://tools.ietf.org/html/rfc9000">RFC 9000 - QUIC</a></li>
+                </ul>
+
+                <h3>📘 书籍</h3>
+                <ul>
+                    <li><strong>TCP/IP详解 卷1</strong> - W. Richard Stevens</li>
+                    <li><strong>UNIX网络编程</strong> - W. Richard Stevens</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()">↑</button>
+
+    <script>
+        function generateTOC() {
+            const toc = document.getElementById('toc');
+            const headings = document.querySelectorAll('main h2, main h3');
+            
+            headings.forEach(heading => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.textContent = heading.textContent;
+                a.href = '#' + heading.id;
+                
+                if (heading.tagName === 'H3') {
+                    li.style.paddingLeft = '1rem';
+                    a.style.fontSize = '0.9em';
+                }
+                
+                li.appendChild(a);
+                toc.appendChild(li);
+            });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function highlightCurrentSection() {
+            const sections = document.querySelectorAll('section');
+            const tocLinks = document.querySelectorAll('.toc a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            tocLinks.forEach(link => {
+                link.parentElement.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.parentElement.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', function() {
+            const backToTop = document.getElementById('backToTop');
+            if (window.scrollY > 300) {
+                backToTop.classList.add('show');
+            } else {
+                backToTop.classList.remove('show');
+            }
+            highlightCurrentSection();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTOC();
+        });
+    </script>
+</body>
+</html>
